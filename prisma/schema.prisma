@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -24,43 +24,33 @@ model Event {
   googleSyncError    String?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
+  setlists           Setlist[]
   requests           Request[]
   uploads            FanUpload[]
   recordings         Recording[]
-  setlists           Setlist[]
 }
 
 model Song {
-  id                    String        @id @default(cuid())
-  title                 String
-  artist                String?
-  composer              String?
-  genre                 String?
-  mood                  String?
-  tempoLabel            String?
-  bpm                   Int?
-  songKey               String?
-  lyricsText            String?
-  chordsText            String?
-  audioUrl              String?
-  sourceLinks           Json?
+  id                   String        @id @default(cuid())
+  title                String
+  artist               String?
+  genre                String?
+  mood                 String?
+  tempoLabel           String?
+  bpm                  Float?
+  keySignature         String?
+  audioUrl             String?
+  minTipCents          Int           @default(0)
+  freePlayLimit        Int           @default(2)
+  isPublic             Boolean       @default(true)
+  privateLyricsNotes   String?
+  privateChordNotes    String?
   privateRehearsalNotes String?
-  privateLyricsNotes    String?
-  privateChordNotes     String?
-  rightsStatus          String        @default("private_reference")
-  publicLyricsAllowed   Boolean       @default(false)
-  publicChordsAllowed   Boolean       @default(false)
-  requestable           Boolean       @default(true)
-  publicShortlist       Boolean       @default(false)
-  paidCatalog           Boolean       @default(true)
-  minTipCents           Int           @default(100)
-  freePlayLimit         Int           @default(2)
-  confidenceScore       Float?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
-  requests              Request[]
-  recordings            Recording[]
-  setlists              SetlistSong[]
+  musicBrainzId        String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  setlists             SetlistSong[]
+  requests             Request[]
 }
 
 model Setlist {
@@ -74,10 +64,6 @@ model Setlist {
   updatedAt DateTime      @updatedAt
   event     Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
   songs     SetlistSong[]
-
-  @@index([eventId])
-  @@index([venueName])
-  @@index([createdAt])
 }
 
 model SetlistSong {
@@ -92,86 +78,76 @@ model SetlistSong {
 
   @@unique([setlistId, songId])
   @@index([setlistId, position])
-  @@index([songId])
 }
 
 model Request {
-  id              String   @id @default(cuid())
-  eventId         String?
+  id              String    @id @default(cuid())
   songId          String?
+  eventId         String?
   customSongTitle String?
   requesterName   String?
   message         String?
-  tipAmountCents  Int      @default(0)
-  priorityScore   Int      @default(0)
-  paymentStatus   String   @default("manual_or_demo")
-  stripeSessionId String?
-  status          String   @default("new")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  event           Event?   @relation(fields: [eventId], references: [id])
-  song            Song?    @relation(fields: [songId], references: [id])
+  tipAmountCents  Int       @default(0)
+  promoteUrl      String?
+  status          String    @default("pending")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  song            Song?     @relation(fields: [songId], references: [id], onDelete: SetNull)
+  event           Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  payments        Payment[]
 }
 
 model Payment {
-  id              String   @id @default(cuid())
-  type            String
-  amountCents     Int
-  status          String   @default("created")
+  id             String   @id @default(cuid())
+  requestId      String?
+  type           String
+  amountCents    Int
   stripeSessionId String?
-  requestId       String?
-  metadata        Json?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
+  request        Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
 }
 
 model ImportJob {
-  id          String      @id @default(cuid())
-  fileName    String
-  fileType    String
-  storagePath String
-  status      String      @default("uploaded")
-  createdAt   DateTime    @default(now())
-  rows        ImportRow[]
+  id        String      @id @default(cuid())
+  filename  String
+  status    String      @default("pending")
+  createdAt DateTime    @default(now())
+  rows      ImportRow[]
 }
 
 model ImportRow {
-  id          String    @id @default(cuid())
-  importJobId String
-  rawText     String
-  proposed    Json
-  status      String    @default("pending_review")
-  warnings    Json?
-  createdAt   DateTime  @default(now())
-  importJob   ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  id        String    @id @default(cuid())
+  jobId     String
+  raw       String
+  mapped    String?
+  status    String    @default("pending")
+  warning   String?
+  createdAt DateTime  @default(now())
+  job       ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 }
 
 model Recording {
-  id               String   @id @default(cuid())
-  eventId          String?
-  songId           String?
-  title            String?
-  inputDeviceLabel String?
-  storagePath      String
-  mimeType         String?
-  durationSeconds  Int?
-  visibility       String   @default("private")
-  createdAt        DateTime @default(now())
-  event            Event?   @relation(fields: [eventId], references: [id])
-  song             Song?    @relation(fields: [songId], references: [id])
+  id        String   @id @default(cuid())
+  eventId   String?
+  songId    String?
+  filename  String
+  mimeType  String
+  notes     String?
+  createdAt DateTime @default(now())
+  event     Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
 }
 
 model FanUpload {
   id           String   @id @default(cuid())
   eventId      String?
   uploaderName String?
+  filename     String
+  mimeType     String
   note         String?
-  storagePath  String
-  mimeType     String?
-  fileName     String?
-  status       String   @default("pending_review")
+  approved     Boolean  @default(false)
   createdAt    DateTime @default(now())
-  event        Event?   @relation(fields: [eventId], references: [id])
+  event        Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
 }
 
 model BookingInquiry {
@@ -182,6 +158,5 @@ model BookingInquiry {
   date      String?
   venue     String?
   message   String?
-  status    String   @default("new")
   createdAt DateTime @default(now())
 }
