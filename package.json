@@ -15,7 +15,7 @@
     "setup": "npm install && npx prisma generate && npx prisma db push && npm run db:seed"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3",
+    "@prisma/client": "latest",
     "next": "latest",
     "openai": "latest",
     "pdf-parse": "latest",
@@ -23,7 +23,8 @@
     "react-dom": "latest",
     "stripe": "latest",
     "tsx": "latest",
-    "xlsx": "latest"
+    "xlsx": "latest",
+    "googleapis": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",
@@ -31,7 +32,7 @@
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
-    "prisma": "^6.19.3",
+    "prisma": "latest",
     "typescript": "latest"
   }
 }
