@@ -43,6 +43,8 @@ model Song {
   keySignature         String?
   audioUrl             String?
   minTipCents          Int           @default(0)
+  publicShortlist  Boolean   @default(false)
+  paidCatalog      Boolean   @default(false)
   freePlayLimit        Int           @default(2)
   isPublic             Boolean       @default(true)
   privateLyricsNotes   String?
