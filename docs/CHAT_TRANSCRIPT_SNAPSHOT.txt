@@ -1,0 +1,58 @@
+Chat transcript snapshot for this package.
+This is a local project preservation file, not an official OpenAI export.
+
+User initial project brief:
+- Build website/eventual web app.
+- Admin/performer side shows setlist and live updates of song requests for tips.
+- Requests show tip amount and prioritize songs into the live setlist.
+- Audience side lets requesters promote with live video/photos, donate through common digital options, process with Stripe, or tip.
+- Audience cannot see private setlist.
+- Short static song list visible publicly.
+- Full possible catalog unlocks via tip.
+
+User subsequent brief:
+- Create ZIP with texts/assets.
+- Asked about GitHub/Google Drive backup.
+- Recreate www.georgegrissom.com using site data.
+- Add calendar, setlist & requests, promote me, photos/video uploads/downloads.
+- Quarter jukebox concept with two free plays per song, then buy credits.
+- Static jukebox in dark dive bar for dark mode and daytime winery/brewery/live venue in light mode.
+- Static logo/name/photo top while site scrolls.
+- Timestamped ZIP name.
+
+User subsequent jukebox brief:
+- Jukebox credit popup should close when clicking maybe later or outside.
+- Jukebox should be more realistic in dark theme, metallic/reflective, angled toward center about 30 degrees.
+- Light theme jukebox should sit in winery/brewery/daytime live music scene.
+- Jukebox remains in frame as content scrolls.
+- Background changes per section in light theme with illustrated Winnie-the-Pooh-like ending white-space mood.
+- Scroll near section bottoms should land on next section.
+
+User calendar brief:
+- Calendar should be list of upcoming dates.
+- Clicking venue name searches internet in new window for venue/site/location.
+- Calendar should pull from Google Calendar but be stylized like rest of site found in ZIP.
+
+Follow-up decisions:
+- Manual calendar entry in dashboard instead of Google Calendar for MVP.
+- MVP is a real web app now.
+- App should accept multiple file types for song catalog: Excel, CSV, PDF sheet.
+- App should be AI-smart and make imports compatible.
+- One-button recording.
+- Recording should support both built-in mic and external mixer/audio-interface input.
+- PDFs can be typed song lists, scanned pages, and chord/lyric sheets.
+- App should search/select a song and its lyrics and import for private learning.
+- App should search web and fill missing song catalog info like key, tempo/BPM where possible.
+- Lyrics/music/notes are private use within the app for artist learning and not published.
+
+Assistant implementation direction:
+- Built runnable local-first Next.js MVP.
+- SQLite/Prisma backend for immediate execution.
+- Optional Stripe/OpenAI keys.
+- Manual calendar in admin.
+- Import staging for catalog files.
+- MusicBrainz metadata search and external web search links.
+- Private-only lyric/chord/rehearsal notes.
+- One-button MediaRecorder recording with audio input device selection.
+- Fan uploads and moderation.
+- ZIP package with install instructions and architecture spec.

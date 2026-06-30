@@ -1,0 +1,28 @@
+Preservation plan for this project
+
+What this folder preserves
+- Project source files
+- Transcript snapshot files created inside this package
+- Uploaded screenshots copied into transcript/attachments
+- Previous ZIP packages copied into archives, when available
+
+Best way to preserve the entire chat and files from the start
+1. In ChatGPT, open Settings -> Data Controls -> Export Data.
+2. Wait for the email/SMS from OpenAI, then download the export ZIP before the link expires.
+3. In ChatGPT Library, download any saved files you want to keep locally.
+4. Do not delete the chat. Archive it if you only want it out of the sidebar.
+5. Keep a local backup folder on your computer and copy every project ZIP into it.
+6. Also upload that local backup folder to Google Drive, OneDrive, Dropbox, or GitHub.
+
+Suggested folder structure on Windows
+C:\Users\<your username>\Documents\GeorgeGrissomWebsite\
+  backups\
+  working-copy\
+  chat-exports\
+  assets\
+
+Recommended habit
+- After each big round, ask for a new timestamped ZIP.
+- Save the ZIP locally.
+- Extract one copy as the working folder.
+- Keep the original ZIP untouched as a restore point.

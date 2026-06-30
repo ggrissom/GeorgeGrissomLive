@@ -1,0 +1,17 @@
+Session manifest
+
+Project folder: georgegrissomDotCom
+
+Included files:
+- BACKUP-INSTRUCTIONS.txt
+- README.md
+- index.html
+- script.js
+- styles.css
+- assets/README.txt
+- transcript/chat_full_snapshot.txt
+- transcript/chat_so_far.txt
+- transcript/attachments/9912bc82-fc18-46ba-84f5-b2cd11c6141f.png
+- transcript/attachments/a927062d-0527-4c8a-8379-5dcc4f28c156.png
+- archives/20260623_103543_georgegrissomDotCom.zip
+- archives/20260623_103709_georgegrissomDotCom.zip

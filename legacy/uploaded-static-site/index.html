@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>George Grissom Live</title>
+  <meta name="description" content="Live music, jukebox vibes, booking, photos, downloads, calendar, and crowd-powered content for George Grissom." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true">
+    <div class="glow glow-a"></div>
+    <div class="glow glow-b"></div>
+    <div class="venue venue-dark"></div>
+    <div class="venue venue-light"></div>
+  </div>
+
+  <header class="site-header">
+    <div class="brand-lockup">
+      <div class="mic-badge" aria-hidden="true">🎙️</div>
+      <div>
+        <p class="eyebrow">George Grissom</p>
+        <h1>George Grissom Live</h1>
+        <p class="tagline">Dive-bar soul. Winery daylight. Jukebox attitude.</p>
+      </div>
+    </div>
+
+    <nav class="top-nav" aria-label="Main">
+      <a href="#jukebox">Jukebox</a>
+      <a href="#shows">Calendar</a>
+      <a href="#setlist">Setlist</a>
+      <a href="#promote">Promote Me</a>
+      <a href="#gallery">Photos & Video</a>
+      <a href="#downloads">Downloads</a>
+      <a href="#booking">Booking</a>
+    </nav>
+
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌗</button>
+  </header>
+
+  <main>
+    <section class="hero section">
+      <div class="hero-copy">
+        <p class="kicker">Live music website concept rebuild</p>
+        <h2>A badass music site built around a working jukebox concept.</h2>
+        <p>
+          This concept keeps your name pinned up top, lets the rest of the site scroll,
+          and gives fans a place to listen, book, request, share photos, and grab downloads.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#jukebox">Spin the Jukebox</a>
+          <a class="btn" href="#booking">Book George</a>
+        </div>
+      </div>
+
+      <aside id="jukebox" class="jukebox-card" aria-label="Jukebox player">
+        <div class="jukebox-shell">
+          <div class="jukebox-top"></div>
+          <div class="jukebox-glass">
+            <div class="record-drop" id="recordDrop"></div>
+            <div class="vinyl" id="vinyl"></div>
+            <div class="selector-window">
+              <p class="selector-label">2 free plays per song</p>
+              <ul id="songList" class="song-list" aria-live="polite"></ul>
+            </div>
+          </div>
+          <div class="jukebox-controls">
+            <div class="credits">
+              <span>Credits</span>
+              <strong id="creditStatus">Free plays available</strong>
+            </div>
+            <button id="stopButton" class="btn btn-small" type="button">Stop</button>
+          </div>
+          <audio id="audioPlayer" preload="none"></audio>
+        </div>
+      </aside>
+    </section>
+
+    <section id="shows" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Calendar</p>
+        <h3>Upcoming shows</h3>
+      </div>
+      <div class="card-grid three-up">
+        <article class="card">
+          <p class="card-date">Fri · Jul 11</p>
+          <h4>The Back Room</h4>
+          <p>8:00 PM · Tulsa, OK</p>
+        </article>
+        <article class="card">
+          <p class="card-date">Sat · Jul 19</p>
+          <h4>Cedar Ridge Winery</h4>
+          <p>5:30 PM · Broken Arrow, OK</p>
+        </article>
+        <article class="card">
+          <p class="card-date">Thu · Aug 7</p>
+          <h4>Red Lantern Lounge</h4>
+          <p>7:00 PM · Oklahoma City, OK</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="setlist" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Setlist & Requests</p>
+        <h3>Coming soon</h3>
+      </div>
+      <div class="card">
+        <p>
+          This block is ready for a future request form, a rotating live setlist,
+          and a “play this tonight” queue tied to the jukebox catalog.
+        </p>
+      </div>
+    </section>
+
+    <section id="promote" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Promote Me</p>
+        <h3>Trade promotion for a free song or request</h3>
+      </div>
+      <div class="split">
+        <div class="card">
+          <h4>Fan street team idea</h4>
+          <p>
+            Share a show flyer, tag George, or bring a friend. In the full build,
+            that can unlock one free song credit or one priority request.
+          </p>
+        </div>
+        <form class="card form" id="promoteForm">
+          <label>
+            Your name
+            <input type="text" name="name" placeholder="Name" />
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" placeholder="Email" />
+          </label>
+          <label>
+            How did you promote the show?
+            <textarea name="message" rows="4" placeholder="Instagram story, Facebook share, invite, flyer, etc."></textarea>
+          </label>
+          <button class="btn btn-primary" type="submit">Submit concept form</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="gallery" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Photos & Video</p>
+        <h3>Fan uploads and free downloads</h3>
+      </div>
+      <div class="split">
+        <div class="card">
+          <h4>Upload section concept</h4>
+          <p>
+            Fans can upload clips and photos from shows. In production, this should use
+            cloud storage plus moderation before public posting.
+          </p>
+          <form id="uploadForm" class="form">
+            <label>
+              Select files
+              <input id="uploadInput" type="file" multiple accept="image/*,video/*" />
+            </label>
+            <button class="btn" type="submit">Preview upload flow</button>
+          </form>
+          <div id="uploadFeedback" class="feedback" aria-live="polite"></div>
+        </div>
+        <div class="card">
+          <h4>Gallery preview</h4>
+          <div class="gallery-grid">
+            <div class="gallery-tile">Show Photo 1</div>
+            <div class="gallery-tile">Show Photo 2</div>
+            <div class="gallery-tile">Video Clip</div>
+            <div class="gallery-tile">Crowd Shot</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="downloads" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Downloads</p>
+        <h3>Freebies and paid music</h3>
+      </div>
+      <div class="card-grid two-up">
+        <article class="card">
+          <h4>Free downloads</h4>
+          <p>Press photos, promo one-sheet, and fan media can live here.</p>
+          <a class="text-link" href="assets/README.txt" download>Download placeholder assets guide</a>
+        </article>
+        <article class="card">
+          <h4>Quarter-song store</h4>
+          <p>
+            After two free plays per track, the full build redirects listeners to buy more credits.
+          </p>
+          <a class="text-link" href="#paywall">See paywall behavior</a>
+        </article>
+      </div>
+    </section>
+
+    <section id="booking" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Booking</p>
+        <h3>Book George</h3>
+      </div>
+      <form class="card form booking-form">
+        <label>
+          Name
+          <input type="text" placeholder="Your name" />
+        </label>
+        <label>
+          Email
+          <input type="email" placeholder="Your email" />
+        </label>
+        <label>
+          Phone
+          <input type="tel" placeholder="Your phone" />
+        </label>
+        <label>
+          Event details
+          <textarea rows="5" placeholder="Date, venue, city, event type, budget, and any notes"></textarea>
+        </label>
+        <button class="btn btn-primary" type="button">Send inquiry</button>
+      </form>
+    </section>
+  </main>
+
+  <div id="paywall" class="paywall" hidden>
+    <div class="paywall-card">
+      <p class="eyebrow">Jukebox credits used</p>
+      <h3>Time to buy quarters</h3>
+      <p>
+        This demo redirects after two free plays for a song. Wire this button to Stripe,
+        Square, PayPal, or another payment flow in production.
+      </p>
+      <div class="paywall-actions">
+        <a class="btn btn-primary" href="#downloads">Buy quarters</a>
+        <button id="closePaywall" class="btn" type="button">Maybe later</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

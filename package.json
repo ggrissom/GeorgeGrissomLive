@@ -1,0 +1,38 @@
+{
+  "name": "georgegrissom-live-webapp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "George Grissom live music website + audience request system + admin dashboard MVP.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev --name init",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "setup": "npm install && npx prisma generate && npx prisma db push && npm run db:seed"
+  },
+  "dependencies": {
+    "@prisma/client": "latest",
+    "next": "latest",
+    "openai": "latest",
+    "pdf-parse": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "stripe": "latest",
+    "tsx": "latest",
+    "xlsx": "latest",
+    "googleapis": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "prisma": "latest",
+    "typescript": "latest"
+  }
+}
