@@ -72,10 +72,9 @@ http://localhost:3000/admin
 The admin dashboard includes:
 
 - Live request queue
-- Google-synced event/calendar entry
-- Song catalog create/delete and type-to-add setlist association
+- Manual event/calendar entry
+- Song catalog create/delete
 - Private lyric/chord/rehearsal notes
-- Private setlist builder with duplication, venue/show linking, search, checkboxes, and ordering
 - CSV/Excel/PDF/text import staging
 - MusicBrainz metadata search
 - External lyric/chord/key/BPM search links for private learning
@@ -141,73 +140,7 @@ Copy the webhook secret into `.env`, then restart the app.
 
 Without Stripe keys, payments run in `demo_no_stripe` mode so contractors can test the full flow without charging cards.
 
-
-## 10. Google Performance Calendar setup
-
-The app is preconfigured to use this Performance Calendar ID:
-
-```env
-GOOGLE_CALENDAR_ID="0d93f3b5191f80e930ce0cdb7249a796230adbd8ba2049e7e4e323ffc632cf68@group.calendar.google.com"
-```
-
-To enable admin write-sync and public Google calendar reads:
-
-1. Create a Google Cloud service account.
-2. Enable the Google Calendar API on that Google Cloud project.
-3. Create a JSON key for the service account.
-4. Copy the service account email into `.env`:
-
-```env
-GOOGLE_SERVICE_ACCOUNT_EMAIL="service-account-name@project-id.iam.gserviceaccount.com"
-```
-
-5. Copy the private key into `.env`. Keep the escaped newlines:
-
-```env
-GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-```
-
-6. Open the Google Performance Calendar sharing settings.
-7. Share the calendar with the service account email.
-8. Grant permission to make changes to events.
-9. Restart the app.
-
-Behavior:
-
-- Public `/` and `/api/events` read upcoming events from Google Calendar when credentials are present.
-- Admin-created events save locally first, then create/update Google Calendar events.
-- The local `Event.googleEventId` prevents duplicate Google events on future edits.
-- If Google fails, the event remains local and shows `google_error` in admin.
-- If Google is not configured, the app uses the local SQLite event list.
-
-## 11. Private setlists
-
-Open `/admin`, then the **Setlists** tab.
-
-Available MVP workflows:
-
-- Create a private setlist with name, venue, optional show association, and notes.
-- Duplicate an older setlist and optionally point it to a different venue/show.
-- Search the song catalog from inside the setlist builder.
-- Check a song to add it to the setlist.
-- Uncheck or remove a song to detach it.
-- Use Up/Down to change song order.
-- From the **Songs** tab, type a setlist name into the song form or per-song quick-add field to associate songs quickly.
-
-Setlists are private/admin-only in this MVP.
-
-## 12. Jukebox visual behavior
-
-The public jukebox is CSS-rendered for performance. It uses:
-
-- a more realistic chrome/glass/LED treatment
-- a `rotateY(-30deg)` inward angle
-- a lightweight scroll-wheel song selector that renders only visible rows
-- search on the main jukebox section
-- the existing free-play/catalog-unlock logic
-
-
-## 13. One-button recording
+## 10. One-button recording
 
 The recording tab uses the browser's audio device APIs.
 
@@ -235,7 +168,7 @@ public/uploads/recordings
 
 Database records go to the `Recording` table.
 
-## 14. Production deployment notes
+## 11. Production deployment notes
 
 For production, contractors should replace the local-only pieces:
 
@@ -248,7 +181,7 @@ For production, contractors should replace the local-only pieces:
 | local media files | object storage + signed URLs |
 | manual OCR fallback | managed OCR or OpenAI file/vision pipeline |
 
-## 15. Useful commands
+## 12. Useful commands
 
 ```bash
 npm run dev       # local development
@@ -258,7 +191,7 @@ npm run db:push   # apply Prisma schema to SQLite
 npm run db:seed   # seed starter data
 ```
 
-## 16. Troubleshooting
+## 13. Troubleshooting
 
 ### Admin login fails
 

@@ -37,26 +37,6 @@ async function main() {
       }
     });
   }
-  await prisma.setlist.upsert({
-    where: { id: "seed-setlist-1" },
-    update: {},
-    create: {
-      id: "seed-setlist-1",
-      name: "Starter Acoustic Set",
-      venueName: "Venue TBA",
-      eventId: "seed-event-1",
-      notes: "Private sample setlist. Duplicate this for a real show.",
-      isPrivate: true,
-      songs: {
-        create: [
-          { songId: "seed-song-1", position: 0 },
-          { songId: "seed-song-2", position: 1 },
-          { songId: "seed-song-3", position: 2 }
-        ]
-      }
-    }
-  });
-
 }
 
 main()

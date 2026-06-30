@@ -2,67 +2,27 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type Tab = "live" | "events" | "setlists" | "songs" | "import" | "search" | "record" | "uploads" | "bookings";
+type Tab = "live" | "events" | "songs" | "import" | "search" | "record" | "uploads" | "bookings";
 
-type EventRow = {
-  id: string;
-  title: string;
-  venueName: string;
-  city?: string | null;
-  state?: string | null;
-  startsAt: string;
-  endsAt?: string | null;
-  notes?: string | null;
-  isPublic: boolean;
-  googleCalendarId?: string | null;
-  googleEventId?: string | null;
-  googleSyncStatus?: string | null;
-  googleLastSyncedAt?: string | null;
-  googleSyncError?: string | null;
-};
-
-type SetlistSongRow = {
-  id: string;
-  setlistId: string;
-  songId: string;
-  position: number;
-  notes?: string | null;
-  song: SongRow;
-};
-
-type SetlistRow = {
-  id: string;
-  name: string;
-  venueName: string;
-  eventId?: string | null;
-  notes?: string | null;
-  isPrivate: boolean;
-  createdAt: string;
-  updatedAt: string;
-  event?: EventRow | null;
-  songs: SetlistSongRow[];
-};
-
+type EventRow = { id: string; title: string; venueName: string; city?: string; state?: string; startsAt: string; notes?: string; isPublic: boolean; };
 type SongRow = {
   id: string;
   title: string;
-  artist?: string | null;
-  genre?: string | null;
-  mood?: string | null;
-  tempoLabel?: string | null;
-  bpm?: number | null;
-  songKey?: string | null;
+  artist?: string;
+  genre?: string;
+  mood?: string;
+  tempoLabel?: string;
+  bpm?: number;
+  songKey?: string;
   requestable: boolean;
   publicShortlist: boolean;
   paidCatalog: boolean;
   minTipCents: number;
-  freePlayLimit?: number;
-  privateRehearsalNotes?: string | null;
-  privateLyricsNotes?: string | null;
-  privateChordNotes?: string | null;
+  privateRehearsalNotes?: string;
+  privateLyricsNotes?: string;
+  privateChordNotes?: string;
   sourceLinks?: any;
   lyricSearchLinks?: Record<string, string>;
-  setlists?: { id: string; setlistId: string; songId: string; setlist: SetlistRow }[];
 };
 type RequestRow = { id: string; requesterName?: string; customSongTitle?: string; message?: string; tipAmountCents: number; paymentStatus: string; status: string; priorityScore: number; song?: SongRow; event?: EventRow; createdAt: string; };
 type UploadRow = { id: string; uploaderName?: string; note?: string; storagePath: string; mimeType?: string; fileName?: string; status: string; createdAt: string; event?: EventRow };
@@ -72,24 +32,21 @@ export default function AdminApp() {
   const [tab, setTab] = useState<Tab>("live");
   const [events, setEvents] = useState<EventRow[]>([]);
   const [songs, setSongs] = useState<SongRow[]>([]);
-  const [setlists, setSetlists] = useState<SetlistRow[]>([]);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [uploads, setUploads] = useState<UploadRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [toast, setToast] = useState("");
 
   async function refresh() {
-    const [eventRows, songRows, setlistRows, requestRows, uploadRows, bookingRows] = await Promise.all([
+    const [eventRows, songRows, requestRows, uploadRows, bookingRows] = await Promise.all([
       fetch("/api/events?admin=1").then(r => r.json()),
       fetch("/api/songs?admin=1").then(r => r.json()),
-      fetch("/api/setlists?admin=1").then(r => r.json()),
       fetch("/api/requests?admin=1").then(r => r.json()),
       fetch("/api/uploads?admin=1").then(r => r.json()),
       fetch("/api/bookings?admin=1").then(r => r.json())
     ]);
     setEvents(Array.isArray(eventRows) ? eventRows : []);
     setSongs(Array.isArray(songRows) ? songRows : []);
-    setSetlists(Array.isArray(setlistRows) ? setlistRows : []);
     setRequests(Array.isArray(requestRows) ? requestRows : []);
     setUploads(Array.isArray(uploadRows) ? uploadRows : []);
     setBookings(Array.isArray(bookingRows) ? bookingRows : []);
@@ -109,7 +66,6 @@ export default function AdminApp() {
   const tabs: [Tab, string][] = [
     ["live", "Live Queue"],
     ["events", "Calendar"],
-    ["setlists", "Setlists"],
     ["songs", "Songs"],
     ["import", "Import"],
     ["search", "Song Search"],
@@ -137,8 +93,7 @@ export default function AdminApp() {
           <section className="panel">
             {tab === "live" && <LiveQueue requests={requests} refresh={refresh} />}
             {tab === "events" && <Events events={events} refresh={refresh} setToast={setToast} />}
-            {tab === "setlists" && <Setlists setlists={setlists} events={events} songs={songs} refresh={refresh} setToast={setToast} />}
-            {tab === "songs" && <Songs songs={songs} setlists={setlists} refresh={refresh} setToast={setToast} />}
+            {tab === "songs" && <Songs songs={songs} refresh={refresh} setToast={setToast} />}
             {tab === "import" && <ImportSongs refresh={refresh} setToast={setToast} />}
             {tab === "search" && <SongSearch refresh={refresh} setToast={setToast} />}
             {tab === "record" && <Recorder events={events} songs={songs} setToast={setToast} />}
@@ -191,13 +146,8 @@ function LiveQueue({ requests, refresh }: { requests: RequestRow[]; refresh: () 
 function Events({ events, refresh, setToast }: { events: EventRow[]; refresh: () => Promise<void>; setToast: (s: string) => void }) {
   async function submit(formData: FormData) {
     const body = Object.fromEntries(formData.entries());
-    const res = await fetch("/api/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...body, isPublic: formData.get("isPublic") === "on" })
-    });
-    const data = await res.json().catch(() => ({}));
-    setToast(res.ok ? `Event saved. Calendar sync: ${data.googleSyncStatus || "local_only"}.` : data.error || "Event failed.");
+    const res = await fetch("/api/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, isPublic: formData.get("isPublic") === "on" }) });
+    setToast(res.ok ? "Event saved." : "Event failed.");
     await refresh();
   }
 
@@ -208,246 +158,26 @@ function Events({ events, refresh, setToast }: { events: EventRow[]; refresh: ()
 
   return (
     <>
-      <p className="eyebrow">Performance calendar</p>
+      <p className="eyebrow">Manual calendar</p>
       <h2>Upcoming dates</h2>
-      <p className="muted">Adding a show here saves it locally and syncs it into the Google Performance Calendar when the service account env vars are configured.</p>
       <form className="form" action={submit}>
         <input name="title" placeholder="Show title" defaultValue="Live Show" />
         <input name="venueName" placeholder="Venue name" required />
         <input name="city" placeholder="City" />
         <input name="state" placeholder="State" />
         <input name="startsAt" type="datetime-local" required />
-        <input name="endsAt" type="datetime-local" />
         <textarea name="notes" placeholder="Public notes" />
         <label><input name="isPublic" type="checkbox" defaultChecked /> Public</label>
-        <button className="button">Add event + sync calendar</button>
+        <button className="button">Add event</button>
       </form>
       <table className="table">
-        <thead><tr><th>Date</th><th>Venue</th><th>Google Sync</th><th>Actions</th></tr></thead>
-        <tbody>{events.map(event => <tr key={event.id}>
-          <td>{new Date(event.startsAt).toLocaleString()}</td>
-          <td>{event.venueName}<br /><span className="muted">{[event.city, event.state].filter(Boolean).join(", ")}</span></td>
-          <td>
-            <span className="badge">{event.googleSyncStatus || "local_only"}</span>
-            {event.googleEventId && <><br /><span className="muted">Google ID: {event.googleEventId}</span></>}
-            {event.googleSyncError && <><br /><span className="muted">{event.googleSyncError}</span></>}
-          </td>
-          <td><button className="ghost" onClick={() => remove(event.id)}>Delete</button></td>
-        </tr>)}</tbody>
+        <tbody>{events.map(event => <tr key={event.id}><td>{new Date(event.startsAt).toLocaleString()}</td><td>{event.venueName}<br /><span className="muted">{[event.city, event.state].filter(Boolean).join(", ")}</span></td><td><button className="ghost" onClick={() => remove(event.id)}>Delete</button></td></tr>)}</tbody>
       </table>
     </>
   );
 }
 
-function Setlists({
-  setlists,
-  events,
-  songs,
-  refresh,
-  setToast
-}: {
-  setlists: SetlistRow[];
-  events: EventRow[];
-  songs: SongRow[];
-  refresh: () => Promise<void>;
-  setToast: (s: string) => void;
-}) {
-  const [selectedId, setSelectedId] = useState("");
-  const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    if (!selectedId && setlists[0]) setSelectedId(setlists[0].id);
-    if (selectedId && !setlists.some(setlist => setlist.id === selectedId)) setSelectedId(setlists[0]?.id || "");
-  }, [setlists, selectedId]);
-
-  const selected = setlists.find(setlist => setlist.id === selectedId) || null;
-  const selectedSongIds = useMemo(() => new Set((selected?.songs || []).map(item => item.songId)), [selected]);
-
-  const filteredSongs = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return songs.slice(0, 40);
-    return songs.filter(song =>
-      [song.title, song.artist, song.genre, song.mood, song.songKey, song.bpm ? `${song.bpm}` : ""]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(needle)
-    ).slice(0, 80);
-  }, [songs, query]);
-
-  async function create(formData: FormData) {
-    const body = Object.fromEntries(formData.entries());
-    const res = await fetch("/api/setlists", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...body, eventId: formData.get("eventId") || null, isPrivate: true })
-    });
-    const data = await res.json().catch(() => ({}));
-    setToast(res.ok ? "Setlist created." : data.error || "Setlist failed.");
-    if (data.id) setSelectedId(data.id);
-    await refresh();
-  }
-
-  async function duplicate(formData: FormData) {
-    const body = Object.fromEntries(formData.entries());
-    const res = await fetch("/api/setlists/duplicate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...body, eventId: formData.get("eventId") || null })
-    });
-    const data = await res.json().catch(() => ({}));
-    setToast(res.ok ? "Setlist duplicated." : data.error || "Duplicate failed.");
-    if (data.id) setSelectedId(data.id);
-    await refresh();
-  }
-
-  async function removeSetlist(id: string) {
-    await fetch(`/api/setlists?id=${id}`, { method: "DELETE" });
-    setSelectedId("");
-    await refresh();
-  }
-
-  async function toggleSong(songId: string, checked: boolean) {
-    if (!selected) return;
-    if (checked) {
-      await fetch("/api/setlists/songs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ setlistId: selected.id, songId })
-      });
-    } else {
-      await fetch(`/api/setlists/songs?setlistId=${selected.id}&songId=${songId}`, { method: "DELETE" });
-    }
-    await refresh();
-  }
-
-  async function reorder(songId: string, direction: -1 | 1) {
-    if (!selected) return;
-    const ordered = selected.songs.map(item => item.songId);
-    const index = ordered.indexOf(songId);
-    const target = index + direction;
-    if (index < 0 || target < 0 || target >= ordered.length) return;
-    const next = [...ordered];
-    [next[index], next[target]] = [next[target], next[index]];
-    await fetch("/api/setlists/songs/reorder", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ setlistId: selected.id, songIds: next })
-    });
-    await refresh();
-  }
-
-  return (
-    <>
-      <p className="eyebrow">Private setlists</p>
-      <h2>Setlists</h2>
-      <p className="muted">Setlists stay admin-only for this MVP. Create one from scratch, duplicate an old one, link it to a calendar show, then check songs on/off from the searchable builder.</p>
-
-      <div className="admin-two-col">
-        <form className="form" action={create}>
-          <h3>Create setlist</h3>
-          <input name="name" placeholder="Setlist name" required />
-          <input name="venueName" placeholder="Venue" required />
-          <select name="eventId" defaultValue="">
-            <option value="">Associate with show, optional</option>
-            {events.map(event => <option key={event.id} value={event.id}>{new Date(event.startsAt).toLocaleDateString()} · {event.venueName}</option>)}
-          </select>
-          <textarea name="notes" placeholder="Private setlist notes" />
-          <button className="button">Create setlist</button>
-        </form>
-
-        <form className="form" action={duplicate}>
-          <h3>Duplicate older setlist</h3>
-          <select name="sourceSetlistId" defaultValue="">
-            <option value="">Choose old setlist</option>
-            {setlists.map(setlist => <option key={setlist.id} value={setlist.id}>{setlist.name} · {setlist.venueName}</option>)}
-          </select>
-          <input name="name" placeholder="New setlist name, optional" />
-          <input name="venueName" placeholder="New venue, optional" />
-          <select name="eventId" defaultValue="">
-            <option value="">Associate with show, optional</option>
-            {events.map(event => <option key={event.id} value={event.id}>{new Date(event.startsAt).toLocaleDateString()} · {event.venueName}</option>)}
-          </select>
-          <button className="button">Duplicate</button>
-        </form>
-      </div>
-
-      <div className="setlist-builder">
-        <div className="form">
-          <label>
-            <span className="muted">Active setlist</span>
-            <select value={selectedId} onChange={event => setSelectedId(event.target.value)}>
-              <option value="">Select a setlist</option>
-              {setlists.map(setlist => <option key={setlist.id} value={setlist.id}>{setlist.name} · {setlist.venueName}</option>)}
-            </select>
-          </label>
-        </div>
-
-        {selected && (
-          <>
-            <div className="setlist-header">
-              <div>
-                <h3>{selected.name}</h3>
-                <p className="muted">
-                  {selected.venueName} · Created {new Date(selected.createdAt).toLocaleDateString()}
-                  {selected.event && <> · Linked to {new Date(selected.event.startsAt).toLocaleDateString()}</>}
-                </p>
-                {selected.notes && <p>{selected.notes}</p>}
-              </div>
-              <button className="ghost" onClick={() => removeSetlist(selected.id)}>Delete setlist</button>
-            </div>
-
-            <div className="admin-two-col wide">
-              <div>
-                <h3>Current order</h3>
-                <table className="table">
-                  <tbody>
-                    {selected.songs.length === 0 && <tr><td>No songs yet. Search and check boxes on the right.</td></tr>}
-                    {selected.songs.map((item, index) => (
-                      <tr key={item.id}>
-                        <td>{index + 1}</td>
-                        <td><strong>{item.song.title}</strong><br /><span className="muted">{item.song.artist || ""}</span></td>
-                        <td className="actions">
-                          <button className="ghost" onClick={() => reorder(item.songId, -1)}>Up</button>
-                          <button className="ghost" onClick={() => reorder(item.songId, 1)}>Down</button>
-                          <button className="ghost" onClick={() => toggleSong(item.songId, false)}>Remove</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div>
-                <h3>Search songs and check to add</h3>
-                <div className="form">
-                  <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search title, artist, genre, key, BPM..." />
-                </div>
-                <div className="check-list">
-                  {filteredSongs.map(song => (
-                    <label className="check-row" key={song.id}>
-                      <input
-                        type="checkbox"
-                        checked={selectedSongIds.has(song.id)}
-                        onChange={event => toggleSong(song.id, event.target.checked)}
-                      />
-                      <span>
-                        <strong>{song.title}</strong>
-                        <small>{song.artist || "George Grissom"} {song.songKey ? `· Key ${song.songKey}` : ""} {song.bpm ? `· ${song.bpm} BPM` : ""}</small>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </>
-  );
-}
-
-function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setlists: SetlistRow[]; refresh: () => Promise<void>; setToast: (s: string) => void }) {
+function Songs({ songs, refresh, setToast }: { songs: SongRow[]; refresh: () => Promise<void>; setToast: (s: string) => void }) {
   async function submit(formData: FormData) {
     const body = Object.fromEntries(formData.entries()) as any;
     body.requestable = formData.get("requestable") === "on";
@@ -456,25 +186,12 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
     body.minTipCents = Math.round(Number(body.minTip || "0.25") * 100);
     delete body.minTip;
     const res = await fetch("/api/songs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const data = await res.json().catch(() => ({}));
-    setToast(res.ok ? "Song saved." : data.error || "Song failed.");
+    setToast(res.ok ? "Song saved." : "Song failed.");
     await refresh();
   }
 
   async function remove(id: string) {
     await fetch(`/api/songs?id=${id}`, { method: "DELETE" });
-    await refresh();
-  }
-
-  async function quickAddToSetlist(songId: string, setlistName: string) {
-    const name = setlistName.trim();
-    if (!name) return;
-    const res = await fetch("/api/setlists/songs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ songId, setlistName: name })
-    });
-    setToast(res.ok ? "Song associated with setlist." : "Setlist association failed.");
     await refresh();
   }
 
@@ -489,10 +206,6 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
         <input name="songKey" placeholder="Key" />
         <input name="bpm" type="number" placeholder="BPM" />
         <input name="audioUrl" placeholder="/audio/song.mp3 or external URL" />
-        <input name="setlistNames" list="setlist-names" placeholder="Attach to setlists by typing names, comma separated" />
-        <datalist id="setlist-names">
-          {setlists.map(setlist => <option key={setlist.id} value={setlist.name} />)}
-        </datalist>
         <textarea name="privateRehearsalNotes" placeholder="Private rehearsal notes" />
         <textarea name="privateLyricsNotes" placeholder="Private lyric notes; not public" />
         <textarea name="privateChordNotes" placeholder="Private chord notes; not public" />
@@ -503,50 +216,19 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
         <button className="button">Add song</button>
       </form>
       <table className="table">
-        <thead><tr><th>Title</th><th>Private info</th><th>Setlists</th><th>Visibility</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Title</th><th>Private info</th><th>Visibility</th><th>Actions</th></tr></thead>
         <tbody>
           {songs.map(song => (
-            <SongTableRow key={song.id} song={song} setlists={setlists} remove={remove} quickAddToSetlist={quickAddToSetlist} />
+            <tr key={song.id}>
+              <td><strong>{song.title}</strong><br />{song.artist || ""}<br /><span className="muted">{song.genre || ""} {song.songKey ? `· Key ${song.songKey}` : ""} {song.bpm ? `· ${song.bpm} BPM` : ""}</span></td>
+              <td><span className="badge">{song.privateLyricsNotes ? "lyrics notes" : "no lyrics notes"}</span> <span className="badge">{song.privateChordNotes ? "chords notes" : "no chord notes"}</span></td>
+              <td>{song.publicShortlist && <span className="badge">short list</span>} {song.paidCatalog && <span className="badge">catalog</span>}</td>
+              <td><button className="ghost" onClick={() => remove(song.id)}>Delete</button></td>
+            </tr>
           ))}
         </tbody>
       </table>
     </>
-  );
-}
-
-function SongTableRow({
-  song,
-  setlists,
-  remove,
-  quickAddToSetlist
-}: {
-  song: SongRow;
-  setlists: SetlistRow[];
-  remove: (id: string) => Promise<void>;
-  quickAddToSetlist: (songId: string, setlistName: string) => Promise<void>;
-}) {
-  const [setlistName, setSetlistName] = useState("");
-
-  return (
-    <tr>
-      <td><strong>{song.title}</strong><br />{song.artist || ""}<br /><span className="muted">{song.genre || ""} {song.songKey ? `· Key ${song.songKey}` : ""} {song.bpm ? `· ${song.bpm} BPM` : ""}</span></td>
-      <td><span className="badge">{song.privateLyricsNotes ? "lyrics notes" : "no lyrics notes"}</span> <span className="badge">{song.privateChordNotes ? "chords notes" : "no chord notes"}</span></td>
-      <td>
-        {(song.setlists || []).map(item => <span className="badge" key={item.id}>{item.setlist?.name}</span>)}
-        <div className="inline-setlist-add">
-          <input value={setlistName} list={`setlist-names-${song.id}`} onChange={event => setSetlistName(event.target.value)} placeholder="type setlist" />
-          <button className="ghost" onClick={() => {
-            quickAddToSetlist(song.id, setlistName);
-            setSetlistName("");
-          }}>Add</button>
-        </div>
-        <datalist id={`setlist-names-${song.id}`}>
-          {setlists.map(setlist => <option key={setlist.id} value={setlist.name} />)}
-        </datalist>
-      </td>
-      <td>{song.publicShortlist && <span className="badge">short list</span>} {song.paidCatalog && <span className="badge">catalog</span>}</td>
-      <td><button className="ghost" onClick={() => remove(song.id)}>Delete</button></td>
-    </tr>
   );
 }
 

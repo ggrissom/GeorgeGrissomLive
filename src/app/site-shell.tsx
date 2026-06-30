@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type WheelEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type EventRow = {
   id: string;
@@ -52,6 +52,7 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
       .then(setSongs)
       .catch(() => {});
   }, [catalogUnlocked]);
+
 
   function changeTheme(next: string) {
     setTheme(next);
@@ -139,31 +140,16 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
       </header>
 
       <aside className="jukebox-scene" aria-label="Jukebox player">
-        <div className="jukebox-stage">
-          <div className="jukebox-shell">
-            <div className="jukebox">
-              <div className="chrome" />
-              <div className="glass">
-                <span>NOW PLAYING</span>
-                <strong>{currentSong?.title || "Pick a song"}</strong>
-                <small>{currentSong?.artist || "George Grissom"}</small>
-              </div>
-              <div className="song-window">
-                <JukeboxSongWheel
-                  songs={songs}
-                  plays={plays}
-                  catalogUnlocked={catalogUnlocked}
-                  selectedSongId={currentSong?.id}
-                  onSelect={setCurrentSong}
-                  onPlay={playSong}
-                  visibleRadius={3}
-                  compact
-                />
-              </div>
-              <div className="credits-display">{catalogUnlocked ? "∞ credits" : "2 free spins"}</div>
-              <div className="record" />
-            </div>
+        <div className="jukebox">
+          <div className="chrome" />
+          <div className="glass">
+            <span>GEORGE</span>
+            <strong>{currentSong?.title || "Pick a song"}</strong>
           </div>
+          <div className="song-window">
+            {songs.slice(0, 5).map(song => <button key={song.id} onClick={() => playSong(song)}>{song.title}</button>)}
+          </div>
+          <div className="record" />
         </div>
         <audio ref={audioRef} controls className="audio" />
       </aside>
@@ -185,17 +171,20 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
         <section id="jukebox" className="card-section snap">
           <div className="panel">
             <p className="eyebrow">Jukebox</p>
-            <h2>Spin the wheel, pick the center title, then play.</h2>
-            <p className="muted">The jukebox renders only the visible wheel rows, so the catalog stays fast as it grows. Audio files can be attached in the admin dashboard.</p>
-            <JukeboxSongWheel
-              songs={songs}
-              plays={plays}
-              catalogUnlocked={catalogUnlocked}
-              selectedSongId={currentSong?.id}
-              onSelect={setCurrentSong}
-              onPlay={playSong}
-              visibleRadius={5}
-            />
+            <h2>Two free spins per song, then buy credits.</h2>
+            <p className="muted">Audio files can be attached in the admin dashboard. Without Stripe configured, purchases run in demo mode.</p>
+            <div className="song-grid">
+              {songs.map(song => {
+                const count = plays[song.id] || 0;
+                return (
+                  <button className="song-card" key={song.id} onClick={() => playSong(song)}>
+                    <strong>{song.title}</strong>
+                    <span>{song.artist || "George Grissom"} · {song.genre || "Live"}</span>
+                    <em>{Math.max(0, song.freePlayLimit - count)} free plays left</em>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </section>
 
@@ -203,14 +192,13 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
           <div className="panel">
             <p className="eyebrow">Calendar</p>
             <h2>Upcoming dates</h2>
-            <p className="muted">Dates are pulled from the Performance Google Calendar when configured, while this page keeps the custom site styling.</p>
             <div className="event-list">
               {events.length === 0 && <p>No public dates yet. Add shows in the admin dashboard.</p>}
               {events.map(event => (
                 <article className="event" key={event.id}>
                   <time>{new Date(event.startsAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</time>
                   <button onClick={() => venueSearch(event)}>{event.venueName}</button>
-                  <span>{[event.city, event.state].filter(Boolean).join(", ") || event.title}</span>
+                  <span>{[event.city, event.state].filter(Boolean).join(", ")}</span>
                   {event.notes && <p>{event.notes}</p>}
                 </article>
               ))}
@@ -255,126 +243,6 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
         </div>
       )}
     </>
-  );
-}
-
-function JukeboxSongWheel({
-  songs,
-  plays,
-  catalogUnlocked,
-  selectedSongId,
-  onSelect,
-  onPlay,
-  visibleRadius = 5,
-  compact = false
-}: {
-  songs: SongRow[];
-  plays: Record<string, number>;
-  catalogUnlocked: boolean;
-  selectedSongId?: string;
-  onSelect: (song: SongRow) => void;
-  onPlay: (song: SongRow) => void;
-  visibleRadius?: number;
-  compact?: boolean;
-}) {
-  const [query, setQuery] = useState("");
-  const [index, setIndex] = useState(0);
-
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return songs;
-    return songs.filter(song =>
-      [song.title, song.artist, song.genre, song.mood, song.tempoLabel]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(needle)
-    );
-  }, [songs, query]);
-
-  useEffect(() => {
-    if (!filtered.length) {
-      setIndex(0);
-      return;
-    }
-    if (selectedSongId) {
-      const selectedIndex = filtered.findIndex(song => song.id === selectedSongId);
-      if (selectedIndex >= 0) setIndex(selectedIndex);
-    } else if (index >= filtered.length) {
-      setIndex(filtered.length - 1);
-    }
-  }, [filtered, selectedSongId, index]);
-
-  const visible = useMemo(() => {
-    if (!filtered.length) return [];
-    const rows: { song: SongRow; absoluteIndex: number; offset: number }[] = [];
-    const start = Math.max(0, index - visibleRadius);
-    const end = Math.min(filtered.length - 1, index + visibleRadius);
-    for (let absoluteIndex = start; absoluteIndex <= end; absoluteIndex += 1) {
-      rows.push({ song: filtered[absoluteIndex], absoluteIndex, offset: absoluteIndex - index });
-    }
-    return rows;
-  }, [filtered, index, visibleRadius]);
-
-  function setSafeIndex(next: number) {
-    if (!filtered.length) return;
-    setIndex(Math.max(0, Math.min(filtered.length - 1, next)));
-  }
-
-  function move(delta: number) {
-    setSafeIndex(index + delta);
-  }
-
-  function handleWheel(event: WheelEvent<HTMLDivElement>) {
-    if (Math.abs(event.deltaY) < 8) return;
-    move(event.deltaY > 0 ? 1 : -1);
-  }
-
-  const selected = filtered[index];
-
-  return (
-    <div className={compact ? "jukebox-wheel compact" : "jukebox-wheel"}>
-      {!compact && (
-        <label className="wheel-search">
-          <span>Search songs</span>
-          <input value={query} onChange={event => setQuery(event.target.value)} placeholder="title, artist, mood, genre..." />
-        </label>
-      )}
-      <div className="wheel-controls">
-        <button className="ghost" type="button" onClick={() => move(-1)}>▲</button>
-        <button className="ghost" type="button" onClick={() => selected && onPlay(selected)} disabled={!selected}>Play center</button>
-        <button className="ghost" type="button" onClick={() => move(1)}>▼</button>
-      </div>
-      <div className="wheel-track" onWheel={handleWheel} role="listbox" aria-label="Jukebox song wheel">
-        {!filtered.length && <p className="muted">No songs match this search.</p>}
-        {visible.map(({ song, absoluteIndex, offset }) => {
-          const count = plays[song.id] || 0;
-          const isActive = absoluteIndex === index;
-          const style = { "--wheel-offset": offset, "--wheel-distance": Math.abs(offset) } as CSSProperties;
-          return (
-            <button
-              key={song.id}
-              className={isActive ? "wheel-row active" : "wheel-row"}
-              style={style}
-              type="button"
-              role="option"
-              aria-selected={isActive}
-              onClick={() => {
-                if (isActive) onPlay(song);
-                else {
-                  setSafeIndex(absoluteIndex);
-                  onSelect(song);
-                }
-              }}
-            >
-              <strong>{song.title}</strong>
-              {!compact && <span>{song.artist || "George Grissom"} · {song.genre || "Live"}</span>}
-              {!compact && <em>{catalogUnlocked ? "unlocked" : `${Math.max(0, song.freePlayLimit - count)} free plays left`}</em>}
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 

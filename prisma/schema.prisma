@@ -8,30 +8,24 @@ datasource db {
 }
 
 model Event {
-  id                 String      @id @default(cuid())
-  title              String
-  startsAt           DateTime
-  endsAt             DateTime?
-  venueName          String
-  city               String?
-  state              String?
-  notes              String?
-  isPublic           Boolean     @default(true)
-  googleCalendarId   String?
-  googleEventId      String?     @unique
-  googleSyncStatus   String      @default("local_only")
-  googleLastSyncedAt DateTime?
-  googleSyncError    String?
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
-  requests           Request[]
-  uploads            FanUpload[]
-  recordings         Recording[]
-  setlists           Setlist[]
+  id          String    @id @default(cuid())
+  title       String
+  startsAt    DateTime
+  endsAt      DateTime?
+  venueName   String
+  city        String?
+  state       String?
+  notes       String?
+  isPublic    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  requests    Request[]
+  uploads     FanUpload[]
+  recordings  Recording[]
 }
 
 model Song {
-  id                    String        @id @default(cuid())
+  id                    String    @id @default(cuid())
   title                 String
   artist                String?
   composer              String?
@@ -47,52 +41,19 @@ model Song {
   privateRehearsalNotes String?
   privateLyricsNotes    String?
   privateChordNotes     String?
-  rightsStatus          String        @default("private_reference")
-  publicLyricsAllowed   Boolean       @default(false)
-  publicChordsAllowed   Boolean       @default(false)
-  requestable           Boolean       @default(true)
-  publicShortlist       Boolean       @default(false)
-  paidCatalog           Boolean       @default(true)
-  minTipCents           Int           @default(100)
-  freePlayLimit         Int           @default(2)
+  rightsStatus          String    @default("private_reference")
+  publicLyricsAllowed   Boolean   @default(false)
+  publicChordsAllowed   Boolean   @default(false)
+  requestable           Boolean   @default(true)
+  publicShortlist       Boolean   @default(false)
+  paidCatalog           Boolean   @default(true)
+  minTipCents           Int       @default(100)
+  freePlayLimit         Int       @default(2)
   confidenceScore       Float?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
   requests              Request[]
   recordings            Recording[]
-  setlists              SetlistSong[]
-}
-
-model Setlist {
-  id        String        @id @default(cuid())
-  name      String
-  venueName String
-  eventId   String?
-  notes     String?
-  isPrivate Boolean       @default(true)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  event     Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  songs     SetlistSong[]
-
-  @@index([eventId])
-  @@index([venueName])
-  @@index([createdAt])
-}
-
-model SetlistSong {
-  id        String   @id @default(cuid())
-  setlistId String
-  songId    String
-  position  Int      @default(0)
-  notes     String?
-  createdAt DateTime @default(now())
-  setlist   Setlist  @relation(fields: [setlistId], references: [id], onDelete: Cascade)
-  song      Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
-
-  @@unique([setlistId, songId])
-  @@index([setlistId, position])
-  @@index([songId])
 }
 
 model Request {
