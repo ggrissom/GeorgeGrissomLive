@@ -5,7 +5,7 @@
   "description": "George Grissom live music website + audience request system + admin dashboard MVP.",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && prisma db push --accept-data-loss && next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
