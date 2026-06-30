@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/db";
 import { publicEventsFromPerformanceCalendar } from "@/lib/public-events";
 import SiteShell from "./site-shell";
