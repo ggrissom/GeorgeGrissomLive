@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { redirect } from "next/navigation";
 import { isAdminRequest } from "@/lib/auth";
 import AdminApp from "./admin-app";
