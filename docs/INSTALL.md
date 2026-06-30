@@ -200,9 +200,9 @@ Setlists are private/admin-only in this MVP.
 
 The public jukebox is CSS-rendered for performance. It uses:
 
-- a more realistic chrome/glass/LED treatment
-- a `rotateY(-30deg)` inward angle
-- a lightweight scroll-wheel song selector that renders only visible rows
+- the supplied straight-on chrome/glass jukebox artwork as the visual foundation
+- no inward angle; the jukebox remains straight-on
+- a lightweight scroll-wheel song selector overlay that renders only visible rows
 - search on the main jukebox section
 - the existing free-play/catalog-unlock logic
 

@@ -280,14 +280,14 @@ Please contact me at [sammuti.com](https://sammuti.com) :)
 
 ## Background
 
-The MVP was extended to support three requested upgrades: a more realistic inward-turned jukebox, private admin setlists, and Google Performance Calendar interoperability while preserving the site's custom public calendar styling.
+The MVP was extended to support three requested upgrades: a more realistic straight-on jukebox using the supplied reference artwork, private admin setlists, and Google Performance Calendar interoperability while preserving the site's custom public calendar styling.
 
 ## Requirements
 
 ### Must Have
 
-- Realistic jukebox visual treatment inspired by the uploaded chrome/glass jukebox reference.
-- Jukebox angled inward by 30 degrees.
+- Realistic straight-on jukebox visual treatment using the uploaded chrome/glass jukebox reference as the primary artwork.
+- Jukebox must not be angled; it remains straight-on like the supplied image.
 - Public jukebox song browsing as a performant scroll-wheel selector.
 - Admin-only/private setlists for MVP.
 - Create setlists from scratch.
@@ -512,9 +512,9 @@ stop
 The jukebox remains CSS/React instead of WebGL for performance and maintainability.
 
 ```txt
-CSS realistic jukebox
-+ rotateY(-30deg)
-+ fixed/sticky public stage
+supplied reference jukebox image
++ straight-on fixed/sticky public stage
++ reusable image-based module
 + virtualized scroll-wheel selector
 + search filter
 + existing play/free-credit logic
@@ -553,7 +553,7 @@ Completed code-level changes:
 8. Added `src/lib/public-events.ts` for public Google-calendar-read plus local fallback.
 9. Updated public home page to read calendar events from the Performance Calendar adapter.
 10. Replaced the public jukebox song list with a scroll-wheel selector.
-11. Updated CSS to render a more realistic jukebox turned inward 30 degrees.
+11. Replaced the CSS-drawn jukebox with a straight-on module based on the supplied jukebox artwork.
 12. Added admin **Setlists** tab and song quick-association controls.
 13. Updated `.env.example`, README, install docs, and seed data.
 
@@ -577,7 +577,7 @@ Completed code-level changes:
 ### Milestone 3 — Public Jukebox
 
 - Realistic jukebox visual appears.
-- Jukebox is angled inward 30 degrees.
+- Jukebox remains straight-on and uses the supplied artwork as the primary visual.
 - Song selector uses scroll-wheel behavior.
 - Existing free-play and credit modal logic still works.
 
@@ -598,7 +598,7 @@ Validate the change by checking:
 - Does the public calendar show Google Performance Calendar events when credentials are configured?
 - Does the app fall back to local events if Google is not configured?
 - Does admin event creation store a `googleEventId`?
-- Does the jukebox visually turn inward 30 degrees?
+- Does the jukebox match the supplied straight-on reference image closely enough for MVP?
 - Does the scroll-wheel remain responsive with a larger song catalog?
 
 ## Need Professional Help in Developing Your Architecture?

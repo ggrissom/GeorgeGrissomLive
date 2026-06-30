@@ -15,7 +15,7 @@ This package is intentionally local-first so it can run on a contractor laptop i
 - Optional Stripe Checkout for tips, requests, catalog unlocks, and jukebox credits
 - Browser one-button recording with selectable mic / mixer / audio interface input
 - Admin-only private setlists with duplication, event/venue linking, searchable checkbox song assignment, and song-form setlist association
-- More realistic CSS jukebox angled inward 30 degrees with a lightweight scroll-wheel song selector
+- Straight-on realistic jukebox using the supplied reference artwork with a lightweight scroll-wheel song selector
 - Local uploaded media storage under `public/uploads`
 
 ## What is included

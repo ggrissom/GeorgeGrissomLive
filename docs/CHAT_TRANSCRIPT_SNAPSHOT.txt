@@ -56,3 +56,9 @@ Assistant implementation direction:
 - One-button MediaRecorder recording with audio input device selection.
 - Fan uploads and moderation.
 - ZIP package with install instructions and architecture spec.
+
+
+Correction after preview feedback:
+- The CSS-drawn inward-turned jukebox was rejected by the client.
+- The public jukebox is now a straight-on image-based module using the client-supplied jukebox artwork.
+- The 30-degree inward rotation was removed.

@@ -500,3 +500,48 @@ Wonderful. Don't stop now. finsh what you've started
 ## Assistant
 
 Implemented and packaged the final ZIP. The package includes the app source, documentation updates, and this chat transcript.
+
+
+---
+
+## User
+
+show me what the jukebox looks like before i have to extract and run everythng
+
+## Assistant
+
+Here’s a static preview rendered from the packaged CSS/markup, so you can see it without extracting or running the app.
+
+_Image preview was provided._
+
+Full-page context preview was also linked.
+
+## User
+
+that jukebox looks like shit. what happened to the one i had uploaded?  Redo it using the one i supplied, don't turn it inward at all, just use the straight on version.  use the layout and if you have to make the jukebox it's own webapp module, then do that, cuz it has to look good, not like that piece of shit you keeppushing.
+
+## Assistant
+
+You’re right. The last preview missed the mark.
+
+I’m going to redo the jukebox around **your supplied jukebox image**, straight-on, with **no inward rotation**. The CSS-built jukebox should be removed as the primary visual. The better approach is:
+
+- use your uploaded jukebox as the visual foundation
+- place the interactive song selector inside/over the jukebox display area
+- keep the admin setlist work as already specified
+- package it as its own reusable jukebox module so the visual can be improved independently from the rest of the site
+
+I’ll produce a new preview image and a corrected final ZIP after replacing the bad version.
+
+## User
+
+then do it, stop stalling!
+
+## Assistant
+
+Implemented correction:
+- Added supplied jukebox artwork to `public/images/reference-jukebox.png`.
+- Added reusable module `src/components/reference-jukebox.tsx`.
+- Replaced the CSS-drawn/rotated jukebox in `src/app/site-shell.tsx`.
+- Added straight-on overlay CSS for now playing, credits, and the compact scroll-wheel selector.
+- Removed the inward-rotation behavior for the public jukebox.
