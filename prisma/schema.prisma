@@ -37,6 +37,8 @@ model Song {
   genre                String?
   mood                 String?
   tempoLabel           String?
+  requestable      Boolean   @default(true)
+  rightsStatus     String?
   bpm                  Float?
   keySignature         String?
   audioUrl             String?
