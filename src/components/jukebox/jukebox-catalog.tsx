@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import React, {
   useEffect,
   useMemo,
   useRef,
@@ -49,8 +49,8 @@ export function JukeboxCatalog({
   const [pageIndex, setPageIndex] = useState(() =>
     selectedPageIndex >= 0 ? selectedPageIndex : 0,
   );
-  const selectedCardRef = useRef<HTMLButtonElement | null>(null);
-  const firstCardRef = useRef<HTMLButtonElement | null>(null);
+  const selectedCardRef = useRef<HTMLButtonElement>(null);
+  const firstCardRef = useRef<HTMLButtonElement>(null);
   const touchStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
   const suppressClickRef = useRef(false);
   const suppressClickTimeoutRef = useRef<number | null>(null);
@@ -293,8 +293,8 @@ function CatalogPage({
   pageNumber: number;
   selectedSongId?: string;
   firstSongId?: string;
-  selectedCardRef: RefObject<HTMLButtonElement | null>;
-  firstCardRef: RefObject<HTMLButtonElement | null>;
+  selectedCardRef: RefObject<HTMLButtonElement>;
+  firstCardRef: RefObject<HTMLButtonElement>;
   onSelect: (song: PublicJukeboxSong) => void;
 }) {
   return (

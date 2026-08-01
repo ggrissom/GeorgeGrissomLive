@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import ReferenceJukebox, { JukeboxSongWheel } from "../components/reference-jukebox";
+import { useEffect, useState } from "react";
+import type { PublicJukeboxSong } from "@/lib/jukebox";
+import { JukeboxPlayer } from "../components/jukebox/jukebox-player";
 
 type EventRow = {
   id: string;
@@ -14,33 +15,24 @@ type EventRow = {
   notes?: string | null;
 };
 
-type SongRow = {
-  id: string;
-  title: string;
-  artist?: string | null;
+type SongRow = PublicJukeboxSong & {
   genre?: string | null;
   mood?: string | null;
   tempoLabel?: string | null;
-  audioUrl?: string | null;
-  minTipCents: number;
-  freePlayLimit: number;
+  minTipCents?: number;
+  freePlayLimit?: number;
 };
 
 export default function SiteShell({ initialEvents, initialSongs }: { initialEvents: EventRow[]; initialSongs: SongRow[] }) {
   const [theme, setTheme] = useState("dark");
   const [songs, setSongs] = useState<SongRow[]>(initialSongs);
   const [events] = useState<EventRow[]>(initialEvents);
-  const [currentSong, setCurrentSong] = useState<SongRow | null>(null);
-  const [creditModal, setCreditModal] = useState(false);
   const [toast, setToast] = useState("");
   const [catalogUnlocked, setCatalogUnlocked] = useState(false);
-  const [plays, setPlays] = useState<Record<string, number>>({});
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("gg-theme") || "dark";
     const unlocked = localStorage.getItem("gg-catalog-unlocked") === "1";
-    setPlays(JSON.parse(localStorage.getItem("gg-song-plays") || "{}"));
     setTheme(savedTheme);
     setCatalogUnlocked(unlocked);
     document.documentElement.dataset.theme = savedTheme;
@@ -48,7 +40,7 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
 
   useEffect(() => {
     if (!catalogUnlocked) return;
-    fetch("/api/songs?unlock=1")
+    fetch("/api/songs?jukebox=1")
       .then(res => res.json())
       .then(setSongs)
       .catch(() => {});
@@ -58,42 +50,6 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
     setTheme(next);
     document.documentElement.dataset.theme = next;
     localStorage.setItem("gg-theme", next);
-  }
-
-  async function playSong(song: SongRow) {
-    const currentPlays = plays[song.id] || 0;
-    if (currentPlays >= song.freePlayLimit && !catalogUnlocked) {
-      setCreditModal(true);
-      return;
-    }
-
-    const updated = { ...plays, [song.id]: currentPlays + 1 };
-    localStorage.setItem("gg-song-plays", JSON.stringify(updated));
-    setPlays(updated);
-    setCurrentSong(song);
-
-    if (song.audioUrl && audioRef.current) {
-      audioRef.current.src = song.audioUrl;
-      await audioRef.current.play().catch(() => setToast("Browser blocked autoplay. Tap play on the audio player."));
-    } else {
-      setToast(`${song.title} selected. Add an audio file URL in admin to play real music.`);
-    }
-  }
-
-  async function buyCredits() {
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "jukebox_credits", label: "Jukebox credits", amountCents: 100 })
-    });
-    const data = await res.json();
-    if (data.checkoutUrl) location.href = data.checkoutUrl;
-    if (data.demoMode) {
-      localStorage.setItem("gg-catalog-unlocked", "1");
-      setCatalogUnlocked(true);
-      setCreditModal(false);
-      setToast("Demo mode: catalog unlocked locally. Connect Stripe for real credit purchases.");
-    }
   }
 
   async function unlockCatalog() {
@@ -140,16 +96,7 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
       </header>
 
       <aside className="jukebox-scene reference-jukebox-scene" aria-label="Jukebox player">
-        <ReferenceJukebox
-          songs={songs}
-          plays={plays}
-          catalogUnlocked={catalogUnlocked}
-          currentSong={currentSong}
-          selectedSongId={currentSong?.id}
-          onSelect={setCurrentSong}
-          onPlay={playSong}
-          audioRef={audioRef}
-        />
+        <JukeboxPlayer initialSongs={songs} />
       </aside>
 
       <main id="top">
@@ -171,15 +118,7 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
             <p className="eyebrow">Jukebox</p>
             <h2>Spin the wheel, pick the center title, then play.</h2>
             <p className="muted">The jukebox renders only the visible wheel rows, so the catalog stays fast as it grows. Audio files can be attached in the admin dashboard.</p>
-            <JukeboxSongWheel
-              songs={songs}
-              plays={plays}
-              catalogUnlocked={catalogUnlocked}
-              selectedSongId={currentSong?.id}
-              onSelect={setCurrentSong}
-              onPlay={playSong}
-              visibleRadius={5}
-            />
+            <a className="button secondary" href="/jukebox">Open the full-size jukebox</a>
           </div>
         </section>
 
@@ -224,20 +163,7 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
         </section>
       </main>
 
-      {creditModal && (
-        <div className="modal-backdrop" onMouseDown={(event) => {
-          if (event.currentTarget === event.target) setCreditModal(false);
-        }}>
-          <div className="modal" role="dialog" aria-modal="true">
-            <h2>Jukebox credits</h2>
-            <p>You used the free plays for that song. Buy credits or come back later.</p>
-            <div className="actions">
-              <button className="button" onClick={buyCredits}>Buy credits</button>
-              <button className="button secondary" onClick={() => setCreditModal(false)}>Maybe later</button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </>
   );
 }
@@ -334,3 +260,4 @@ function BookingForm({ setToast }: { setToast: (value: string) => void }) {
     </form>
   );
 }
+

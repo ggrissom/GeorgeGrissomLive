@@ -1,6 +1,6 @@
 "use client";
 
-import type { Ref } from "react";
+import React, { type Ref } from "react";
 
 import { formatDuration, type PublicJukeboxSong } from "@/lib/jukebox";
 

@@ -47,7 +47,7 @@ test("catalog cards render SINGLE, duration, and every real title on a partial s
     assert.match(markup, new RegExp(`>${song.title}</strong>`));
   }
 
-  assert.equal((markup.match(/class="jukebox-song-card/g) ?? []).length, 6);
+  assert.equal((markup.match(/<button class="jukebox-song-card/g) ?? []).length, 6);
   assert.doesNotMatch(markup, /class="jukebox-song-card"[^>]*>\s*<\/button>/);
 });
 
@@ -56,7 +56,7 @@ test("catalog opens on the selected song's nonblank spread", () => {
   const markup = renderCatalog(songs, "song-11");
 
   assert.match(markup, />Song 11</);
-  assert.equal((markup.match(/class="jukebox-song-card/g) ?? []).length, 1);
+  assert.equal((markup.match(/<button class="jukebox-song-card/g) ?? []).length, 1);
   assert.doesNotMatch(markup, />Song 10</);
 });
 
