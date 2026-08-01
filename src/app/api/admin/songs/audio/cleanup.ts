@@ -6,6 +6,10 @@ import {
   settleAudioCleanup,
 } from "./cleanup-workflow";
 import { deleteOwnedJukeboxAudio } from "./storage";
+import {
+  cleanupLeaseUntil,
+  cleanupRetryState,
+} from "./cleanup-retry-policy";
 
 async function enqueueAudioCleanup(
   task: AudioCleanupTask & { pathname: string },
@@ -18,12 +22,16 @@ async function enqueueAudioCleanup(
       reason: task.reason,
       attempts: 1,
       lastError: "Immediate cleanup failed",
+      nextAttemptAt: new Date(),
     },
     update: {
       pathname: task.pathname,
       reason: task.reason,
       attempts: { increment: 1 },
       lastError: "Immediate cleanup failed",
+      nextAttemptAt: new Date(),
+      leaseUntil: null,
+      terminalAt: null,
     },
   });
 }
@@ -38,11 +46,33 @@ export function cleanupJukeboxAudio(
 }
 
 export async function retryPendingAudioCleanup(limit = 5): Promise<void> {
-  const pending = await prisma.audioCleanup.findMany({
-    orderBy: { createdAt: "asc" },
-    take: limit,
+  const now = new Date();
+  const leaseUntil = cleanupLeaseUntil(now);
+  const candidates = await prisma.audioCleanup.findMany({
+    where: {
+      terminalAt: null,
+      nextAttemptAt: { lte: now },
+      OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }],
+    },
+    orderBy: [{ nextAttemptAt: "asc" }, { attempts: "asc" }],
+    take: Math.max(limit * 4, limit),
   });
-  for (const task of pending) {
+  const claimed: typeof candidates = [];
+  for (const task of candidates) {
+    if (claimed.length >= limit) break;
+    const claim = await prisma.audioCleanup.updateMany({
+      where: {
+        id: task.id,
+        terminalAt: null,
+        nextAttemptAt: { lte: now },
+        OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }],
+      },
+      data: { leaseUntil },
+    });
+    if (claim.count === 1) claimed.push(task);
+  }
+
+  for (const task of claimed) {
     try {
       const removed = await deleteOwnedJukeboxAudio(
         task.audioUrl,
@@ -51,13 +81,22 @@ export async function retryPendingAudioCleanup(limit = 5): Promise<void> {
       if (!removed) throw new Error("Ownership verification failed");
       await prisma.audioCleanup.delete({ where: { id: task.id } });
     } catch {
-      await prisma.audioCleanup.update({
-        where: { id: task.id },
-        data: {
-          attempts: { increment: 1 },
-          lastError: "Cleanup retry failed",
-        },
-      });
+      const attempts = task.attempts + 1;
+      const retry = cleanupRetryState(attempts, new Date());
+      await prisma.audioCleanup
+        .updateMany({
+          where: { id: task.id, leaseUntil },
+          data: {
+            attempts,
+            lastError: "Cleanup retry failed",
+            nextAttemptAt: retry.nextAttemptAt,
+            terminalAt: retry.terminalAt,
+            leaseUntil: null,
+          },
+        })
+        .catch(() => {
+          console.error("Unable to update audio cleanup retry state");
+        });
     }
   }
 }

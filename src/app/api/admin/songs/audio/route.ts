@@ -24,6 +24,7 @@ import {
   createAudioTokenPolicy,
   parseAudioClientPayload,
 } from "./upload-policy";
+import { settleAudioCasResult } from "./finalization-workflow";
 
 export const runtime = "nodejs";
 
@@ -55,18 +56,63 @@ function parseFinalizeBody(value: unknown): FinalizeBody {
   };
 }
 
-function cleanupRequired(result: AudioCleanupResult) {
-  return result.status === "untracked"
-    ? { audioUrl: result.audioUrl, pathname: result.pathname }
-    : undefined;
+function cleanupRequired(
+  result: AudioCleanupResult,
+  fallback?: { pathname: string; audioUrl?: string; url?: string },
+) {
+  if (result.status === "untracked") {
+    return { audioUrl: result.audioUrl, pathname: result.pathname };
+  }
+  if (result.status !== "skipped" || !fallback) return undefined;
+  const audioUrl = fallback.audioUrl ?? fallback.url;
+  return audioUrl ? { audioUrl, pathname: fallback.pathname } : undefined;
 }
 
 async function finalizeAudio(body: FinalizeBody) {
-  createAudioTokenPolicy(body.blob.pathname, body.songId);
-  const stored = await verifyUploadedJukeboxAudio(
-    body.blob.url,
-    body.blob.pathname,
-  );
+  try {
+    createAudioTokenPolicy(body.blob.pathname, body.songId);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Audio upload path is invalid",
+        cleanupRequired: {
+          audioUrl: body.blob.url,
+          pathname: body.blob.pathname,
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  let stored;
+  try {
+    stored = await verifyUploadedJukeboxAudio(
+      body.blob.url,
+      body.blob.pathname,
+    );
+  } catch (error) {
+    const cleanup = await cleanupJukeboxAudio({
+      audioUrl: body.blob.url,
+      pathname: body.blob.pathname,
+      reason: "storage_verification_failed",
+    });
+    const detail = cleanupRequired(cleanup, body.blob);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof AudioStorageConfigurationError
+            ? error.message
+            : "Uploaded audio could not be verified",
+        cleanupStatus: cleanup.status,
+        ...(detail ? { cleanupRequired: detail } : {}),
+      },
+      {
+        status:
+          error instanceof AudioStorageConfigurationError ? 503 : 400,
+      },
+    );
+  }
 
   let durationSeconds: number;
   try {
@@ -86,7 +132,7 @@ async function finalizeAudio(body: FinalizeBody) {
       pathname: body.blob.pathname,
       reason: "metadata_validation_failed",
     });
-    const detail = cleanupRequired(cleanup);
+    const detail = cleanupRequired(cleanup, body.blob);
     const message =
       error instanceof AudioUploadValidationError
         ? error.message
@@ -97,42 +143,87 @@ async function finalizeAudio(body: FinalizeBody) {
     );
   }
 
-  const currentSong = await prisma.song.findUnique({
-    where: { id: body.songId },
-    select: { audioUrl: true, audioStoragePath: true },
-  });
+  let currentSong;
+  try {
+    currentSong = await prisma.song.findUnique({
+      where: { id: body.songId },
+      select: { audioUrl: true, audioStoragePath: true },
+    });
+  } catch {
+    const cleanup = await cleanupJukeboxAudio({
+      audioUrl: body.blob.url,
+      pathname: body.blob.pathname,
+      reason: "song_lookup_failed",
+    });
+    const detail = cleanupRequired(cleanup, body.blob);
+    return NextResponse.json(
+      {
+        error: "Song could not be verified",
+        cleanupStatus: cleanup.status,
+        ...(detail ? { cleanupRequired: detail } : {}),
+      },
+      { status: 500 },
+    );
+  }
   if (!currentSong) {
     const cleanup = await cleanupJukeboxAudio({
       audioUrl: body.blob.url,
       pathname: body.blob.pathname,
       reason: "song_missing",
     });
-    const detail = cleanupRequired(cleanup);
+    const detail = cleanupRequired(cleanup, body.blob);
     return NextResponse.json(
       { error: "Song not found", ...(detail ? { cleanupRequired: detail } : {}) },
       { status: 404 },
     );
   }
 
+  let updateCount: number;
   try {
-    await prisma.song.update({
-      where: { id: body.songId },
+    const update = await prisma.song.updateMany({
+      where: {
+        id: body.songId,
+        audioUrl: currentSong.audioUrl,
+        audioStoragePath: currentSong.audioStoragePath,
+      },
       data: {
         audioUrl: body.blob.url,
         audioStoragePath: body.blob.pathname,
         durationSeconds,
       },
     });
+    updateCount = update.count;
   } catch {
     const cleanup = await cleanupJukeboxAudio({
       audioUrl: body.blob.url,
       pathname: body.blob.pathname,
       reason: "database_update_failed",
     });
-    const detail = cleanupRequired(cleanup);
+    const detail = cleanupRequired(cleanup, body.blob);
     return NextResponse.json(
       { error: "Audio could not be attached", ...(detail ? { cleanupRequired: detail } : {}) },
       { status: 500 },
+    );
+  }
+
+  const cas = await settleAudioCasResult(
+    updateCount,
+    {
+      audioUrl: body.blob.url,
+      pathname: body.blob.pathname,
+      reason: "concurrent_finalization_lost",
+    },
+    cleanupJukeboxAudio,
+  );
+  if (cas.status === "conflict") {
+    const detail = cleanupRequired(cas.cleanup, body.blob);
+    return NextResponse.json(
+      {
+        error: "Another audio update won; this upload was not attached",
+        cleanupStatus: cas.cleanup.status,
+        ...(detail ? { cleanupRequired: detail } : {}),
+      },
+      { status: 409 },
     );
   }
 
@@ -149,7 +240,10 @@ async function finalizeAudio(body: FinalizeBody) {
     });
   }
   const detail = replacedAudioCleanup
-    ? cleanupRequired(replacedAudioCleanup)
+    ? cleanupRequired(replacedAudioCleanup, {
+        audioUrl: currentSong.audioUrl!,
+        pathname: currentSong.audioStoragePath!,
+      })
     : undefined;
   return NextResponse.json({
     audioUrl: body.blob.url,
@@ -176,7 +270,33 @@ export async function POST(request: Request) {
       !Array.isArray(body) &&
       (body as { type?: unknown }).type === "jukebox.finalize"
     ) {
-      return finalizeAudio(parseFinalizeBody(body));
+      try {
+        return finalizeAudio(parseFinalizeBody(body));
+      } catch (error) {
+        const rawBlob = (body as { blob?: unknown }).blob;
+        const cleanupDetail =
+          rawBlob &&
+          typeof rawBlob === "object" &&
+          typeof (rawBlob as { url?: unknown }).url === "string" &&
+          typeof (rawBlob as { pathname?: unknown }).pathname === "string"
+            ? {
+                audioUrl: (rawBlob as { url: string }).url,
+                pathname: (rawBlob as { pathname: string }).pathname,
+              }
+            : undefined;
+        return NextResponse.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Audio finalization data is invalid",
+            ...(cleanupDetail
+              ? { cleanupRequired: cleanupDetail }
+              : {}),
+          },
+          { status: 400 },
+        );
+      }
     }
 
     const result = await handleUpload({

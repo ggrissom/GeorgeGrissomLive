@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { BlobNotFoundError } from "@vercel/blob";
 
-import { matchesOwnedBlobDescriptor } from "./storage";
+import {
+  deleteOwnedJukeboxAudio,
+  matchesOwnedBlobDescriptor,
+} from "./storage";
 
 const audioUrl =
   "https://configured.public.blob.vercel-storage.com/jukebox-audio/song-1/file.mp3";
@@ -38,5 +42,17 @@ test("rejects legacy URLs without explicit persisted ownership metadata", () => 
       pathname,
     }),
     false,
+  );
+});
+
+test("treats an exact-store 404 as already cleaned", async () => {
+  assert.equal(
+    await deleteOwnedJukeboxAudio(audioUrl, pathname, {
+      head: async () => {
+        throw new BlobNotFoundError();
+      },
+      del: async () => undefined,
+    }),
+    true,
   );
 });

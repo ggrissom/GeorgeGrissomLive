@@ -5,6 +5,7 @@ import { upload } from "@vercel/blob/client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { validateAudioUpload } from "@/app/api/admin/songs/audio/metadata";
 import { createAudioUploadPath } from "@/app/api/admin/songs/audio/upload-policy";
+import { actionableAudioCleanupMessage } from "./audio-cleanup-message";
 
 type Tab = "live" | "events" | "setlists" | "songs" | "import" | "search" | "record" | "uploads" | "bookings";
 
@@ -93,11 +94,11 @@ async function finalizeSongAudio(songId: string, blob: PutBlobResult) {
     throw new Error(`Audio uploaded but could not be attached. Retry with uploaded URL: ${blob.url}`);
   }
   const data = await res.json().catch(() => ({}));
+  const cleanupMessage = actionableAudioCleanupMessage(data);
   if (!res.ok) {
-    const recoveryUrl = data.cleanupRequired?.audioUrl;
-    throw new Error(recoveryUrl ? `${data.error || "Audio finalization failed."} Cleanup required: ${recoveryUrl}` : data.error || "Audio finalization failed.");
+    throw new Error(cleanupMessage ? `${data.error || "Audio finalization failed."} ${cleanupMessage}` : data.error || "Audio finalization failed.");
   }
-  return data;
+  return { ...data, cleanupMessage };
 }
 
 async function uploadSongAudio(songId: string, file: File) {
@@ -511,8 +512,8 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
     }
     if (audioFile) {
       try {
-        await uploadSongAudio(data.id, audioFile);
-        setToast("Song and audio saved.");
+        const audio = await uploadSongAudio(data.id, audioFile);
+        setToast(audio.cleanupMessage || "Song and audio saved.");
       } catch (error) {
         setToast(error instanceof Error ? `Song saved. ${error.message}` : "Song saved, but audio upload failed.");
       }
@@ -529,7 +530,8 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
     if (!window.confirm(message)) return;
     const res = await fetch(`/api/songs?id=${encodeURIComponent(id)}&deleteAudio=${deleteAudio ? "1" : "0"}`, { method: "DELETE" });
     const data = await res.json().catch(() => ({}));
-    setToast(res.ok ? (data.audioDeleted ? "Song and owned audio deleted." : "Song deleted; audio was kept.") : data.error || "Delete failed.");
+    const cleanupMessage = actionableAudioCleanupMessage(data);
+    setToast(cleanupMessage || (res.ok ? (data.audioDeleted ? "Song and owned audio deleted." : "Song deleted; audio was kept.") : data.error || "Delete failed."));
     await refresh();
   }
 
@@ -648,7 +650,7 @@ function SongTableRow({
     setBusy(true);
     try {
       const data = await uploadSongAudio(song.id, audioFile);
-      setToast(`Audio saved (${data.durationSeconds ?? "unknown"} seconds).`);
+      setToast(data.cleanupMessage || `Audio saved (${data.durationSeconds ?? "unknown"} seconds).`);
       setAudioFile(null);
       await refresh();
     } catch (error) {

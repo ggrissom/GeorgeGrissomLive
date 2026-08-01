@@ -129,7 +129,9 @@ export async function DELETE(request: Request) {
     cleanupStatus: cleanup?.status,
     ...(cleanup?.status === "untracked"
       ? { cleanupRequired: { audioUrl: cleanup.audioUrl, pathname: cleanup.pathname } }
-      : {})
+      : cleanup?.status === "skipped" && song.audioUrl && song.audioStoragePath
+        ? { cleanupRequired: { audioUrl: song.audioUrl, pathname: song.audioStoragePath } }
+        : {})
   });
 }
 

@@ -70,8 +70,13 @@ model AudioCleanup {
   reason    String
   attempts  Int      @default(0)
   lastError String?
+  nextAttemptAt DateTime @default(now())
+  leaseUntil    DateTime?
+  terminalAt   DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([terminalAt, nextAttemptAt])
 }
 
 model Setlist {

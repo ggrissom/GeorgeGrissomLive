@@ -1,3 +1,5 @@
+import { BlobNotFoundError } from "@vercel/blob";
+
 export class AudioStorageConfigurationError extends Error {}
 export class AudioStorageValidationError extends Error {}
 
@@ -70,11 +72,35 @@ export async function readOwnedJukeboxAudio(
 export async function deleteOwnedJukeboxAudio(
   audioUrl: string,
   pathname: string,
+  injected?: {
+    head: (audioUrl: string) => Promise<OwnedBlobDescriptor & { etag: string }>;
+    del: (pathname: string, etag: string) => Promise<void>;
+  },
 ): Promise<boolean> {
-  const token = blobToken();
-  const { del, head } = await import("@vercel/blob");
-  const blob = await head(audioUrl, { token });
+  const operations =
+    injected ??
+    (await (async () => {
+      const token = blobToken();
+      const { del, head } = await import("@vercel/blob");
+      return {
+        head: (url: string) => head(url, { token }),
+        del: (path: string, etag: string) =>
+          del(path, { token, ifMatch: etag }),
+      };
+    })());
+  let blob: OwnedBlobDescriptor & { etag: string };
+  try {
+    blob = await operations.head(audioUrl);
+  } catch (error) {
+    if (error instanceof BlobNotFoundError) return true;
+    throw error;
+  }
   if (!matchesOwnedBlobDescriptor(audioUrl, pathname, blob)) return false;
-  await del(pathname, { token, ifMatch: blob.etag });
+  try {
+    await operations.del(pathname, blob.etag);
+  } catch (error) {
+    if (error instanceof BlobNotFoundError) return true;
+    throw error;
+  }
   return true;
 }
