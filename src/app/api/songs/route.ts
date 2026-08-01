@@ -3,6 +3,11 @@ import { prisma } from "@/lib/db";
 import { isAdminRequest } from "@/lib/auth";
 import { toPublicJukeboxSong } from "@/lib/jukebox";
 import { lyricSearchLinks } from "@/lib/metadata";
+import {
+  SongPatchValidationError,
+  assertSongPatchHasChanges,
+  validateSongPatchId,
+} from "@/lib/song-patch-validation";
 
 class SongInputValidationError extends Error {}
 
@@ -69,9 +74,15 @@ export async function PATCH(request: Request) {
   const body = await request.json();
   const input = validateSongInput(() => normalizeSongInput(body, true));
   if (input instanceof NextResponse) return input;
+  const patch = validateSongInput(() => {
+    const id = validateSongPatchId(body.id);
+    assertSongPatchHasChanges(input);
+    return { id, data: input };
+  });
+  if (patch instanceof NextResponse) return patch;
   const song = await prisma.song.update({
-    where: { id: body.id },
-    data: input
+    where: { id: patch.id },
+    data: patch.data
   });
   await attachSongToSetlists(song.id, body);
   const saved = await prisma.song.findUnique({
@@ -94,7 +105,7 @@ function validateSongInput<T>(normalizer: () => T): T | NextResponse {
   try {
     return normalizer();
   } catch (error) {
-    if (error instanceof SongInputValidationError) {
+    if (error instanceof SongInputValidationError || error instanceof SongPatchValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     throw error;
