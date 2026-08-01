@@ -3,20 +3,21 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { toPublicJukeboxSong, type PublicJukeboxSong } from "@/lib/jukebox";
 import { JukeboxCatalog } from "./jukebox-catalog";
-import type { PublicJukeboxSong } from "@/lib/jukebox";
 
 function makeSongs(count: number): PublicJukeboxSong[] {
-  return Array.from({ length: count }, (_, index) => ({
-    id: `song-${index + 1}`,
-    title: `Song ${index + 1}`,
-    artist: "George Grissom",
-    albumLabel: index === 0 ? "SINGLE" : "Live at the Lounge",
-    audioUrl: index === 1 ? null : `https://audio.example/song-${index + 1}.mp3`,
-    durationSeconds: index === 0 ? 65 : null,
-    jukeboxOrder: index + 1,
-    playable: index !== 1,
-  }));
+  return Array.from({ length: count }, (_, index) =>
+    toPublicJukeboxSong({
+      id: `song-${index + 1}`,
+      title: `Song ${index + 1}`,
+      artist: "George Grissom",
+      album: index === 0 ? null : "Live at the Lounge",
+      audioUrl: index === 1 ? null : `https://audio.example/song-${index + 1}.mp3`,
+      durationSeconds: index === 0 ? 65 : null,
+      jukeboxOrder: index + 1,
+    }),
+  );
 }
 
 function renderCatalog(songs: PublicJukeboxSong[], selectedSongId?: string) {
