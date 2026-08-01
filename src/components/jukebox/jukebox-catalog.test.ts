@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { JukeboxCatalog } from "./jukebox-catalog";
@@ -20,13 +21,13 @@ function makeSongs(count: number): PublicJukeboxSong[] {
 
 function renderCatalog(songs: PublicJukeboxSong[], selectedSongId?: string) {
   return renderToStaticMarkup(
-    <JukeboxCatalog
-      songs={songs}
-      selectedSongId={selectedSongId}
-      open
-      onClose={() => {}}
-      onSelect={() => {}}
-    />,
+    createElement(JukeboxCatalog, {
+      songs,
+      selectedSongId,
+      open: true,
+      onClose: () => {},
+      onSelect: () => {},
+    }),
   );
 }
 
