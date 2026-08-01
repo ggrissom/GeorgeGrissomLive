@@ -13,3 +13,14 @@ export function assertSongPatchHasChanges(patch: Record<string, unknown>): void 
     throw new SongPatchValidationError("At least one editable song field is required");
   }
 }
+
+export function validateOptionalBoolean(
+  value: unknown,
+  field: string,
+): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "boolean") {
+    throw new SongPatchValidationError(`${field} must be a boolean`);
+  }
+  return value;
+}

@@ -1,11 +1,13 @@
 export const MAX_AUDIO_BYTES = 200 * 1024 * 1024;
 
-const AUDIO_MIME_TYPES = new Set([
+export const SUPPORTED_AUDIO_MIME_TYPES = [
   "audio/mpeg",
   "audio/mp3",
   "audio/wav",
   "audio/x-wav",
-]);
+] as const;
+
+const AUDIO_MIME_TYPES = new Set<string>(SUPPORTED_AUDIO_MIME_TYPES);
 
 export class AudioUploadValidationError extends Error {}
 
@@ -35,6 +37,26 @@ export async function readAudioDuration(file: File): Promise<number> {
   try {
     const { parseBlob } = await import("music-metadata");
     const metadata = await parseBlob(file, { duration: true, skipCovers: true });
+    const duration = normalizeDuration(metadata.format.duration ?? null);
+    if (duration === null) throw new Error("missing duration");
+    return duration;
+  } catch (error) {
+    if (error instanceof AudioUploadValidationError) throw error;
+    throw new AudioUploadValidationError("Audio metadata could not be read");
+  }
+}
+
+export async function readAudioDurationFromStream(
+  stream: ReadableStream<Uint8Array>,
+  fileInfo: { mimeType: string; size: number; path: string },
+): Promise<number> {
+  validateAudioUpload({ size: fileInfo.size, type: fileInfo.mimeType });
+  try {
+    const { parseWebStream } = await import("music-metadata");
+    const metadata = await parseWebStream(stream, fileInfo, {
+      duration: true,
+      skipCovers: true,
+    });
     const duration = normalizeDuration(metadata.format.duration ?? null);
     if (duration === null) throw new Error("missing duration");
     return duration;

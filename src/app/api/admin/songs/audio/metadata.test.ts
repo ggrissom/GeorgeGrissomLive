@@ -6,6 +6,7 @@ import {
   AudioUploadValidationError,
   normalizeDuration,
   readAudioDuration,
+  readAudioDurationFromStream,
   validateAudioUpload,
 } from "./metadata";
 
@@ -81,4 +82,16 @@ test("reports unreadable audio metadata with a user-safe validation error", asyn
     type: "audio/wav",
   });
   await assert.rejects(readAudioDuration(invalid), AudioUploadValidationError);
+});
+
+test("verifies duration from a bounded server-side Blob stream", async () => {
+  const wav = oneSecondWav();
+  assert.equal(
+    await readAudioDurationFromStream(wav.stream(), {
+      mimeType: wav.type,
+      size: wav.size,
+      path: wav.name,
+    }),
+    1,
+  );
 });

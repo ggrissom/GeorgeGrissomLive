@@ -1,6 +1,10 @@
 "use client";
 
+import type { PutBlobResult } from "@vercel/blob";
+import { upload } from "@vercel/blob/client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { validateAudioUpload } from "@/app/api/admin/songs/audio/metadata";
+import { createAudioUploadPath } from "@/app/api/admin/songs/audio/upload-policy";
 
 type Tab = "live" | "events" | "setlists" | "songs" | "import" | "search" | "record" | "uploads" | "bookings";
 
@@ -72,6 +76,42 @@ type SongRow = {
 type RequestRow = { id: string; requesterName?: string; customSongTitle?: string; message?: string; tipAmountCents: number; paymentStatus: string; status: string; priorityScore: number; song?: SongRow; event?: EventRow; createdAt: string; };
 type UploadRow = { id: string; uploaderName?: string; note?: string; storagePath: string; mimeType?: string; fileName?: string; status: string; createdAt: string; event?: EventRow };
 type BookingRow = { id: string; name: string; email?: string; phone?: string; venue?: string; date?: string; message?: string; status: string; createdAt: string; };
+
+async function finalizeSongAudio(songId: string, blob: PutBlobResult) {
+  let res: Response;
+  try {
+    res = await fetch("/api/admin/songs/audio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "jukebox.finalize",
+        songId,
+        blob: { url: blob.url, pathname: blob.pathname }
+      })
+    });
+  } catch {
+    throw new Error(`Audio uploaded but could not be attached. Retry with uploaded URL: ${blob.url}`);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const recoveryUrl = data.cleanupRequired?.audioUrl;
+    throw new Error(recoveryUrl ? `${data.error || "Audio finalization failed."} Cleanup required: ${recoveryUrl}` : data.error || "Audio finalization failed.");
+  }
+  return data;
+}
+
+async function uploadSongAudio(songId: string, file: File) {
+  validateAudioUpload(file);
+  const pathname = createAudioUploadPath(songId, file.name);
+  const blob = await upload(pathname, file, {
+    access: "public",
+    handleUploadUrl: "/api/admin/songs/audio",
+    clientPayload: JSON.stringify({ songId }),
+    contentType: file.type,
+    multipart: true
+  });
+  return finalizeSongAudio(songId, blob);
+}
 
 export default function AdminApp() {
   const [tab, setTab] = useState<Tab>("live");
@@ -470,12 +510,12 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
       return;
     }
     if (audioFile) {
-      const uploadForm = new FormData();
-      uploadForm.set("songId", data.id);
-      uploadForm.set("file", audioFile);
-      const upload = await fetch("/api/admin/songs/audio", { method: "POST", body: uploadForm });
-      const uploadData = await upload.json().catch(() => ({}));
-      setToast(upload.ok ? "Song and audio saved." : uploadData.error || "Song saved, but audio upload failed.");
+      try {
+        await uploadSongAudio(data.id, audioFile);
+        setToast("Song and audio saved.");
+      } catch (error) {
+        setToast(error instanceof Error ? `Song saved. ${error.message}` : "Song saved, but audio upload failed.");
+      }
     } else {
       setToast("Song saved.");
     }
@@ -606,17 +646,15 @@ function SongTableRow({
   async function uploadAudio() {
     if (!audioFile) return;
     setBusy(true);
-    const form = new FormData();
-    form.set("songId", song.id);
-    form.set("file", audioFile);
-    const res = await fetch("/api/admin/songs/audio", { method: "POST", body: form });
-    const data = await res.json().catch(() => ({}));
-    setToast(res.ok ? `Audio saved (${data.durationSeconds ?? "unknown"} seconds).` : data.error || "Audio upload failed.");
-    setBusy(false);
-    if (res.ok) {
+    try {
+      const data = await uploadSongAudio(song.id, audioFile);
+      setToast(`Audio saved (${data.durationSeconds ?? "unknown"} seconds).`);
       setAudioFile(null);
       await refresh();
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Audio upload failed.");
     }
+    setBusy(false);
   }
 
   return (

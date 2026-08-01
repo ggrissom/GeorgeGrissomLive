@@ -3,10 +3,14 @@ import { prisma } from "@/lib/db";
 import { isAdminRequest } from "@/lib/auth";
 import { toPublicJukeboxSong } from "@/lib/jukebox";
 import { lyricSearchLinks } from "@/lib/metadata";
-import { deleteOwnedJukeboxAudio } from "@/app/api/admin/songs/audio/storage";
+import {
+  cleanupJukeboxAudio,
+  retryPendingAudioCleanup,
+} from "@/app/api/admin/songs/audio/cleanup";
 import {
   SongPatchValidationError,
   assertSongPatchHasChanges,
+  validateOptionalBoolean,
   validateSongPatchId,
 } from "@/lib/song-patch-validation";
 
@@ -100,18 +104,33 @@ export async function DELETE(request: Request) {
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
   const song = await prisma.song.findUnique({
     where: { id },
-    select: { audioUrl: true }
+    select: { audioUrl: true, audioStoragePath: true }
   });
   if (!song) return NextResponse.json({ error: "Song not found" }, { status: 404 });
   await prisma.song.delete({ where: { id } });
-  let audioDeleted = false;
-  if (searchParams.get("deleteAudio") === "1") {
-    audioDeleted = await deleteOwnedJukeboxAudio(song.audioUrl).catch(() => {
-      console.error("Unable to remove deleted song audio object");
-      return false;
+  await retryPendingAudioCleanup().catch(() => {
+    console.error("Unable to process pending audio cleanup records");
+  });
+  let cleanup;
+  if (
+    searchParams.get("deleteAudio") === "1" &&
+    song.audioUrl &&
+    song.audioStoragePath
+  ) {
+    cleanup = await cleanupJukeboxAudio({
+      audioUrl: song.audioUrl,
+      pathname: song.audioStoragePath,
+      reason: "song_deleted"
     });
   }
-  return NextResponse.json({ ok: true, audioDeleted });
+  return NextResponse.json({
+    ok: true,
+    audioDeleted: cleanup?.status === "deleted",
+    cleanupStatus: cleanup?.status,
+    ...(cleanup?.status === "untracked"
+      ? { cleanupRequired: { audioUrl: cleanup.audioUrl, pathname: cleanup.pathname } }
+      : {})
+  });
 }
 
 function validateSongInput<T>(normalizer: () => T): T | NextResponse {
@@ -150,6 +169,7 @@ function normalizeSongInput(body: any, patch = false) {
   if (data.album !== undefined) data.album = normalizeOptionalText(data.album);
   if (data.durationSeconds !== undefined) data.durationSeconds = normalizeNonNegativeInteger(data.durationSeconds, "durationSeconds", null);
   if (data.jukeboxOrder !== undefined) data.jukeboxOrder = normalizeNonNegativeInteger(data.jukeboxOrder, "jukeboxOrder", 0);
+  if (data.isPublic !== undefined) data.isPublic = validateOptionalBoolean(data.isPublic, "isPublic");
 
   return data;
 }

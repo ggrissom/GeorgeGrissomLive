@@ -1,31 +1,42 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isOwnedJukeboxAudioUrl } from "./storage";
+import { matchesOwnedBlobDescriptor } from "./storage";
 
-test("recognizes only HTTPS Vercel Blob objects in this app audio namespace", () => {
+const audioUrl =
+  "https://configured.public.blob.vercel-storage.com/jukebox-audio/song-1/file.mp3";
+const pathname = "jukebox-audio/song-1/file.mp3";
+
+test("accepts only the exact URL and persisted pathname returned by the configured store", () => {
   assert.equal(
-    isOwnedJukeboxAudioUrl(
-      "https://example.public.blob.vercel-storage.com/jukebox-audio/song-1/file.mp3",
-    ),
+    matchesOwnedBlobDescriptor(audioUrl, pathname, {
+      url: audioUrl,
+      pathname,
+    }),
     true,
   );
-  for (const url of [
-    "http://example.public.blob.vercel-storage.com/jukebox-audio/song-1/file.mp3",
-    "https://example.public.blob.vercel-storage.com/recordings/file.mp3",
-    "https://example.com/jukebox-audio/song-1/file.mp3",
-    "/uploads/audio/file.mp3",
-    "not a URL",
-  ]) {
-    assert.equal(isOwnedJukeboxAudioUrl(url), false, url);
-  }
+  assert.equal(
+    matchesOwnedBlobDescriptor(audioUrl, pathname, {
+      url: "https://other.public.blob.vercel-storage.com/jukebox-audio/song-1/file.mp3",
+      pathname,
+    }),
+    false,
+  );
+  assert.equal(
+    matchesOwnedBlobDescriptor(audioUrl, pathname, {
+      url: audioUrl,
+      pathname: "jukebox-audio/song-2/file.mp3",
+    }),
+    false,
+  );
 });
 
-test("rejects encoded namespace traversal and credentialed URLs", () => {
-  for (const url of [
-    "https://example.public.blob.vercel-storage.com/jukebox-audio%2Fsong-1/file.mp3",
-    "https://user:pass@example.public.blob.vercel-storage.com/jukebox-audio/song-1/file.mp3",
-  ]) {
-    assert.equal(isOwnedJukeboxAudioUrl(url), false, url);
-  }
+test("rejects legacy URLs without explicit persisted ownership metadata", () => {
+  assert.equal(
+    matchesOwnedBlobDescriptor(audioUrl, null, {
+      url: audioUrl,
+      pathname,
+    }),
+    false,
+  );
 });
