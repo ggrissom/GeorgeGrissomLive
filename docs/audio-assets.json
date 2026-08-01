@@ -1,0 +1,28 @@
+{
+  "updatedAt": "2026-08-01T14:18:00-07:00",
+  "targetFolder": "public/audio",
+  "tracks": [
+    {
+      "title": "One Question",
+      "artist": "George Grissom",
+      "album": "SINGLE",
+      "durationSeconds": 191.832,
+      "format": "audio/mpeg",
+      "preparedFileName": "one-question.mp3",
+      "targetPath": "/audio/one-question.mp3",
+      "driveFileId": "1nAoTFlH8apvsBZSf6Pgf1LA18-Bx1fRN",
+      "driveUrl": "https://drive.google.com/file/d/1nAoTFlH8apvsBZSf6Pgf1LA18-Bx1fRN/view?usp=drivesdk"
+    },
+    {
+      "title": "What a Shame",
+      "artist": "George Grissom",
+      "album": "SINGLE",
+      "durationSeconds": 225.072,
+      "format": "audio/mpeg",
+      "preparedFileName": "what-a-shame-vocals.mp3",
+      "targetPath": "/audio/what-a-shame-vocals.mp3",
+      "driveFileId": "1ZEWPPcH-pTTOr2p1oLPDbyn_XGseW0yp",
+      "driveUrl": "https://drive.google.com/file/d/1ZEWPPcH-pTTOr2p1oLPDbyn_XGseW0yp/view?usp=drivesdk"
+    }
+  ]
+}
