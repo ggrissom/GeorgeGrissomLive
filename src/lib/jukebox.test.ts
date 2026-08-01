@@ -47,7 +47,7 @@ test("uses public jukebox display fallbacks", () => {
 });
 
 test("projects only public jukebox song fields", () => {
-  const projected = toPublicJukeboxSong({
+  const input = {
     id: "1",
     title: "One",
     artist: "George Grissom",
@@ -59,7 +59,8 @@ test("projects only public jukebox song fields", () => {
     privateChordNotes: "Nor this.",
     privateRehearsalNotes: "Or this.",
     rightsStatus: "Internal only",
-  });
+  };
+  const projected = toPublicJukeboxSong(input);
 
   for (const privateField of [
     "privateLyricsNotes",
