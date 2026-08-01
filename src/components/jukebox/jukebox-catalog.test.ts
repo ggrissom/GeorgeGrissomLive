@@ -39,7 +39,7 @@ test("catalog cards render SINGLE, duration, and every real title on a partial s
   assert.match(markup, />1:05</);
 
   for (const song of songs) {
-    assert.match(markup, new RegExp(`>${song.title}</button>`));
+    assert.match(markup, new RegExp(`>${song.title}</strong>`));
   }
 
   assert.equal((markup.match(/class="jukebox-song-card/g) ?? []).length, 6);
