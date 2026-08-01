@@ -6,7 +6,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { toPublicJukeboxSong, type PublicJukeboxSong } from "@/lib/jukebox";
 import {
   clampCatalogPage,
+  closeCatalogAndRestoreFocus,
   getTouchPageGesture,
+  selectCatalogSong,
 } from "./jukebox-catalog-navigation";
 import { JukeboxCatalog } from "./jukebox-catalog";
 
@@ -80,4 +82,26 @@ test("recognized touch swipes suppress the following card click", () => {
     getTouchPageGesture({ x: 10, y: 10 }, { x: 45, y: 10 }),
     { pageDelta: 0, suppressClick: false },
   );
+});
+
+test("song selection closes through the focus-restoring catalog path", () => {
+  const song = makeSongs(1)[0];
+  const actions: string[] = [];
+  const opener = {
+    current: {
+      focus() {
+        actions.push("focus");
+      },
+    },
+  };
+  const close = () =>
+    closeCatalogAndRestoreFocus(
+      () => actions.push("close"),
+      opener,
+      (callback) => callback(),
+    );
+
+  selectCatalogSong(song, () => actions.push("select"), close);
+
+  assert.deepEqual(actions, ["select", "close", "focus"]);
 });

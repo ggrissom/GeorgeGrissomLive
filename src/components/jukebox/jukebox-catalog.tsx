@@ -18,7 +18,9 @@ import {
 } from "@/lib/jukebox";
 import {
   clampCatalogPage,
+  closeCatalogAndRestoreFocus,
   getTouchPageGesture,
+  selectCatalogSong,
 } from "./jukebox-catalog-navigation";
 import { SongCard } from "./song-card";
 
@@ -96,8 +98,11 @@ export function JukeboxCatalog({
   }
 
   function closeCatalog() {
-    onClose();
-    window.requestAnimationFrame(() => openerRef?.current?.focus());
+    closeCatalogAndRestoreFocus(
+      onClose,
+      openerRef,
+      (callback) => window.requestAnimationFrame(callback),
+    );
   }
 
   function suppressFollowingClick() {
@@ -235,7 +240,7 @@ export function JukeboxCatalog({
             firstSongId={firstSongId}
             selectedCardRef={selectedCardRef}
             firstCardRef={firstCardRef}
-            onSelect={onSelect}
+            onSelect={(song) => selectCatalogSong(song, onSelect, closeCatalog)}
           />
           {rightPage && (
             <CatalogPage
@@ -245,7 +250,7 @@ export function JukeboxCatalog({
               firstSongId={firstSongId}
               selectedCardRef={selectedCardRef}
               firstCardRef={firstCardRef}
-              onSelect={onSelect}
+              onSelect={(song) => selectCatalogSong(song, onSelect, closeCatalog)}
             />
           )}
         </div>

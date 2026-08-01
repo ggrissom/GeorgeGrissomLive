@@ -6,6 +6,10 @@ import type { PublicJukeboxSong } from "@/lib/jukebox";
 import { JukeboxCatalog } from "./jukebox-catalog";
 import { JukeboxMachine } from "./jukebox-machine";
 import {
+  runPlaybackAttempt,
+  runReloadedPlaybackAttempt,
+} from "./jukebox-playback";
+import {
   chooseInitialSong,
   findAdjacentPlayableSong,
   reconcileSelectedSong,
@@ -36,6 +40,7 @@ export function JukeboxPlayer({
   const catalogButtonRef = useRef<HTMLButtonElement>(null);
   const songsRef = useRef(initialSongs);
   const selectedSongIdRef = useRef(selectedSongId);
+  const playbackGenerationRef = useRef(0);
 
   const selectedSong =
     initialSongs.find((song) => song.id === selectedSongId) ?? null;
@@ -57,30 +62,48 @@ export function JukeboxPlayer({
     setError(null);
   }
 
+  async function playSongAudio(song: PublicJukeboxSong, reload: boolean) {
+    const audio = audioRef.current;
+    if (!audio || !song.audioUrl) return;
+
+    const generation = ++playbackGenerationRef.current;
+    setLoading(true);
+    setError(null);
+    const attempt = {
+      source: song.audioUrl,
+      generation,
+      isCurrent: (attemptGeneration: number) =>
+        attemptGeneration === playbackGenerationRef.current,
+    };
+    const result = reload
+      ? await runReloadedPlaybackAttempt(audio, attempt)
+      : await runPlaybackAttempt(audio, { ...attempt, reload: false });
+
+    if (result === "stale") return;
+
+    setLoading(false);
+    if (result === "blocked") {
+      setPlaying(false);
+      setError("Tap play to start");
+    }
+  }
+
   async function selectAndPlay(song: PublicJukeboxSong) {
     setSelectedSongId(song.id);
     selectedSongIdRef.current = song.id;
     resetTrackState(song);
 
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    audio.pause();
-    audio.src = song.audioUrl ?? "";
-    audio.load();
-
     if (!song.audioUrl) {
+      ++playbackGenerationRef.current;
+      const audio = audioRef.current;
+      audio?.pause();
+      audio?.removeAttribute("src");
+      audio?.load();
       setError("This track is currently unavailable.");
       return;
     }
 
-    setLoading(true);
-    try {
-      await audio.play();
-    } catch {
-      setLoading(false);
-      setError("Tap play to start");
-    }
+    await playSongAudio(song, true);
   }
 
   useEffect(() => {
@@ -96,6 +119,7 @@ export function JukeboxPlayer({
     );
 
     if (!currentStillExists) {
+      ++playbackGenerationRef.current;
       audio.pause();
       audio.removeAttribute("src");
       audio.load();
@@ -112,6 +136,7 @@ export function JukeboxPlayer({
     if (!audio) return;
 
     if (!selectedSong?.audioUrl) {
+      ++playbackGenerationRef.current;
       audio.pause();
       audio.removeAttribute("src");
       audio.load();
@@ -119,6 +144,8 @@ export function JukeboxPlayer({
     }
 
     if (audio.getAttribute("src") !== selectedSong.audioUrl) {
+      ++playbackGenerationRef.current;
+      audio.pause();
       audio.src = selectedSong.audioUrl;
       audio.load();
       setCurrentTime(0);
@@ -139,7 +166,6 @@ export function JukeboxPlayer({
     }
     function onPlay() {
       setPlaying(true);
-      setLoading(false);
       setError(null);
     }
     function onPause() {
@@ -168,6 +194,7 @@ export function JukeboxPlayer({
     audioElement.addEventListener("error", onError);
 
     return () => {
+      ++playbackGenerationRef.current;
       audioElement.pause();
       audioElement.removeEventListener("timeupdate", onTimeUpdate);
       audioElement.removeEventListener("durationchange", onDurationChange);
@@ -183,18 +210,19 @@ export function JukeboxPlayer({
     if (!audio || !selectedSong?.audioUrl) return;
 
     if (!audio.paused) {
+      ++playbackGenerationRef.current;
       audio.pause();
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    try {
-      await audio.play();
-    } catch {
-      setLoading(false);
-      setError("Tap play to start");
-    }
+    await playSongAudio(selectedSong, false);
+  }
+
+  async function retryPlayback() {
+    if (!selectedSong?.audioUrl) return;
+    setCurrentTime(0);
+    setDuration(selectedSong.durationSeconds ?? 0);
+    await playSongAudio(selectedSong, true);
   }
 
   function seek(seconds: number) {
@@ -224,7 +252,7 @@ export function JukeboxPlayer({
         onTogglePlayback={() => void togglePlayback()}
         onNext={() => nextSong && void selectAndPlay(nextSong)}
         onSeek={seek}
-        onRetry={() => void togglePlayback()}
+        onRetry={() => void retryPlayback()}
       />
 
       <JukeboxCatalog
@@ -233,7 +261,6 @@ export function JukeboxPlayer({
         open={catalogOpen}
         onClose={() => setCatalogOpen(false)}
         onSelect={(song) => {
-          setCatalogOpen(false);
           void selectAndPlay(song);
         }}
         openerRef={catalogButtonRef as RefObject<HTMLElement | null>}

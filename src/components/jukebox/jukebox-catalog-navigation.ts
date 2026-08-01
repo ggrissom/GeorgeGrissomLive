@@ -8,6 +8,28 @@ export type TouchPageGesture = {
   suppressClick: boolean;
 };
 
+type FocusTargetRef = {
+  current: { focus: () => void } | null;
+};
+
+export function closeCatalogAndRestoreFocus(
+  onClose: () => void,
+  openerRef: FocusTargetRef | undefined,
+  schedule: (callback: () => void) => unknown,
+): void {
+  onClose();
+  schedule(() => openerRef?.current?.focus());
+}
+
+export function selectCatalogSong<T>(
+  song: T,
+  onSelect: (song: T) => void,
+  closeCatalog: () => void,
+): void {
+  onSelect(song);
+  closeCatalog();
+}
+
 const TOUCH_SWIPE_THRESHOLD = 40;
 
 export function clampCatalogPage(
