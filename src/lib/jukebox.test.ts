@@ -30,7 +30,9 @@ for (const count of [0, 1, 5, 6, 10, 11, 20, 21]) {
       ),
     );
     assert.deepEqual(
-      spreads.flatMap((spread) => [...spread.left, ...(spread.right ?? [])]).map((song) => song.id),
+      spreads
+        .flatMap((spread) => [...spread.left, ...(spread.right ?? [])])
+        .map((song) => song.id),
       songs.map((song) => song.id),
     );
   });
@@ -42,6 +44,31 @@ test("uses public jukebox display fallbacks", () => {
   assert.equal(song.albumLabel, "SINGLE");
   assert.equal(song.artist, "Unknown Artist");
   assert.equal(song.playable, false);
+});
+
+test("projects only public jukebox song fields", () => {
+  const projected = toPublicJukeboxSong({
+    id: "1",
+    title: "One",
+    artist: "George Grissom",
+    album: "Live",
+    audioUrl: "https://audio.example/one.mp3",
+    durationSeconds: 65,
+    jukeboxOrder: 10,
+    privateLyricsNotes: "Never expose this.",
+    privateChordNotes: "Nor this.",
+    privateRehearsalNotes: "Or this.",
+    rightsStatus: "Internal only",
+  });
+
+  for (const privateField of [
+    "privateLyricsNotes",
+    "privateChordNotes",
+    "privateRehearsalNotes",
+    "rightsStatus",
+  ]) {
+    assert.equal(privateField in projected, false);
+  }
 });
 
 test("formats durations for catalog cards", () => {
