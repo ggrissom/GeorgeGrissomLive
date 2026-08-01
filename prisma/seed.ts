@@ -19,10 +19,10 @@ async function main() {
   });
 
   const songs = [
-    { id: "seed-song-1", title: "Whiskey & Neon", artist: "George Grissom", genre: "Americana", mood: "Dive-bar soul", publicShortlist: true, paidCatalog: true, minTipCents: 25 },
-    { id: "seed-song-2", title: "Sunday at the Winery", artist: "George Grissom", genre: "Acoustic", mood: "Daylight patio", publicShortlist: true, paidCatalog: true, minTipCents: 25 },
-    { id: "seed-song-3", title: "From the Setlist", artist: "George Grissom", genre: "Live", mood: "Crowd favorite", publicShortlist: true, paidCatalog: true, minTipCents: 25 },
-    { id: "seed-song-4", title: "Last Call Lullaby", artist: "George Grissom", genre: "Country/Soul", mood: "Late-night", publicShortlist: false, paidCatalog: true, minTipCents: 25 }
+    { id: "seed-song-1", title: "Whiskey & Neon", artist: "George Grissom", album: "Neon Nights", jukeboxOrder: 10, genre: "Americana", mood: "Dive-bar soul", publicShortlist: true, paidCatalog: true, minTipCents: 25 },
+    { id: "seed-song-2", title: "Sunday at the Winery", artist: "George Grissom", album: null, jukeboxOrder: 20, genre: "Acoustic", mood: "Daylight patio", publicShortlist: true, paidCatalog: true, minTipCents: 25 },
+    { id: "seed-song-3", title: "From the Setlist", artist: "George Grissom", jukeboxOrder: 30, genre: "Live", mood: "Crowd favorite", publicShortlist: true, paidCatalog: true, minTipCents: 25 },
+    { id: "seed-song-4", title: "Last Call Lullaby", artist: "George Grissom", jukeboxOrder: 40, genre: "Country/Soul", mood: "Late-night", publicShortlist: false, paidCatalog: true, minTipCents: 25 }
   ];
 
   for (const song of songs) {
