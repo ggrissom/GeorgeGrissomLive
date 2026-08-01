@@ -12,6 +12,16 @@ type PlaybackGeneration = {
   isCurrent: (generation: number) => boolean;
 };
 
+export function cancelPlaybackAttempt(
+  audio: Pick<AudioPlaybackTarget, "pause">,
+  generation: { current: number },
+  clearLoading: () => void,
+): void {
+  ++generation.current;
+  audio.pause();
+  clearLoading();
+}
+
 export async function runPlaybackAttempt(
   audio: AudioPlaybackTarget,
   options: {

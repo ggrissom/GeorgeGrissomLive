@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  cancelPlaybackAttempt,
   runPlaybackAttempt,
   runReloadedPlaybackAttempt,
 } from "./jukebox-playback";
@@ -108,4 +109,28 @@ test("a current rejection is reported as blocked playback", async () => {
     }),
     "blocked",
   );
+});
+
+test("canceling a pending attempt clears loading and stale completion cannot restore it", async () => {
+  const pending = deferred();
+  const audio = audioTarget(pending.promise);
+  const generation = { current: 12 };
+  let loading = true;
+  const result = runPlaybackAttempt(audio.target, {
+    source: "/audio/current.mp3",
+    reload: false,
+    generation: generation.current,
+    isCurrent: (attemptGeneration) =>
+      attemptGeneration === generation.current,
+  });
+
+  cancelPlaybackAttempt(audio.target, generation, () => {
+    loading = false;
+  });
+  pending.resolve();
+
+  assert.equal(await result, "stale");
+  assert.equal(generation.current, 13);
+  assert.equal(loading, false);
+  assert.deepEqual(audio.operations, ["play", "pause"]);
 });

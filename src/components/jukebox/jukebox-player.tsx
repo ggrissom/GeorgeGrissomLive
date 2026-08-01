@@ -6,6 +6,7 @@ import type { PublicJukeboxSong } from "@/lib/jukebox";
 import { JukeboxCatalog } from "./jukebox-catalog";
 import { JukeboxMachine } from "./jukebox-machine";
 import {
+  cancelPlaybackAttempt,
   runPlaybackAttempt,
   runReloadedPlaybackAttempt,
 } from "./jukebox-playback";
@@ -170,6 +171,7 @@ export function JukeboxPlayer({
     }
     function onPause() {
       setPlaying(false);
+      setLoading(false);
     }
     function onEnded() {
       setPlaying(false);
@@ -210,8 +212,9 @@ export function JukeboxPlayer({
     if (!audio || !selectedSong?.audioUrl) return;
 
     if (!audio.paused) {
-      ++playbackGenerationRef.current;
-      audio.pause();
+      cancelPlaybackAttempt(audio, playbackGenerationRef, () => {
+        setLoading(false);
+      });
       return;
     }
 
