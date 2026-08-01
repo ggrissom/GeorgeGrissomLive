@@ -42,6 +42,9 @@ model Song {
   bpm                  Float?
   keySignature         String?
   audioUrl             String?
+  album                String?
+  durationSeconds      Int?
+  jukeboxOrder         Int           @default(0)
   minTipCents          Int           @default(0)
   publicShortlist  Boolean   @default(false)
   paidCatalog      Boolean   @default(false)
@@ -55,6 +58,8 @@ model Song {
   updatedAt            DateTime      @updatedAt
   setlists             SetlistSong[]
   requests             Request[]
+
+  @@index([isPublic, jukeboxOrder, title])
 }
 
 model Setlist {
