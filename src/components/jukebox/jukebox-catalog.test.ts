@@ -4,6 +4,10 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { toPublicJukeboxSong, type PublicJukeboxSong } from "@/lib/jukebox";
+import {
+  clampCatalogPage,
+  getTouchPageGesture,
+} from "./jukebox-catalog-navigation";
 import { JukeboxCatalog } from "./jukebox-catalog";
 
 function makeSongs(count: number): PublicJukeboxSong[] {
@@ -54,4 +58,26 @@ test("catalog opens on the selected song's nonblank spread", () => {
   assert.match(markup, />Song 11</);
   assert.equal((markup.match(/class="jukebox-song-card/g) ?? []).length, 1);
   assert.doesNotMatch(markup, />Song 10</);
+});
+
+test("touch navigation advances exactly one five-song page", () => {
+  assert.equal(clampCatalogPage(0, 1, 3), 1);
+  assert.equal(clampCatalogPage(1, 1, 3), 2);
+  assert.equal(clampCatalogPage(2, 1, 3), 2);
+  assert.equal(clampCatalogPage(1, -1, 3), 0);
+});
+
+test("recognized touch swipes suppress the following card click", () => {
+  assert.deepEqual(
+    getTouchPageGesture({ x: 100, y: 10 }, { x: 55, y: 12 }),
+    { pageDelta: 1, suppressClick: true },
+  );
+  assert.deepEqual(
+    getTouchPageGesture({ x: 10, y: 100 }, { x: 12, y: 55 }),
+    { pageDelta: 1, suppressClick: true },
+  );
+  assert.deepEqual(
+    getTouchPageGesture({ x: 10, y: 10 }, { x: 45, y: 10 }),
+    { pageDelta: 0, suppressClick: false },
+  );
 });
