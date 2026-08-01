@@ -5,13 +5,14 @@
   "description": "George Grissom live music website + audience request system + admin dashboard MVP.",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push --accept-data-loss && next build",
+    "build": "prisma generate && prisma db push --accept-data-loss && tsx prisma/seed-live-audio.ts && next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev --name init",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed-live-audio": "tsx prisma/seed-live-audio.ts",
     "setup": "npm install && npx prisma generate && npx prisma db push && npm run db:seed"
   },
   "dependencies": {
