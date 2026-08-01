@@ -1,0 +1,16 @@
+[
+  {
+    "title": "One Question",
+    "artist": "George Grissom",
+    "album": "SINGLE",
+    "durationSeconds": 191.832,
+    "audioUrl": "/audio/one-question.mp3"
+  },
+  {
+    "title": "What a Shame",
+    "artist": "George Grissom",
+    "album": "SINGLE",
+    "durationSeconds": 225.072,
+    "audioUrl": "/audio/what-a-shame-vocals.mp3"
+  }
+]
