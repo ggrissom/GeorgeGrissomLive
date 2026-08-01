@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { isAdminRequest } from "@/lib/auth";
 import { toPublicJukeboxSong } from "@/lib/jukebox";
 import { lyricSearchLinks } from "@/lib/metadata";
+import { deleteOwnedJukeboxAudio } from "@/app/api/admin/songs/audio/storage";
 import {
   SongPatchValidationError,
   assertSongPatchHasChanges,
@@ -95,10 +96,22 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   if (!(await isAdminRequest())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
+  const id = searchParams.get("id")?.trim();
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  const song = await prisma.song.findUnique({
+    where: { id },
+    select: { audioUrl: true }
+  });
+  if (!song) return NextResponse.json({ error: "Song not found" }, { status: 404 });
   await prisma.song.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  let audioDeleted = false;
+  if (searchParams.get("deleteAudio") === "1") {
+    audioDeleted = await deleteOwnedJukeboxAudio(song.audioUrl).catch(() => {
+      console.error("Unable to remove deleted song audio object");
+      return false;
+    });
+  }
+  return NextResponse.json({ ok: true, audioDeleted });
 }
 
 function validateSongInput<T>(normalizer: () => T): T | NextResponse {
@@ -122,7 +135,7 @@ function normalizeSongInput(body: any, patch = false) {
     "title", "artist", "composer", "genre", "mood", "tempoLabel", "bpm", "songKey", "lyricsText", "chordsText",
     "audioUrl", "album", "durationSeconds", "jukeboxOrder",
     "privateRehearsalNotes", "privateLyricsNotes", "privateChordNotes", "rightsStatus",
-    "publicLyricsAllowed", "publicChordsAllowed", "requestable", "publicShortlist", "paidCatalog",
+    "publicLyricsAllowed", "publicChordsAllowed", "requestable", "publicShortlist", "paidCatalog", "isPublic",
     "minTipCents", "freePlayLimit", "confidenceScore", "sourceLinks"
   ];
 
@@ -197,9 +210,9 @@ async function attachSongToSetlists(songId: string, body: any) {
         }
       });
     }
-    const existing = await prisma.setlistSong.findUnique({ where: { setlistId_songId: { setlistId, songId } } });
+    const existing = await prisma.setlistSong.findUnique({ where: { setlistId_songId: { setlistId: setlist.id, songId } } });
     if (!existing) {
-      await prisma.setlistSong.create({ data: { setlistId, songId, position: await nextPosition(setlist.id) } });
+      await prisma.setlistSong.create({ data: { setlistId: setlist.id, songId, position: await nextPosition(setlist.id) } });
     }
   }
 }

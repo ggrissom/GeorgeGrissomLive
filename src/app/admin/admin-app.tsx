@@ -47,6 +47,11 @@ type SongRow = {
   id: string;
   title: string;
   artist?: string | null;
+  album?: string | null;
+  audioUrl?: string | null;
+  durationSeconds?: number | null;
+  jukeboxOrder: number;
+  isPublic: boolean;
   genre?: string | null;
   mood?: string | null;
   tempoLabel?: string | null;
@@ -450,19 +455,41 @@ function Setlists({
 function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setlists: SetlistRow[]; refresh: () => Promise<void>; setToast: (s: string) => void }) {
   async function submit(formData: FormData) {
     const body = Object.fromEntries(formData.entries()) as any;
+    const audioFile = body.audio instanceof File && body.audio.size ? body.audio : null;
+    delete body.audio;
     body.requestable = formData.get("requestable") === "on";
     body.publicShortlist = formData.get("publicShortlist") === "on";
     body.paidCatalog = formData.get("paidCatalog") === "on";
+    body.isPublic = formData.get("isPublic") === "on";
     body.minTipCents = Math.round(Number(body.minTip || "0.25") * 100);
     delete body.minTip;
     const res = await fetch("/api/songs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
-    setToast(res.ok ? "Song saved." : data.error || "Song failed.");
+    if (!res.ok) {
+      setToast(data.error || "Song failed.");
+      return;
+    }
+    if (audioFile) {
+      const uploadForm = new FormData();
+      uploadForm.set("songId", data.id);
+      uploadForm.set("file", audioFile);
+      const upload = await fetch("/api/admin/songs/audio", { method: "POST", body: uploadForm });
+      const uploadData = await upload.json().catch(() => ({}));
+      setToast(upload.ok ? "Song and audio saved." : uploadData.error || "Song saved, but audio upload failed.");
+    } else {
+      setToast("Song saved.");
+    }
     await refresh();
   }
 
-  async function remove(id: string) {
-    await fetch(`/api/songs?id=${id}`, { method: "DELETE" });
+  async function remove(id: string, deleteAudio: boolean) {
+    const message = deleteAudio
+      ? "Delete this song record and its app-owned audio file? External or legacy audio files will be left untouched."
+      : "Delete this song record but keep its audio file?";
+    if (!window.confirm(message)) return;
+    const res = await fetch(`/api/songs?id=${encodeURIComponent(id)}&deleteAudio=${deleteAudio ? "1" : "0"}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    setToast(res.ok ? (data.audioDeleted ? "Song and owned audio deleted." : "Song deleted; audio was kept.") : data.error || "Delete failed.");
     await refresh();
   }
 
@@ -485,10 +512,13 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
       <form className="form" action={submit}>
         <input name="title" placeholder="Song title" required />
         <input name="artist" placeholder="Artist" />
+        <input name="album" placeholder="Album; blank displays SINGLE" />
         <input name="genre" placeholder="Genre" />
         <input name="songKey" placeholder="Key" />
         <input name="bpm" type="number" placeholder="BPM" />
         <input name="audioUrl" placeholder="/audio/song.mp3 or external URL" />
+        <input name="audio" type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,.mp3,.wav" />
+        <input name="jukeboxOrder" type="number" min="0" step="1" defaultValue="0" placeholder="Jukebox order" />
         <input name="setlistNames" list="setlist-names" placeholder="Attach to setlists by typing names, comma separated" />
         <datalist id="setlist-names">
           {setlists.map(setlist => <option key={setlist.id} value={setlist.name} />)}
@@ -499,14 +529,15 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
         <label><input name="requestable" type="checkbox" defaultChecked /> Requestable</label>
         <label><input name="publicShortlist" type="checkbox" /> Show on public short list</label>
         <label><input name="paidCatalog" type="checkbox" defaultChecked /> Include in unlocked catalog</label>
+        <label><input name="isPublic" type="checkbox" defaultChecked /> Visible in public jukebox</label>
         <input name="minTip" type="number" step="0.25" defaultValue="0.25" placeholder="Minimum request/tip" />
         <button className="button">Add song</button>
       </form>
       <table className="table">
-        <thead><tr><th>Title</th><th>Private info</th><th>Setlists</th><th>Visibility</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Song metadata</th><th>Audio</th><th>Setlists</th><th>Jukebox</th><th>Actions</th></tr></thead>
         <tbody>
           {songs.map(song => (
-            <SongTableRow key={song.id} song={song} setlists={setlists} remove={remove} quickAddToSetlist={quickAddToSetlist} />
+            <SongTableRow key={song.id} song={song} setlists={setlists} remove={remove} quickAddToSetlist={quickAddToSetlist} refresh={refresh} setToast={setToast} />
           ))}
         </tbody>
       </table>
@@ -518,19 +549,90 @@ function SongTableRow({
   song,
   setlists,
   remove,
-  quickAddToSetlist
+  quickAddToSetlist,
+  refresh,
+  setToast
 }: {
   song: SongRow;
   setlists: SetlistRow[];
-  remove: (id: string) => Promise<void>;
+  remove: (id: string, deleteAudio: boolean) => Promise<void>;
   quickAddToSetlist: (songId: string, setlistName: string) => Promise<void>;
+  refresh: () => Promise<void>;
+  setToast: (message: string) => void;
 }) {
   const [setlistName, setSetlistName] = useState("");
+  const [title, setTitle] = useState(song.title);
+  const [artist, setArtist] = useState(song.artist || "");
+  const [album, setAlbum] = useState(song.album || "");
+  const [jukeboxOrder, setJukeboxOrder] = useState(song.jukeboxOrder || 0);
+  const [isPublic, setIsPublic] = useState(song.isPublic);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewDuration, setPreviewDuration] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!audioFile) {
+      setPreviewUrl("");
+      setPreviewDuration(null);
+      return;
+    }
+    const url = URL.createObjectURL(audioFile);
+    const audio = new Audio(url);
+    setPreviewUrl(url);
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      setPreviewDuration(Number.isFinite(audio.duration) ? Math.round(audio.duration) : null);
+    };
+    return () => {
+      audio.src = "";
+      URL.revokeObjectURL(url);
+    };
+  }, [audioFile]);
+
+  async function save() {
+    setBusy(true);
+    const res = await fetch("/api/songs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: song.id, title, artist, album, jukeboxOrder, isPublic })
+    });
+    const data = await res.json().catch(() => ({}));
+    setToast(res.ok ? "Song metadata updated." : data.error || "Song update failed.");
+    setBusy(false);
+    if (res.ok) await refresh();
+  }
+
+  async function uploadAudio() {
+    if (!audioFile) return;
+    setBusy(true);
+    const form = new FormData();
+    form.set("songId", song.id);
+    form.set("file", audioFile);
+    const res = await fetch("/api/admin/songs/audio", { method: "POST", body: form });
+    const data = await res.json().catch(() => ({}));
+    setToast(res.ok ? `Audio saved (${data.durationSeconds ?? "unknown"} seconds).` : data.error || "Audio upload failed.");
+    setBusy(false);
+    if (res.ok) {
+      setAudioFile(null);
+      await refresh();
+    }
+  }
 
   return (
     <tr>
-      <td><strong>{song.title}</strong><br />{song.artist || ""}<br /><span className="muted">{song.genre || ""} {song.songKey ? `· Key ${song.songKey}` : ""} {song.bpm ? `· ${song.bpm} BPM` : ""}</span></td>
-      <td><span className="badge">{song.privateLyricsNotes ? "lyrics notes" : "no lyrics notes"}</span> <span className="badge">{song.privateChordNotes ? "chords notes" : "no chord notes"}</span></td>
+      <td>
+        <input aria-label={`Title for ${song.title}`} value={title} onChange={event => setTitle(event.target.value)} />
+        <input aria-label={`Artist for ${song.title}`} value={artist} onChange={event => setArtist(event.target.value)} placeholder="Artist" />
+        <input aria-label={`Album for ${song.title}`} value={album} onChange={event => setAlbum(event.target.value)} placeholder="Album or SINGLE" />
+        <span className="muted">{song.genre || ""} {song.songKey ? `· Key ${song.songKey}` : ""} {song.bpm ? `· ${song.bpm} BPM` : ""}</span>
+      </td>
+      <td>
+        {(previewUrl || song.audioUrl) ? <audio controls preload="metadata" src={previewUrl || song.audioUrl || undefined} /> : <span className="badge">No audio</span>}
+        <br /><span className="muted">Duration: {previewDuration ?? song.durationSeconds ?? "—"} seconds</span>
+        <input aria-label={`Replace audio for ${song.title}`} type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,.mp3,.wav" onChange={event => setAudioFile(event.target.files?.[0] || null)} />
+        <button className="ghost" disabled={!audioFile || busy} onClick={uploadAudio}>{song.audioUrl ? "Replace audio" : "Upload audio"}</button>
+      </td>
       <td>
         {(song.setlists || []).map(item => <span className="badge" key={item.id}>{item.setlist?.name}</span>)}
         <div className="inline-setlist-add">
@@ -544,8 +646,16 @@ function SongTableRow({
           {setlists.map(setlist => <option key={setlist.id} value={setlist.name} />)}
         </datalist>
       </td>
-      <td>{song.publicShortlist && <span className="badge">short list</span>} {song.paidCatalog && <span className="badge">catalog</span>}</td>
-      <td><button className="ghost" onClick={() => remove(song.id)}>Delete</button></td>
+      <td>
+        <label><input type="checkbox" checked={isPublic} onChange={event => setIsPublic(event.target.checked)} /> Public</label>
+        <input aria-label={`Jukebox order for ${song.title}`} type="number" min="0" step="1" value={jukeboxOrder} onChange={event => setJukeboxOrder(Number(event.target.value))} />
+        {song.publicShortlist && <span className="badge">short list</span>} {song.paidCatalog && <span className="badge">catalog</span>}
+      </td>
+      <td className="actions">
+        <button className="ghost" disabled={busy || !title.trim()} onClick={save}>Save edits</button>
+        <button className="ghost" disabled={busy} onClick={() => remove(song.id, false)}>Delete; keep audio</button>
+        {song.audioUrl && <button className="ghost" disabled={busy} onClick={() => remove(song.id, true)}>Delete + owned audio</button>}
+      </td>
     </tr>
   );
 }
