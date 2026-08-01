@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent,
   type PointerEvent,
   type RefObject,
 } from "react";
@@ -15,6 +16,10 @@ import {
   paginateSongs,
   type PublicJukeboxSong,
 } from "@/lib/jukebox";
+import {
+  clampCatalogPage,
+  getTouchPageGesture,
+} from "./jukebox-catalog-navigation";
 import { SongCard } from "./song-card";
 
 type JukeboxCatalogProps = {
@@ -40,23 +45,23 @@ export function JukeboxCatalog({
     () => pages.findIndex((page) => page.some((song) => song.id === selectedSongId)),
     [pages, selectedSongId],
   );
-  const selectedSpreadIndex =
-    selectedPageIndex < 0 ? -1 : Math.floor(selectedPageIndex / 2);
-  const maxSpreadIndex = Math.max(0, spreads.length - 1);
-  const [spreadIndex, setSpreadIndex] = useState(() =>
-    selectedSpreadIndex >= 0 ? selectedSpreadIndex : 0,
+  const maxPageIndex = Math.max(0, pages.length - 1);
+  const [pageIndex, setPageIndex] = useState(() =>
+    selectedPageIndex >= 0 ? selectedPageIndex : 0,
   );
   const selectedCardRef = useRef<HTMLButtonElement | null>(null);
   const firstCardRef = useRef<HTMLButtonElement | null>(null);
   const touchStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
+  const suppressClickRef = useRef(false);
+  const suppressClickTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    setSpreadIndex((current) => {
+    setPageIndex((current) => {
       const requested =
-        open && selectedSpreadIndex >= 0 ? selectedSpreadIndex : current;
-      return Math.max(0, Math.min(requested, maxSpreadIndex));
+        open && selectedPageIndex >= 0 ? selectedPageIndex : current;
+      return clampCatalogPage(requested, 0, pages.length);
     });
-  }, [maxSpreadIndex, open, selectedSpreadIndex]);
+  }, [open, pages.length, selectedPageIndex]);
 
   useEffect(() => {
     if (!open || songs.length === 0) return;
@@ -66,16 +71,28 @@ export function JukeboxCatalog({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [open, spreadIndex, songs.length]);
+  }, [open, pageIndex, songs.length]);
+
+  useEffect(
+    () => () => {
+      if (suppressClickTimeoutRef.current !== null) {
+        window.clearTimeout(suppressClickTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   if (!open) return null;
 
-  const spread = spreads[spreadIndex];
+  const leftPage = pages[pageIndex];
+  const rightPage = pages[pageIndex + 1];
+
+  function movePage(delta: number) {
+    setPageIndex((current) => clampCatalogPage(current, delta, pages.length));
+  }
 
   function moveSpread(delta: number) {
-    setSpreadIndex((current) =>
-      Math.max(0, Math.min(maxSpreadIndex, current + delta)),
-    );
+    movePage(delta * 2);
   }
 
   function closeCatalog() {
@@ -83,17 +100,46 @@ export function JukeboxCatalog({
     window.requestAnimationFrame(() => openerRef?.current?.focus());
   }
 
+  function suppressFollowingClick() {
+    suppressClickRef.current = true;
+
+    if (suppressClickTimeoutRef.current !== null) {
+      window.clearTimeout(suppressClickTimeoutRef.current);
+    }
+
+    suppressClickTimeoutRef.current = window.setTimeout(() => {
+      suppressClickRef.current = false;
+      suppressClickTimeoutRef.current = null;
+    }, 500);
+  }
+
+  function releasePointer(event: PointerEvent<HTMLElement>) {
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // Some browsers can release capture before the synthetic event completes.
+    }
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
     switch (event.key) {
       case "ArrowLeft":
-      case "ArrowUp":
         event.preventDefault();
         moveSpread(-1);
         break;
       case "ArrowRight":
-      case "ArrowDown":
         event.preventDefault();
         moveSpread(1);
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        movePage(-1);
+        break;
+      case "ArrowDown":
+        event.preventDefault();
+        movePage(1);
         break;
       case "Escape":
         event.preventDefault();
@@ -110,26 +156,51 @@ export function JukeboxCatalog({
       x: event.clientX,
       y: event.clientY,
     };
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is unavailable for some synthetic touch events.
+    }
   }
 
   function handlePointerUp(event: PointerEvent<HTMLElement>) {
     const start = touchStartRef.current;
     touchStartRef.current = null;
+    releasePointer(event);
 
     if (!start || start.id !== event.pointerId) return;
 
-    const horizontalDelta = event.clientX - start.x;
-    const verticalDelta = event.clientY - start.y;
-    const delta =
-      Math.abs(horizontalDelta) >= Math.abs(verticalDelta)
-        ? horizontalDelta
-        : verticalDelta;
+    const gesture = getTouchPageGesture(start, {
+      x: event.clientX,
+      y: event.clientY,
+    });
 
-    if (Math.abs(delta) <= 40) return;
-    moveSpread(delta < 0 ? 1 : -1);
+    if (!gesture.suppressClick) return;
+
+    suppressFollowingClick();
+    movePage(gesture.pageDelta);
   }
 
-  const firstSongId = spread?.left[0]?.id ?? spread?.right?.[0]?.id;
+  function handlePointerCancel(event: PointerEvent<HTMLElement>) {
+    touchStartRef.current = null;
+    releasePointer(event);
+  }
+
+  function handleClickCapture(event: MouseEvent<HTMLElement>) {
+    if (!suppressClickRef.current) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    suppressClickRef.current = false;
+
+    if (suppressClickTimeoutRef.current !== null) {
+      window.clearTimeout(suppressClickTimeoutRef.current);
+      suppressClickTimeoutRef.current = null;
+    }
+  }
+
+  const firstSongId = leftPage?.[0]?.id ?? rightPage?.[0]?.id;
 
   return (
     <section
@@ -141,9 +212,8 @@ export function JukeboxCatalog({
       onKeyDown={handleKeyDown}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
-      onPointerCancel={() => {
-        touchStartRef.current = null;
-      }}
+      onPointerCancel={handlePointerCancel}
+      onClickCapture={handleClickCapture}
     >
       <header className="jukebox-catalog-header">
         <h2>Song catalog</h2>
@@ -156,21 +226,21 @@ export function JukeboxCatalog({
         </button>
       </header>
 
-      {spread ? (
-        <div className="jukebox-catalog-spread" data-spread-index={spreadIndex}>
+      {leftPage ? (
+        <div className="jukebox-catalog-spread" data-page-index={pageIndex}>
           <CatalogPage
-            songs={spread.left}
-            pageNumber={spreadIndex * 2 + 1}
+            songs={leftPage}
+            pageNumber={pageIndex + 1}
             selectedSongId={selectedSongId}
             firstSongId={firstSongId}
             selectedCardRef={selectedCardRef}
             firstCardRef={firstCardRef}
             onSelect={onSelect}
           />
-          {spread.right && (
+          {rightPage && (
             <CatalogPage
-              songs={spread.right}
-              pageNumber={spreadIndex * 2 + 2}
+              songs={rightPage}
+              pageNumber={pageIndex + 2}
               selectedSongId={selectedSongId}
               firstSongId={firstSongId}
               selectedCardRef={selectedCardRef}
@@ -187,18 +257,20 @@ export function JukeboxCatalog({
         <button
           type="button"
           onClick={() => moveSpread(-1)}
-          disabled={spreadIndex === 0}
+          disabled={pageIndex === 0}
           aria-label="Previous catalog spread"
         >
           Previous songs
         </button>
         <span aria-live="polite">
-          {spreads.length ? `Spread ${spreadIndex + 1} of ${spreads.length}` : "No spreads"}
+          {pages.length
+            ? `Page ${pageIndex + 1} of ${pages.length} · spread ${Math.floor(pageIndex / 2) + 1} of ${spreads.length}`
+            : "No spreads"}
         </span>
         <button
           type="button"
           onClick={() => moveSpread(1)}
-          disabled={spreadIndex >= maxSpreadIndex}
+          disabled={pageIndex >= maxPageIndex}
           aria-label="Next catalog spread"
         >
           Next songs
