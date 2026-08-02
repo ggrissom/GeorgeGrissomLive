@@ -11,6 +11,7 @@ type JukeboxMachineProps = {
   currentTime: number;
   duration: number;
   error: string | null;
+  playStatus?: string;
   canGoPrevious: boolean;
   canGoNext: boolean;
   catalogButtonRef: RefObject<HTMLButtonElement>;
@@ -29,6 +30,7 @@ export function JukeboxMachine({
   currentTime,
   duration,
   error,
+  playStatus,
   canGoPrevious,
   canGoNext,
   catalogButtonRef,
@@ -72,6 +74,8 @@ export function JukeboxMachine({
           </small>
         </div>
 
+        {playStatus && <div className="reference-jukebox-credit">{playStatus}</div>}
+
         <div className="jukebox-machine-controls">
           <div className="jukebox-machine-buttons">
             <button
@@ -106,7 +110,6 @@ export function JukeboxMachine({
               ref={catalogButtonRef}
               type="button"
               onClick={onOpenCatalog}
-              aria-haspopup="dialog"
             >
               Catalog
             </button>
