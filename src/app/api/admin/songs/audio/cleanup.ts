@@ -10,6 +10,7 @@ import {
   cleanupLeaseUntil,
   cleanupRetryState,
 } from "./cleanup-retry-policy";
+import { settleExpiredAudioUpload } from "./upload-reservation-workflow";
 
 async function enqueueAudioCleanup(
   task: AudioCleanupTask & { pathname: string },
@@ -97,6 +98,84 @@ export async function retryPendingAudioCleanup(limit = 5): Promise<void> {
         .catch(() => {
           console.error("Unable to update audio cleanup retry state");
         });
+    }
+  }
+
+  await retryExpiredAudioUploadReservations(limit);
+}
+
+async function retryExpiredAudioUploadReservations(limit: number): Promise<void> {
+  const now = new Date();
+  const leaseUntil = cleanupLeaseUntil(now);
+  const candidates = await prisma.audioUploadReservation.findMany({
+    where: {
+      status: { not: "finalized" },
+      expiresAt: { lte: now },
+      OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }],
+    },
+    orderBy: { expiresAt: "asc" },
+    take: Math.max(limit * 4, limit),
+  });
+  const claimed: typeof candidates = [];
+  for (const reservation of candidates) {
+    if (claimed.length >= limit) break;
+    const claim = await prisma.audioUploadReservation.updateMany({
+      where: {
+        id: reservation.id,
+        status: { not: "finalized" },
+        expiresAt: { lte: now },
+        OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }],
+      },
+      data: { leaseUntil },
+    });
+    if (claim.count === 1) claimed.push(reservation);
+  }
+
+  for (const reservation of claimed) {
+    try {
+      const result = await settleExpiredAudioUpload(
+        reservation,
+        () => prisma.song.findUnique({
+          where: { id: reservation.songId },
+          select: { audioUrl: true, audioStoragePath: true },
+        }),
+        cleanupJukeboxAudio,
+      );
+      if (result.status === "attached") {
+        await prisma.audioUploadReservation.updateMany({
+          where: { id: reservation.id, leaseUntil },
+          data: {
+            status: "finalized",
+            finalizedAt: new Date(),
+            leaseUntil: null,
+            lastError: null,
+          },
+        });
+      } else if (result.status === "empty" || result.status === "cleaned") {
+        await prisma.audioUploadReservation.deleteMany({
+          where: { id: reservation.id, leaseUntil },
+        });
+      } else {
+        await prisma.audioUploadReservation.updateMany({
+          where: { id: reservation.id, leaseUntil },
+          data: {
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+            leaseUntil: null,
+            lastError: "Expired upload cleanup could not be tracked",
+          },
+        });
+      }
+    } catch {
+      await prisma.audioUploadReservation.updateMany({
+        where: { id: reservation.id, leaseUntil },
+        data: {
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+          leaseUntil: null,
+          lastError: "Expired upload cleanup failed",
+        },
+      }).catch(() => {
+        console.error("Unable to update expired audio upload reservation");
+      });
     }
   }
 }
