@@ -1,20 +1,27 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
-import { toPublicJukeboxSong } from "@/lib/jukebox";
+import {
+  toHomepageJukeboxSong,
+  toPublicRequestSong,
+} from "@/lib/homepage-jukebox";
 import { publicEventsFromPerformanceCalendar } from "@/lib/public-events";
 import SiteShell from "./site-shell";
 
 export default async function Home() {
-  const [events, songs] = await Promise.all([
+  const [events, jukeboxSongs, requestSongs] = await Promise.all([
     publicEventsFromPerformanceCalendar(50),
     prisma.song.findMany({
       where: { isPublic: true },
       orderBy: [{ jukeboxOrder: "asc" }, { title: "asc" }],
       take: 100,
     }),
+    prisma.song.findMany({
+      where: { publicShortlist: true, requestable: true },
+      orderBy: { title: "asc" },
+      take: 100,
+    }),
   ]);
-  const jukeboxSongs = songs.map(toPublicJukeboxSong);
 
   return (
     <SiteShell
@@ -28,14 +35,8 @@ export default async function Home() {
         state: event.state,
         notes: event.notes,
       }))}
-      initialSongs={songs.map((song, index) => ({
-        ...jukeboxSongs[index],
-        genre: song.genre,
-        mood: song.mood,
-        tempoLabel: song.tempoLabel,
-        minTipCents: song.minTipCents,
-        freePlayLimit: song.freePlayLimit,
-      }))}
+      initialJukeboxSongs={jukeboxSongs.map(toHomepageJukeboxSong)}
+      initialRequestSongs={requestSongs.map(toPublicRequestSong)}
     />
   );
 }
