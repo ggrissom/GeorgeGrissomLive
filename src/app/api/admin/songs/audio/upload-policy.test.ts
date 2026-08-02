@@ -6,6 +6,7 @@ import {
   createAudioTokenPolicy,
   createAudioUploadPath,
   parseAudioClientPayload,
+  parseAudioTokenPayload,
 } from "./upload-policy";
 import { MAX_AUDIO_BYTES } from "./metadata";
 
@@ -25,13 +26,18 @@ test("accepts only a nonblank song id client payload", () => {
   }
 });
 
-test("issues a token policy only for the requested song namespace", () => {
+test("issues a token policy tied to the persisted reservation and song namespace", () => {
   const pathname = "jukebox-audio/song-1/upload-id-track.mp3";
-  assert.deepEqual(createAudioTokenPolicy(pathname, "song-1"), {
+  assert.deepEqual(createAudioTokenPolicy(pathname, "song-1", "reservation-1"), {
     allowedContentTypes: ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav"],
     maximumSizeInBytes: MAX_AUDIO_BYTES,
     addRandomSuffix: false,
-    tokenPayload: JSON.stringify({ songId: "song-1", pathname }),
+    allowOverwrite: false,
+    tokenPayload: JSON.stringify({
+      reservationId: "reservation-1",
+      songId: "song-1",
+      pathname,
+    }),
   });
   for (const invalid of [
     "jukebox-audio/song-2/upload-id-track.mp3",
@@ -40,8 +46,28 @@ test("issues a token policy only for the requested song namespace", () => {
     "jukebox-audio/song-1/track.exe",
   ]) {
     assert.throws(
-      () => createAudioTokenPolicy(invalid, "song-1"),
+      () => createAudioTokenPolicy(invalid, "song-1", "reservation-1"),
       AudioUploadPolicyError,
     );
+  }
+});
+
+test("parses only complete server-issued upload tracking payloads", () => {
+  const pathname = "jukebox-audio/song-1/upload-id-track.mp3";
+  assert.deepEqual(
+    parseAudioTokenPayload(JSON.stringify({
+      reservationId: " reservation-1 ",
+      songId: " song-1 ",
+      pathname,
+    })),
+    { reservationId: "reservation-1", songId: "song-1", pathname },
+  );
+  for (const payload of [
+    null,
+    "{}",
+    JSON.stringify({ reservationId: "r", songId: "song-1" }),
+    JSON.stringify({ reservationId: "", songId: "song-1", pathname }),
+  ]) {
+    assert.throws(() => parseAudioTokenPayload(payload), AudioUploadPolicyError);
   }
 });
