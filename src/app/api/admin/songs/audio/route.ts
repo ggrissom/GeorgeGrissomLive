@@ -21,12 +21,19 @@ import {
 } from "./storage";
 import {
   AudioUploadPolicyError,
+  assertAudioUploadPath,
   createAudioTokenPolicy,
   parseAudioClientPayload,
 } from "./upload-policy";
 import { settleAudioCasResult } from "./finalization-workflow";
+import {
+  isBlobUploadCompletionBody,
+  recordCompletedAudioUpload,
+} from "./upload-reservation-workflow";
 
 export const runtime = "nodejs";
+
+const AUDIO_UPLOAD_RESERVATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 type FinalizeBody = {
   type: "jukebox.finalize";
@@ -70,7 +77,7 @@ function cleanupRequired(
 
 async function finalizeAudio(body: FinalizeBody) {
   try {
-    createAudioTokenPolicy(body.blob.pathname, body.songId);
+    assertAudioUploadPath(body.blob.pathname, body.songId);
   } catch (error) {
     return NextResponse.json(
       {
@@ -261,6 +268,21 @@ async function finalizeAudio(body: FinalizeBody) {
         pathname: currentSong.audioStoragePath!,
       })
     : undefined;
+  await prisma.audioUploadReservation.updateMany({
+    where: {
+      songId: body.songId,
+      pathname: body.blob.pathname,
+    },
+    data: {
+      audioUrl: body.blob.url,
+      status: "finalized",
+      finalizedAt: new Date(),
+      leaseUntil: null,
+      lastError: null,
+    },
+  }).catch(() => {
+    console.error("Unable to mark audio upload reservation finalized");
+  });
   return NextResponse.json({
     audioUrl: body.blob.url,
     durationSeconds,
@@ -270,15 +292,18 @@ async function finalizeAudio(body: FinalizeBody) {
 }
 
 export async function POST(request: Request) {
-  if (!(await isAdminRequest())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const body = (await request.json()) as unknown;
-    await retryPendingAudioCleanup().catch(() => {
-      console.error("Unable to process pending audio cleanup records");
-    });
+    const uploadCompletion = isBlobUploadCompletionBody(body);
+    if (!uploadCompletion && !(await isAdminRequest())) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!uploadCompletion) {
+      await retryPendingAudioCleanup().catch(() => {
+        console.error("Unable to process pending audio cleanup records");
+      });
+    }
 
     if (
       body &&
@@ -320,12 +345,77 @@ export async function POST(request: Request) {
       body: body as HandleUploadBody,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         const { songId } = parseAudioClientPayload(clientPayload);
+        assertAudioUploadPath(pathname, songId);
         const song = await prisma.song.findUnique({
           where: { id: songId },
           select: { id: true },
         });
         if (!song) throw new AudioUploadPolicyError("Song not found");
-        return createAudioTokenPolicy(pathname, songId);
+        const reservation = await prisma.audioUploadReservation.create({
+          data: {
+            songId,
+            pathname,
+            status: "issued",
+            expiresAt: new Date(Date.now() + AUDIO_UPLOAD_RESERVATION_TTL_MS),
+          },
+          select: { id: true },
+        });
+        return createAudioTokenPolicy(pathname, songId, reservation.id);
+      },
+      onUploadCompleted: async (completed) => {
+        const descriptor = await recordCompletedAudioUpload(
+          completed,
+          async (value) => {
+            const recorded = await prisma.audioUploadReservation.updateMany({
+              where: {
+                id: value.reservationId,
+                songId: value.songId,
+                pathname: value.pathname,
+                status: { not: "finalized" },
+              },
+              data: {
+                audioUrl: value.audioUrl,
+                status: "uploaded",
+                completedAt: new Date(),
+                expiresAt: new Date(Date.now() + AUDIO_UPLOAD_RESERVATION_TTL_MS),
+                lastError: null,
+              },
+            });
+            if (recorded.count === 1) return;
+            const existing = await prisma.audioUploadReservation.findUnique({
+              where: { id: value.reservationId },
+              select: {
+                songId: true,
+                pathname: true,
+                audioUrl: true,
+                status: true,
+              },
+            });
+            if (
+              existing?.status === "finalized" &&
+              existing.songId === value.songId &&
+              existing.pathname === value.pathname &&
+              existing.audioUrl === value.audioUrl
+            ) return;
+            throw new Error("Audio upload reservation could not be recorded");
+          },
+        );
+
+        const finalized = await finalizeAudio({
+          type: "jukebox.finalize",
+          songId: descriptor.songId,
+          blob: {
+            url: descriptor.audioUrl,
+            pathname: descriptor.pathname,
+          },
+        });
+        if (!finalized.ok) {
+          await prisma.audioUploadReservation.updateMany({
+            where: { id: descriptor.reservationId },
+            data: { lastError: "Automatic audio finalization failed" },
+          }).catch(() => undefined);
+          throw new Error("Automatic audio finalization failed");
+        }
       },
     });
     return NextResponse.json(result);
