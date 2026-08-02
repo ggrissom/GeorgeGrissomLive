@@ -1144,3 +1144,637 @@ html[data-theme="light"] .jukebox {
     top: 45.5%;
   }
 }
+
+/* Working jukebox player and rising title-card catalog. */
+body {
+  overflow-x: clip;
+}
+
+.jukebox-player {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  max-width: 100%;
+}
+
+.jukebox-player.is-standalone {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  overflow: clip;
+  padding: clamp(0.75rem, 2vw, 1.5rem);
+  background:
+    radial-gradient(ellipse at 50% 93%, rgba(255, 255, 255, 0.11), transparent 31%),
+    radial-gradient(ellipse at 50% 38%, rgba(36, 54, 64, 0.35), transparent 46%),
+    linear-gradient(180deg, #08090a 0%, #020303 68%, #08090a 100%);
+}
+
+.jukebox-player.is-standalone::before {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 1.2%;
+  height: 15%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(195, 235, 246, 0.15), transparent 67%);
+  filter: blur(0.8rem);
+  pointer-events: none;
+}
+
+.jukebox-machine {
+  position: relative;
+  width: 100%;
+  max-width: min(94vw, 52rem);
+  margin-inline: auto;
+}
+
+.jukebox-player.is-standalone .jukebox-machine {
+  width: min(94vw, 52rem, calc(94svh * 1122 / 1402));
+  z-index: 1;
+}
+
+.jukebox-machine .reference-jukebox {
+  overflow: visible;
+}
+
+.jukebox-machine .reference-jukebox.artwork-failed {
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 13%, rgba(235, 246, 250, 0.24), transparent 34%),
+    linear-gradient(90deg, #172027, #030506 18% 82%, #172027);
+  border: 2px solid #91a5ad;
+}
+
+.jukebox-machine .reference-jukebox-now {
+  left: 25.3%;
+  right: 32.8%;
+  top: 29.5%;
+  min-height: 17.3%;
+  gap: clamp(0.05rem, 0.3vw, 0.22rem);
+  padding: clamp(0.3rem, 1.1vw, 0.85rem) clamp(0.45rem, 1vw, 0.8rem) 3.3rem;
+  border-color: rgba(197, 242, 255, 0.52);
+  border-radius: clamp(0.45rem, 1.2vw, 0.9rem);
+  background:
+    linear-gradient(180deg, rgba(2, 7, 10, 0.96), rgba(3, 9, 13, 0.93)),
+    radial-gradient(ellipse at center, rgba(56, 209, 255, 0.2), transparent 72%);
+  box-shadow:
+    0 0 1.2rem rgba(184, 237, 255, 0.16),
+    inset 0 0 1rem rgba(168, 230, 255, 0.11);
+}
+
+.jukebox-machine .reference-jukebox-now span {
+  font-size: clamp(0.5rem, 1.3vw, 0.76rem);
+}
+
+.jukebox-machine .reference-jukebox-now strong {
+  font-size: clamp(0.78rem, 2.25vw, 1.55rem);
+}
+
+.jukebox-machine .reference-jukebox-now small {
+  font-size: clamp(0.56rem, 1.35vw, 0.86rem);
+}
+
+.jukebox-machine-playback-state {
+  min-width: 5.5rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  color: #eafcff !important;
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.jukebox-machine.is-loading .jukebox-machine-playback-state::before {
+  content: "";
+  display: inline-block;
+  width: 0.58rem;
+  height: 0.58rem;
+  margin-right: 0.35rem;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #98efff;
+  border-radius: 50%;
+  vertical-align: -0.05rem;
+  animation: jukebox-loading 0.8s linear infinite;
+}
+
+@keyframes jukebox-loading {
+  to { transform: rotate(1turn); }
+}
+
+.jukebox-machine-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+}
+
+.jukebox-machine-buttons {
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  top: 48.8%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(44px, 1fr));
+  gap: clamp(0.25rem, 0.8vw, 0.55rem);
+  pointer-events: auto;
+}
+
+.jukebox-machine-button,
+.jukebox-machine-retry,
+.jukebox-catalog button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.jukebox-machine-button {
+  display: grid;
+  place-items: center;
+  padding: 0.45rem 0.38rem;
+  border: 1px solid rgba(231, 249, 255, 0.72);
+  border-radius: 0.65rem;
+  color: #ffffff;
+  background:
+    linear-gradient(180deg, rgba(31, 42, 49, 0.96), rgba(3, 6, 8, 0.98));
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.28),
+    0 0.25rem 0.7rem rgba(0, 0, 0, 0.65);
+  font-size: clamp(0.6rem, 1.4vw, 0.85rem);
+  font-weight: 850;
+  line-height: 1;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.jukebox-machine-button-play,
+.jukebox-machine-button-catalog {
+  border-color: #ffe4a4;
+  color: #fff7da;
+}
+
+.jukebox-machine-button:hover:not(:disabled),
+.jukebox-machine-button:active:not(:disabled) {
+  border-color: #ffffff;
+  background: linear-gradient(180deg, #344a55, #070b0e);
+}
+
+.jukebox-machine-button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  filter: saturate(0.25);
+}
+
+.jukebox-machine-progress {
+  position: absolute;
+  left: 28%;
+  right: 35.5%;
+  top: 40.3%;
+  display: grid;
+  gap: 0.08rem;
+  color: #ffffff;
+  font-size: clamp(0.55rem, 1.2vw, 0.76rem);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  pointer-events: auto;
+}
+
+.jukebox-machine-progress input {
+  width: 100%;
+  height: 44px;
+  margin: -0.6rem 0 0;
+  cursor: pointer;
+  accent-color: #a6efff;
+}
+
+.jukebox-machine-progress input:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.jukebox-machine-status,
+.jukebox-machine-error {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 6%;
+  z-index: 9;
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(255, 234, 173, 0.65);
+  border-radius: 0.75rem;
+  color: #fff9e6;
+  background: rgba(4, 6, 7, 0.93);
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.7);
+  font-size: clamp(0.72rem, 1.45vw, 0.92rem);
+  text-align: center;
+}
+
+.jukebox-machine-error {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  justify-content: center;
+  border-color: #ffaca6;
+}
+
+.jukebox-machine-error p {
+  margin: 0;
+}
+
+.jukebox-machine-retry {
+  padding: 0.55rem 0.8rem;
+  border: 2px solid #ffffff;
+  border-radius: 0.55rem;
+  color: #190806;
+  background: #ffb4ad;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.jukebox-catalog {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(0.75rem, 2.5svh, 1.6rem);
+  z-index: 12;
+  width: min(92vw, 48rem);
+  height: min(54svh, 31rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: clamp(0.35rem, 1vw, 0.7rem) solid #262022;
+  border-radius: 1.15rem;
+  color: #21150f;
+  background:
+    linear-gradient(90deg, #5e1c1b 0 1%, #9f5a31 1.1% 2%, #241417 2.1% 98%, #9f5a31 98.1% 99%, #5e1c1b 99.1%),
+    #241417;
+  box-shadow:
+    0 2rem 4rem rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1px rgba(255, 230, 173, 0.36);
+  opacity: 0;
+  transform: translate(-50%, 115%);
+  transform-origin: 50% 100%;
+  transition:
+    transform 460ms cubic-bezier(0.2, 0.75, 0.2, 1),
+    opacity 180ms ease-out;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.jukebox-catalog.is-open {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.jukebox-catalog-header,
+.jukebox-catalog-navigation {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem clamp(0.6rem, 1.5vw, 1rem);
+  color: #fff9e8;
+  background: linear-gradient(180deg, #352325, #180f11);
+}
+
+.jukebox-catalog-header {
+  border-bottom: 1px solid rgba(255, 233, 181, 0.42);
+}
+
+.jukebox-catalog-header h2 {
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  letter-spacing: 0.02em;
+}
+
+.jukebox-catalog-close,
+.jukebox-catalog-navigation button {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ebce94;
+  border-radius: 0.55rem;
+  color: #fffdf5;
+  background: #4d2524;
+  font-size: clamp(0.72rem, 1.45vw, 0.88rem);
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.jukebox-catalog-spread {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  padding: clamp(0.45rem, 1vw, 0.7rem);
+  overflow: hidden;
+  perspective: 75rem;
+  background: #261719;
+}
+
+.jukebox-catalog-spread::after {
+  content: "";
+  position: absolute;
+  top: 0.45rem;
+  bottom: 0.45rem;
+  left: 50%;
+  width: 1.25rem;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(70, 38, 24, 0.36), rgba(255, 255, 255, 0.3), rgba(70, 38, 24, 0.36), transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.jukebox-catalog-page {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: minmax(44px, auto);
+  align-content: center;
+  gap: clamp(0.28rem, 0.7vw, 0.48rem);
+  overflow: hidden;
+  padding: clamp(0.55rem, 1.1vw, 0.85rem);
+  border: 1px solid #b58d55;
+  color: #20140d;
+  background:
+    repeating-linear-gradient(0deg, rgba(109, 76, 38, 0.025) 0 1px, transparent 1px 4px),
+    linear-gradient(100deg, #f5e6bc, #fff8dc 82%);
+  box-shadow: inset -0.75rem 0 1rem rgba(73, 43, 21, 0.11);
+}
+
+.jukebox-catalog-page:first-child {
+  transform: rotateY(1.1deg);
+  transform-origin: right center;
+  border-radius: 0.55rem 0 0 0.55rem;
+}
+
+.jukebox-catalog-page + .jukebox-catalog-page {
+  transform: rotateY(-1.1deg);
+  transform-origin: left center;
+  border-radius: 0 0.55rem 0.55rem 0;
+  box-shadow: inset 0.75rem 0 1rem rgba(73, 43, 21, 0.11);
+}
+
+.jukebox-song-card {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "artist duration"
+    "title duration"
+    "album unavailable";
+  column-gap: 0.55rem;
+  align-items: center;
+  padding: 0.35rem 0.52rem;
+  overflow: hidden;
+  border: 1px solid #9b7646;
+  border-radius: 0.35rem;
+  color: #21150f;
+  background:
+    linear-gradient(90deg, rgba(124, 50, 29, 0.08), transparent 24% 76%, rgba(124, 50, 29, 0.08)),
+    #fff9e8;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85), 0 0.15rem 0.35rem rgba(64, 32, 17, 0.18);
+  text-align: left;
+  cursor: pointer;
+}
+
+.jukebox-song-card:hover {
+  border-color: #5f2a20;
+  background: #ffffff;
+}
+
+.jukebox-song-card.is-selected {
+  border: 2px solid #6c170d;
+  color: #170704;
+  background: #ffd67b;
+  box-shadow: inset 0 0 0 2px #fff7cf, 0 0 0 2px rgba(108, 23, 13, 0.2);
+}
+
+.jukebox-song-card-artist,
+.jukebox-song-card-title,
+.jukebox-song-card-album {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jukebox-song-card-artist {
+  grid-area: artist;
+  color: #593a2a;
+  font-size: clamp(0.61rem, 1.25vw, 0.74rem);
+  font-weight: 750;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.jukebox-song-card-title {
+  grid-area: title;
+  font-size: clamp(0.76rem, 1.6vw, 0.98rem);
+  line-height: 1.05;
+}
+
+.jukebox-song-card-album {
+  grid-area: album;
+  color: #644334;
+  font-size: clamp(0.59rem, 1.2vw, 0.72rem);
+}
+
+.jukebox-song-card-duration {
+  grid-area: duration;
+  font-size: clamp(0.66rem, 1.3vw, 0.82rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+}
+
+.jukebox-song-card-unavailable {
+  grid-area: unavailable;
+  justify-self: end;
+  padding: 0.08rem 0.28rem;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #74271f;
+  font-size: clamp(0.55rem, 1.1vw, 0.66rem);
+  font-weight: 850;
+}
+
+.jukebox-catalog-empty {
+  display: grid;
+  place-items: center;
+  min-height: 11rem;
+  margin: 0.5rem;
+  border: 1px solid #b58d55;
+  color: #2a1710;
+  background: #fff4cf;
+  font-weight: 850;
+}
+
+.jukebox-catalog-navigation {
+  border-top: 1px solid rgba(255, 233, 181, 0.42);
+  font-size: clamp(0.67rem, 1.35vw, 0.82rem);
+  text-align: center;
+}
+
+.jukebox-catalog-navigation button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.jukebox-catalog-navigation-mobile {
+  display: none;
+}
+
+.jukebox-machine-button:focus-visible,
+.jukebox-machine-progress input:focus-visible,
+.jukebox-machine-retry:focus-visible,
+.jukebox-catalog button:focus-visible,
+.jukebox-song-card:focus-visible {
+  outline: 3px solid #4de3ff;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px #061216, 0 0 1.2rem rgba(77, 227, 255, 0.75);
+}
+
+.jukebox-song-card:focus-visible {
+  outline-color: #76150b;
+  box-shadow: 0 0 0 4px #fff5c9;
+}
+
+.jukebox-audio-element,
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.jukebox-player:not(.is-standalone) .jukebox-catalog {
+  position: fixed;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  height: min(76svh, 34rem);
+}
+
+@media (max-width: 600px) {
+  .jukebox-player.is-standalone {
+    align-items: center;
+    padding-inline: 0.35rem;
+  }
+
+  .jukebox-machine .reference-jukebox-now {
+    left: 24.8%;
+    right: 32.4%;
+    padding-inline: 0.4rem;
+    padding-bottom: 2.85rem;
+  }
+
+  .jukebox-machine-buttons {
+    left: 17.5%;
+    right: 17.5%;
+    gap: 0.22rem;
+  }
+
+  .jukebox-machine-button {
+    padding-inline: 0.2rem;
+    font-size: 0.56rem;
+  }
+
+  .jukebox-machine-progress {
+    left: 27%;
+    right: 34.5%;
+  }
+
+  .jukebox-catalog {
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    width: min(96vw, 26rem);
+    height: min(62svh, 31rem);
+    border-width: 0.38rem;
+    transform: translate(-50%, 112%);
+  }
+
+  .jukebox-catalog.is-open {
+    transform: translate(-50%, 0);
+  }
+
+  .jukebox-catalog-spread {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.42rem;
+  }
+
+  .jukebox-catalog-spread::after,
+  .jukebox-catalog-page + .jukebox-catalog-page {
+    display: none;
+  }
+
+  .jukebox-catalog-page:first-child {
+    transform: none;
+    border-radius: 0.45rem;
+  }
+
+  .jukebox-catalog-page {
+    align-content: center;
+    gap: 0.3rem;
+    padding: 0.45rem;
+  }
+
+  .jukebox-song-card {
+    min-height: 48px;
+    padding-block: 0.3rem;
+  }
+
+  .jukebox-catalog-navigation-desktop {
+    display: none;
+  }
+
+  .jukebox-catalog-navigation-mobile {
+    display: flex;
+  }
+
+  .jukebox-catalog-header,
+  .jukebox-catalog-navigation {
+    padding-block: 0.35rem;
+  }
+
+  .jukebox-catalog-close,
+  .jukebox-catalog-navigation button {
+    padding-inline: 0.5rem;
+    font-size: 0.68rem;
+  }
+
+  .jukebox-machine-status,
+  .jukebox-machine-error {
+    left: 12%;
+    right: 12%;
+    bottom: 4%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .jukebox-catalog,
+  .jukebox-catalog-page,
+  .jukebox-song-card,
+  .jukebox-machine-button {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .jukebox-catalog-page:first-child,
+  .jukebox-catalog-page + .jukebox-catalog-page {
+    transform: none;
+  }
+
+  .jukebox-machine.is-loading .jukebox-machine-playback-state::before {
+    animation: none;
+    border-color: #98efff;
+  }
+}

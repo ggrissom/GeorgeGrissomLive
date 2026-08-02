@@ -38,6 +38,17 @@ function renderCatalog(songs: PublicJukeboxSong[], selectedSongId?: string) {
   );
 }
 
+function renderClosedCatalog(songs: PublicJukeboxSong[]) {
+  return renderToStaticMarkup(
+    createElement(JukeboxCatalog, {
+      songs,
+      open: false,
+      onClose: () => {},
+      onSelect: () => {},
+    }),
+  );
+}
+
 test("catalog cards render SINGLE, duration, and every real title on a partial spread", () => {
   const songs = makeSongs(6);
   const markup = renderCatalog(songs);
@@ -60,6 +71,21 @@ test("catalog opens on the selected song's nonblank spread", () => {
   assert.match(markup, />Song 11</);
   assert.equal((markup.match(/<button class="jukebox-song-card/g) ?? []).length, 1);
   assert.doesNotMatch(markup, />Song 10</);
+});
+
+test("closed catalog stays mounted for transition but is hidden from assistive technology", () => {
+  const markup = renderClosedCatalog(makeSongs(1));
+
+  assert.match(markup, /class="jukebox-catalog is-closed"/);
+  assert.match(markup, /aria-hidden="true"/);
+  assert.doesNotMatch(markup, /aria-modal="true"/);
+});
+
+test("catalog exposes separate page controls for narrow vertical navigation", () => {
+  const markup = renderCatalog(makeSongs(11));
+
+  assert.match(markup, /aria-label="Previous catalog page"/);
+  assert.match(markup, /aria-label="Next catalog page"/);
 });
 
 test("touch navigation advances exactly one five-song page", () => {

@@ -42,9 +42,16 @@ export function JukeboxMachine({
   const [artworkFailed, setArtworkFailed] = useState(false);
   const displayDuration = duration || song?.durationSeconds || 0;
   const unavailable = Boolean(song && !song.playable);
+  const machineState = [
+    "reference-jukebox-module",
+    "jukebox-machine",
+    loading ? "is-loading" : "",
+    unavailable ? "is-unavailable" : "",
+    error ? "has-error" : "",
+  ].filter(Boolean).join(" ");
 
   return (
-    <div className="reference-jukebox-module jukebox-machine">
+    <div className={machineState}>
       <div className={artworkFailed ? "reference-jukebox artwork-failed" : "reference-jukebox"}>
         {!artworkFailed && (
           <img
@@ -56,16 +63,19 @@ export function JukeboxMachine({
           />
         )}
 
-        <div className="reference-jukebox-now" aria-live="polite">
+        <div className="reference-jukebox-now" aria-live="polite" aria-busy={loading}>
           <span>NOW PLAYING</span>
           <strong>{song?.title ?? "Songs coming soon"}</strong>
           <small>{song?.artist ?? "Catalog unavailable"}</small>
-          <small>{loading ? "Loading…" : playing ? "Playing" : "Paused"}</small>
+          <small className="jukebox-machine-playback-state">
+            {loading ? "Loading…" : unavailable ? "Unavailable" : playing ? "Playing" : "Paused"}
+          </small>
         </div>
 
         <div className="jukebox-machine-controls">
           <div className="jukebox-machine-buttons">
             <button
+              className="jukebox-machine-button jukebox-machine-button-previous"
               type="button"
               aria-label="Previous playable song"
               onClick={onPrevious}
@@ -74,6 +84,7 @@ export function JukeboxMachine({
               Previous
             </button>
             <button
+              className="jukebox-machine-button jukebox-machine-button-play"
               type="button"
               aria-label={playing ? "Pause current song" : "Play current song"}
               onClick={onTogglePlayback}
@@ -82,6 +93,7 @@ export function JukeboxMachine({
               {playing ? "Pause" : "Play"}
             </button>
             <button
+              className="jukebox-machine-button jukebox-machine-button-next"
               type="button"
               aria-label="Next playable song"
               onClick={onNext}
@@ -90,6 +102,7 @@ export function JukeboxMachine({
               Next
             </button>
             <button
+              className="jukebox-machine-button jukebox-machine-button-catalog"
               ref={catalogButtonRef}
               type="button"
               onClick={onOpenCatalog}
@@ -135,7 +148,9 @@ export function JukeboxMachine({
         <div className="jukebox-machine-error" role="alert">
           <p>{error}</p>
           {song?.playable && (
-            <button type="button" onClick={onRetry}>Retry playback</button>
+            <button className="jukebox-machine-retry" type="button" onClick={onRetry}>
+              Retry playback
+            </button>
           )}
         </div>
       )}

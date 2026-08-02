@@ -53,6 +53,7 @@ export function JukeboxCatalog({
   );
   const selectedCardRef = useRef<HTMLButtonElement>(null);
   const firstCardRef = useRef<HTMLButtonElement>(null);
+  const catalogRef = useRef<HTMLElement>(null);
   const touchStartRef = useRef<{ id: number; x: number; y: number } | null>(null);
   const suppressClickRef = useRef(false);
   const suppressClickTimeoutRef = useRef<number | null>(null);
@@ -84,7 +85,11 @@ export function JukeboxCatalog({
     [],
   );
 
-  if (!open) return null;
+  useEffect(() => {
+    if (catalogRef.current) {
+      catalogRef.current.inert = !open;
+    }
+  }, [open]);
 
   const leftPage = pages[pageIndex];
   const rightPage = pages[pageIndex + 1];
@@ -209,9 +214,11 @@ export function JukeboxCatalog({
 
   return (
     <section
-      className="jukebox-catalog"
+      ref={catalogRef}
+      className={open ? "jukebox-catalog is-open" : "jukebox-catalog is-closed"}
       role="dialog"
-      aria-modal="true"
+      aria-modal={open ? "true" : undefined}
+      aria-hidden={!open}
       aria-label="Jukebox song catalog"
       tabIndex={-1}
       onKeyDown={handleKeyDown}
@@ -258,7 +265,7 @@ export function JukeboxCatalog({
         <p className="jukebox-catalog-empty">No songs are available.</p>
       )}
 
-      <footer className="jukebox-catalog-navigation">
+      <footer className="jukebox-catalog-navigation jukebox-catalog-navigation-desktop">
         <button
           type="button"
           onClick={() => moveSpread(-1)}
@@ -279,6 +286,28 @@ export function JukeboxCatalog({
           aria-label="Next catalog spread"
         >
           Next songs
+        </button>
+      </footer>
+
+      <footer className="jukebox-catalog-navigation jukebox-catalog-navigation-mobile">
+        <button
+          type="button"
+          onClick={() => movePage(-1)}
+          disabled={pageIndex === 0}
+          aria-label="Previous catalog page"
+        >
+          Previous page
+        </button>
+        <span aria-live="polite">
+          {pages.length ? `Page ${pageIndex + 1} of ${pages.length}` : "No pages"}
+        </span>
+        <button
+          type="button"
+          onClick={() => movePage(1)}
+          disabled={pageIndex >= maxPageIndex}
+          aria-label="Next catalog page"
+        >
+          Next page
         </button>
       </footer>
     </section>
