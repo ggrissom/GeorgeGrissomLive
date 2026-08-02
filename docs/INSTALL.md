@@ -83,7 +83,7 @@ Run these with `DATABASE_URL` supplied securely for the intended database. Back 
 
 Migration is an explicit pre-promotion gate. The repository's `npm run build` runs only `prisma generate && next build`. Never add `prisma db push`, `prisma migrate deploy`, or `--accept-data-loss` to that script. Run `npm run db:deploy` from a controlled release environment and stop promotion if it or the following migration-status check fails.
 
-Vercel may have a project-level Build Command override that takes precedence over `package.json`. The project is not schema-neutral until its Build Command is `npm run build` or package-script detection, and a fresh deployment log shows `prisma generate && next build` with no `db push`, migration, or `--accept-data-loss`. A mutating override is a release blocker even when the repository invariant test passes.
+Root `vercel.json` sets `buildCommand` to `npm run build`, overriding stale project-level build settings with the repository's schema-neutral command. Keep that file limited to its schema declaration and build command. A fresh deployment log must still show `npm run build` followed by `prisma generate && next build`, with no `db push`, migration, or `--accept-data-loss`; any regression remains a release blocker even when the local invariant test passes.
 
 ## 5. Admin jukebox workflow
 
@@ -160,13 +160,13 @@ npm run build
 
 The build output must include `/`, `/jukebox`, `/admin`, `/api/songs`, and `/api/admin/songs/audio`. Inspect public API responses and generated client chunks to confirm private lyric, chord, rehearsal, storage-path, and credential fields are absent.
 
-The package-script invariant test enforces that repository `build` remains non-mutating and that `db:deploy` remains the only production migration command. Vercel deployment logs must be checked separately for a project-level override.
+The package-script invariant test enforces that repository `build` remains non-mutating and that `db:deploy` remains the only production migration command. Vercel deployment logs must be checked separately to verify the effective remote command.
 
 ## 8. Vercel preview and production deployment
 
 1. Confirm the Vercel project is linked to `ggrissom/GeorgeGrissomLive`.
 2. Confirm the production branch is `main`.
-3. Confirm the Vercel Build Command is `npm run build` or package-script detection; remove any override containing `db push`, migration commands, or `--accept-data-loss`.
+3. Confirm root `vercel.json` still sets `buildCommand` to `npm run build` and contains no unrelated deployment settings.
 4. Confirm all required environment variable names are present in Preview and Production; do not print their values into logs or handoff notes.
 5. From a controlled release environment, run `npm run db:deploy` against the intended production database and then `npx prisma migrate status`. This is mandatory before promotion; stop if either command fails.
 6. Push the reviewed feature branch normally. Git integration should create a Preview deployment.
