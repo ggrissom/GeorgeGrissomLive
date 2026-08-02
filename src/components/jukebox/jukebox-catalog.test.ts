@@ -172,3 +172,11 @@ test("song selection closes through the focus-restoring catalog path", () => {
 
   assert.deepEqual(actions, ["select", "close", "focus"]);
 });
+
+test("open catalog uses drawer semantics rather than claiming an untrapped modal", () => {
+  const markup = renderCatalog(makeSongs(1));
+
+  assert.doesNotMatch(markup, /aria-modal=/);
+  assert.doesNotMatch(markup, /role="dialog"/);
+  assert.match(markup, /aria-label="Jukebox song catalog"/);
+});
