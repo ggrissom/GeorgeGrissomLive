@@ -37,3 +37,14 @@ test("empty player renders a deliberate coming-soon state", () => {
   assert.match(markup, /Songs coming soon/);
   assert.equal((markup.match(/<audio/g) ?? []).length, 1);
 });
+
+test("shared player renders the homepage free-play status", () => {
+  const markup = renderToStaticMarkup(
+    createElement(JukeboxPlayer, {
+      initialSongs: [playableSong],
+      getPlayStatus: () => "1 FREE PLAY LEFT",
+    }),
+  );
+
+  assert.match(markup, />1 FREE PLAY LEFT</);
+});
