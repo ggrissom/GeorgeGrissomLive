@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdminRequest } from "@/lib/auth";
 import { toPublicJukeboxSong } from "@/lib/jukebox";
+import { toHomepageJukeboxSong } from "@/lib/homepage-jukebox";
 import { lyricSearchLinks } from "@/lib/metadata";
 import {
   cleanupJukeboxAudio,
@@ -13,6 +14,7 @@ import {
   validateOptionalBoolean,
   validateSongPatchId,
 } from "@/lib/song-patch-validation";
+import { publicSongQuery } from "./song-query";
 
 class SongInputValidationError extends Error {}
 
@@ -37,12 +39,10 @@ function songPublicShape(song: any, admin: boolean) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const admin = searchParams.get("admin") === "1" && await isAdminRequest();
-  const unlock = searchParams.get("unlock") === "1";
-  const jukebox = searchParams.get("jukebox") === "1";
-  const where = jukebox ? { isPublic: true } : admin ? undefined : unlock ? { paidCatalog: true } : { publicShortlist: true };
+  const query = publicSongQuery(searchParams);
   const songs = await prisma.song.findMany({
-    where,
-    orderBy: jukebox ? [{ jukeboxOrder: "asc" }, { title: "asc" }] : [{ title: "asc" }],
+    where: admin ? undefined : query.where,
+    orderBy: admin ? [{ title: "asc" }] : query.orderBy,
     include: admin
       ? {
           setlists: {
@@ -54,7 +54,11 @@ export async function GET(request: Request) {
   });
 
   return NextResponse.json(
-    songs.map(song => jukebox ? toPublicJukeboxSong(song) : songPublicShape(song, Boolean(admin))),
+    songs.map(song => admin
+      ? songPublicShape(song, true)
+      : query.mode === "jukebox"
+        ? toPublicJukeboxSong(song)
+        : toHomepageJukeboxSong(song)),
   );
 }
 
