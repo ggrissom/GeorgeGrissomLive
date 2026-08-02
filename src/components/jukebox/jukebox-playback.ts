@@ -7,6 +7,15 @@ export type AudioPlaybackTarget = {
 
 export type PlaybackAttemptResult = "played" | "blocked" | "stale";
 
+export async function runAuthorizedPlayback(
+  authorize: () => boolean | Promise<boolean>,
+  play: () => void | Promise<void>,
+): Promise<boolean> {
+  if (!(await authorize())) return false;
+  await play();
+  return true;
+}
+
 type PlaybackGeneration = {
   generation: number;
   isCurrent: (generation: number) => boolean;
