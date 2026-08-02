@@ -236,8 +236,6 @@ export function JukeboxCatalog({
     <section
       ref={catalogRef}
       className={open ? "jukebox-catalog is-open" : "jukebox-catalog is-closed"}
-      role="dialog"
-      aria-modal={open ? "true" : undefined}
       aria-hidden={!open}
       aria-label="Jukebox song catalog"
       tabIndex={-1}
