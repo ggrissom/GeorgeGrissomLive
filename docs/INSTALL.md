@@ -81,7 +81,9 @@ npm run db:deploy
 
 Run these with `DATABASE_URL` supplied securely for the intended database. Back up production first and verify `npx prisma migrate status` afterward. `npm run db:deploy` runs `prisma migrate deploy`, which applies committed migrations without generating new ones.
 
-Migration is an explicit pre-promotion gate. `npm run build` runs only `prisma generate && next build`; Vercel preview and production builds do not mutate the database. Never add `prisma db push`, `prisma migrate deploy`, or `--accept-data-loss` to the build command. Run `npm run db:deploy` from a controlled release environment and stop promotion if it or the following migration-status check fails.
+Migration is an explicit pre-promotion gate. The repository's `npm run build` runs only `prisma generate && next build`. Never add `prisma db push`, `prisma migrate deploy`, or `--accept-data-loss` to that script. Run `npm run db:deploy` from a controlled release environment and stop promotion if it or the following migration-status check fails.
+
+Vercel may have a project-level Build Command override that takes precedence over `package.json`. The project is not schema-neutral until its Build Command is `npm run build` or package-script detection, and a fresh deployment log shows `prisma generate && next build` with no `db push`, migration, or `--accept-data-loss`. A mutating override is a release blocker even when the repository invariant test passes.
 
 ## 5. Admin jukebox workflow
 
@@ -158,20 +160,22 @@ npm run build
 
 The build output must include `/`, `/jukebox`, `/admin`, `/api/songs`, and `/api/admin/songs/audio`. Inspect public API responses and generated client chunks to confirm private lyric, chord, rehearsal, storage-path, and credential fields are absent.
 
-The package-script invariant test enforces that `build` remains non-mutating and that `db:deploy` remains the only production migration command.
+The package-script invariant test enforces that repository `build` remains non-mutating and that `db:deploy` remains the only production migration command. Vercel deployment logs must be checked separately for a project-level override.
 
 ## 8. Vercel preview and production deployment
 
 1. Confirm the Vercel project is linked to `ggrissom/GeorgeGrissomLive`.
 2. Confirm the production branch is `main`.
-3. Confirm all required environment variable names are present in Preview and Production; do not print their values into logs or handoff notes.
-4. From a controlled release environment, run `npm run db:deploy` against the intended production database and then `npx prisma migrate status`. This is mandatory before promotion; stop if either command fails.
-5. Push the reviewed feature branch normally. Git integration should create a Preview deployment.
-6. Confirm the Preview deployment metadata names the exact reviewed commit and reaches `READY`.
-7. Verify the unique HTTPS preview URL and its branch alias at `/jukebox`.
-8. Complete whole-branch review. Do not merge, promote, or change DNS while review is pending.
-9. After approval and the successful migration gate, merge normally to `main` and let the Git-linked production deployment build the reviewed commit. The build does not change the schema.
-10. Confirm the production deployment commit, then verify `https://live.georgegrissom.com/jukebox`.
+3. Confirm the Vercel Build Command is `npm run build` or package-script detection; remove any override containing `db push`, migration commands, or `--accept-data-loss`.
+4. Confirm all required environment variable names are present in Preview and Production; do not print their values into logs or handoff notes.
+5. From a controlled release environment, run `npm run db:deploy` against the intended production database and then `npx prisma migrate status`. This is mandatory before promotion; stop if either command fails.
+6. Push the reviewed feature branch normally. Git integration should create a Preview deployment.
+7. Confirm the Preview deployment metadata names the exact reviewed commit and reaches `READY`.
+8. Inspect the fresh Vercel build log. It must run `prisma generate && next build`; any logged `db push`, migration command, or `--accept-data-loss` blocks release.
+9. Verify the unique HTTPS preview URL and its branch alias at `/jukebox`.
+10. Complete whole-branch review. Do not merge, promote, or change DNS while review is pending.
+11. After approval and the successful migration and build-command gates, merge normally to `main` and let the Git-linked production deployment build the reviewed commit.
+12. Confirm the production deployment commit, recheck its build log for the non-mutating command, then verify `https://live.georgegrissom.com/jukebox`.
 
 Do not rewrite DNS unless the existing domain mapping is proven wrong. A domain alias may still point to the last production deployment while a feature preview is healthy; that is expected.
 
