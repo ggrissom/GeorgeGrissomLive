@@ -20,7 +20,7 @@ cd GeorgeGrissomLive
 cp .env.example .env
 npm install
 npx prisma generate
-npx prisma migrate deploy
+npm run db:deploy
 npm run db:seed
 npm run dev
 ```
@@ -76,12 +76,12 @@ Before deploying code that reads these fields:
 ```bash
 npx prisma validate
 npx prisma migrate status
-npx prisma migrate deploy
+npm run db:deploy
 ```
 
-Run these with `DATABASE_URL` supplied securely for the intended database. Back up production first and verify `npx prisma migrate status` afterward. `prisma migrate deploy` applies committed migrations without generating new ones.
+Run these with `DATABASE_URL` supplied securely for the intended database. Back up production first and verify `npx prisma migrate status` afterward. `npm run db:deploy` runs `prisma migrate deploy`, which applies committed migrations without generating new ones.
 
-The current `npm run build` script also runs `prisma db push --accept-data-loss`. That means a Vercel build can mutate whichever database its deployment environment references. Apply and verify migrations before deployment, keep preview and production database scope intentional, and treat this build-script behavior as a release concern until it is separated into an explicit migration phase.
+Migration is an explicit pre-promotion gate. `npm run build` runs only `prisma generate && next build`; Vercel preview and production builds do not mutate the database. Never add `prisma db push`, `prisma migrate deploy`, or `--accept-data-loss` to the build command. Run `npm run db:deploy` from a controlled release environment and stop promotion if it or the following migration-status check fails.
 
 ## 5. Admin jukebox workflow
 
@@ -150,28 +150,27 @@ npx tsc --noEmit
 npx prisma validate
 ```
 
-For an isolated production Next.js compile that must not mutate a database, run Prisma client generation and `next build` directly with a non-production build-time `DATABASE_URL`:
+Run the production build with a non-production build-time `DATABASE_URL`:
 
 ```bash
-npx prisma generate
-npx next build
+npm run build
 ```
 
 The build output must include `/`, `/jukebox`, `/admin`, `/api/songs`, and `/api/admin/songs/audio`. Inspect public API responses and generated client chunks to confirm private lyric, chord, rehearsal, storage-path, and credential fields are absent.
 
-Use `npm run build` only when its configured `prisma db push --accept-data-loss` step is intended for the referenced database. A Vercel preview build currently executes that script.
+The package-script invariant test enforces that `build` remains non-mutating and that `db:deploy` remains the only production migration command.
 
 ## 8. Vercel preview and production deployment
 
 1. Confirm the Vercel project is linked to `ggrissom/GeorgeGrissomLive`.
 2. Confirm the production branch is `main`.
 3. Confirm all required environment variable names are present in Preview and Production; do not print their values into logs or handoff notes.
-4. Apply and verify the migrations against the intended database.
+4. From a controlled release environment, run `npm run db:deploy` against the intended production database and then `npx prisma migrate status`. This is mandatory before promotion; stop if either command fails.
 5. Push the reviewed feature branch normally. Git integration should create a Preview deployment.
 6. Confirm the Preview deployment metadata names the exact reviewed commit and reaches `READY`.
 7. Verify the unique HTTPS preview URL and its branch alias at `/jukebox`.
 8. Complete whole-branch review. Do not merge, promote, or change DNS while review is pending.
-9. After approval, merge normally to `main` and let the Git-linked production deployment build the reviewed commit.
+9. After approval and the successful migration gate, merge normally to `main` and let the Git-linked production deployment build the reviewed commit. The build does not change the schema.
 10. Confirm the production deployment commit, then verify `https://live.georgegrissom.com/jukebox`.
 
 Do not rewrite DNS unless the existing domain mapping is proven wrong. A domain alias may still point to the last production deployment while a feature preview is healthy; that is expected.

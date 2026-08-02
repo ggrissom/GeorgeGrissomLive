@@ -100,4 +100,4 @@ The **Setlists** tab can create or duplicate private setlists, link them to a sh
 
 ## Release note
 
-Apply the committed Prisma migrations and complete the regression gates before merging a reviewed feature branch into `main`. A push to a non-production branch creates a Vercel preview; `main` is the production branch. Do not promote a preview or rewrite DNS until the whole branch has final approval. See [`docs/INSTALL.md`](docs/INSTALL.md) for the exact release sequence and current build-script caveat.
+Run `npm run db:deploy` against the intended production database and verify migration status as an explicit pre-promotion gate. `npm run build` only generates Prisma Client and compiles Next.js; preview and production builds never apply or push database schema changes. Complete all regression gates before merging a reviewed feature branch into `main`. Do not promote a preview or rewrite DNS until the whole branch has final approval. See [`docs/INSTALL.md`](docs/INSTALL.md) for the exact release sequence.
