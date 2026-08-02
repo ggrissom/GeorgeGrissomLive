@@ -1,301 +1,228 @@
-# Install and Run Instructions
+# Install, Administer, and Deploy
 
 ## 1. Prerequisites
 
-Install these on the machine that will run the MVP:
-
 - Node.js 20 or newer
 - npm
-- Git, optional but recommended
-- A modern browser for recording support
-- Optional Stripe account for real payments
-- Optional OpenAI API key for AI catalog normalization
-- Optional deployment host such as Vercel, Render, Fly.io, Railway, or a VPS
+- Git
+- PostgreSQL for local and deployed data
+- A modern browser
+- A Vercel project and Vercel Blob store for production jukebox audio
+- Optional Stripe, OpenAI, Google Calendar, and MusicBrainz configuration
 
-## 2. Unzip and enter the project
+The Prisma datasource is PostgreSQL. The older SQLite instructions do not apply to the current schema.
 
-```bash
-unzip 20260623_*_georgegrissomDotCom-webapp.zip
-cd georgegrissomDotCom-webapp
-```
-
-## 3. Create environment file
+## 2. Install locally
 
 ```bash
+git clone <repository-url>
+cd GeorgeGrissomLive
 cp .env.example .env
-```
-
-Edit `.env`.
-
-Minimum local settings:
-
-```env
-DATABASE_URL="file:./dev.db"
-ADMIN_EMAIL="admin@georgegrissom.com"
-ADMIN_PASSWORD="change-this-password"
-ADMIN_SESSION_SECRET="replace-with-a-long-random-string"
-NEXT_PUBLIC_SITE_URL="http://localhost:3000"
-```
-
-Use a strong `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET`.
-
-## 4. Install dependencies and initialize database
-
-```bash
-npm run setup
-```
-
-This performs:
-
-```bash
 npm install
 npx prisma generate
-npx prisma db push
+npx prisma migrate deploy
 npm run db:seed
-```
-
-## 5. Start local dev server
-
-```bash
 npm run dev
 ```
 
 Open:
 
-```txt
-http://localhost:3000
-http://localhost:3000/admin
-```
+- `http://localhost:3000`
+- `http://localhost:3000/jukebox`
+- `http://localhost:3000/admin`
 
-## 6. Admin dashboard features
+Use a disposable development database for local work. `npm run setup` uses `prisma db push`; prefer the explicit migration sequence above when reproducing the production schema.
 
-The admin dashboard includes:
+## 3. Environment variable names
 
-- Live request queue
-- Google-synced event/calendar entry
-- Song catalog create/delete and type-to-add setlist association
-- Private lyric/chord/rehearsal notes
-- Private setlist builder with duplication, venue/show linking, search, checkboxes, and ordering
-- CSV/Excel/PDF/text import staging
-- MusicBrainz metadata search
-- External lyric/chord/key/BPM search links for private learning
-- One-button browser recording
-- Fan upload moderation
-- Booking inquiry management
+Copy values through the deployment platform or a local uncommitted `.env`. Only variable names are documented here.
 
-## 7. Song catalog import
+Required for the deployed application:
 
-Supported MVP inputs:
-
-- `.csv`
-- `.xlsx`
-- `.xls`
-- text-based `.pdf`
-- text files
-- images / scanned PDFs saved for manual/OCR review
-
-Notes:
-
-- CSV and Excel files are parsed into rows.
-- Text PDFs are parsed using embedded text.
-- Scanned PDFs/images are saved and flagged for manual/OCR review in this MVP unless you add a full OCR pipeline.
-- If `OPENAI_API_KEY` is set, each parsed row is sent through AI normalization to map messy fields into app-compatible song records.
-- Every import is staged for admin review before it becomes a real song.
-
-## 8. Optional OpenAI setup
-
-Add:
-
-```env
-OPENAI_API_KEY="sk-..."
-```
-
-Then restart the dev server.
-
-OpenAI is used for:
-
-- Mapping messy spreadsheet/PDF rows into song fields
-- Confidence scores
-- Warnings
-- Inference of mood/genre/tempo label when possible
-
-The app does not automatically publish lyrics or chords.
-
-## 9. Optional Stripe setup
-
-Add:
-
-```env
-STRIPE_SECRET_KEY="sk_test_..."
-STRIPE_WEBHOOK_SECRET="whsec_..."
-NEXT_PUBLIC_SITE_URL="http://localhost:3000"
-```
-
-For local webhook testing, install Stripe CLI and run:
-
-```bash
-stripe listen --forward-to localhost:3000/api/stripe/webhook
-```
-
-Copy the webhook secret into `.env`, then restart the app.
-
-Without Stripe keys, payments run in `demo_no_stripe` mode so contractors can test the full flow without charging cards.
-
-
-## 10. Google Performance Calendar setup
-
-The app is preconfigured to use this Performance Calendar ID:
-
-```env
-GOOGLE_CALENDAR_ID="0d93f3b5191f80e930ce0cdb7249a796230adbd8ba2049e7e4e323ffc632cf68@group.calendar.google.com"
-```
-
-To enable admin write-sync and public Google calendar reads:
-
-1. Create a Google Cloud service account.
-2. Enable the Google Calendar API on that Google Cloud project.
-3. Create a JSON key for the service account.
-4. Copy the service account email into `.env`:
-
-```env
-GOOGLE_SERVICE_ACCOUNT_EMAIL="service-account-name@project-id.iam.gserviceaccount.com"
-```
-
-5. Copy the private key into `.env`. Keep the escaped newlines:
-
-```env
-GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-```
-
-6. Open the Google Performance Calendar sharing settings.
-7. Share the calendar with the service account email.
-8. Grant permission to make changes to events.
-9. Restart the app.
-
-Behavior:
-
-- Public `/` and `/api/events` read upcoming events from Google Calendar when credentials are present.
-- Admin-created events save locally first, then create/update Google Calendar events.
-- The local `Event.googleEventId` prevents duplicate Google events on future edits.
-- If Google fails, the event remains local and shows `google_error` in admin.
-- If Google is not configured, the app uses the local SQLite event list.
-
-## 11. Private setlists
-
-Open `/admin`, then the **Setlists** tab.
-
-Available MVP workflows:
-
-- Create a private setlist with name, venue, optional show association, and notes.
-- Duplicate an older setlist and optionally point it to a different venue/show.
-- Search the song catalog from inside the setlist builder.
-- Check a song to add it to the setlist.
-- Uncheck or remove a song to detach it.
-- Use Up/Down to change song order.
-- From the **Songs** tab, type a setlist name into the song form or per-song quick-add field to associate songs quickly.
-
-Setlists are private/admin-only in this MVP.
-
-## 12. Jukebox visual behavior
-
-The public jukebox is CSS-rendered for performance. It uses:
-
-- the supplied straight-on chrome/glass jukebox artwork as the visual foundation
-- no inward angle; the jukebox remains straight-on
-- a lightweight scroll-wheel song selector overlay that renders only visible rows
-- search on the main jukebox section
-- the existing free-play/catalog-unlock logic
-
-
-## 13. One-button recording
-
-The recording tab uses the browser's audio device APIs.
-
-For built-in mic:
-
-1. Open `/admin`
-2. Go to **Record**
-3. Grant microphone permission
-4. Press **Record**
-5. Press **Stop**
-6. Press **Save recording**
-
-For mixer/audio-interface input:
-
-1. Connect the mixer/interface before opening the page
-2. Grant mic permission
-3. Pick the device from the dropdown
-4. Record and save
-
-Saved recordings go to:
-
-```txt
-public/uploads/recordings
-```
-
-Database records go to the `Recording` table.
-
-## 14. Production deployment notes
-
-For production, contractors should replace the local-only pieces:
-
-| MVP piece | Production recommendation |
+| Variable name | Purpose |
 |---|---|
-| SQLite | Postgres, Supabase, Neon, Railway, Render, or RDS |
-| local `/public/uploads` | S3, Cloudflare R2, Supabase Storage, or similar |
-| simple env-password admin auth | Supabase Auth, Auth.js, Clerk, or another real auth provider |
-| polling live queue | Supabase Realtime, Pusher, Ably, or WebSockets |
-| local media files | object storage + signed URLs |
-| manual OCR fallback | managed OCR or OpenAI file/vision pipeline |
+| `DATABASE_URL` | PostgreSQL connection used by Prisma |
+| `ADMIN_EMAIL` | Admin login identity |
+| `ADMIN_PASSWORD` | Admin login password |
+| `ADMIN_SESSION_SECRET` | HMAC secret for admin session cookies |
+| `NEXT_PUBLIC_SITE_URL` | Canonical site origin used in redirects and checkout |
+| `BLOB_READ_WRITE_TOKEN` | Server-only credential for the persistent jukebox Blob store |
 
-## 15. Useful commands
+Optional integrations:
+
+| Variable name | Purpose |
+|---|---|
+| `STRIPE_SECRET_KEY` | Stripe server API credential |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook verification |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe browser configuration where used |
+| `OPENAI_API_KEY` | Optional import normalization |
+| `GOOGLE_CALENDAR_ID` | Performance calendar |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Calendar service account |
+| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | Calendar service-account key |
+| `MUSICBRAINZ_CONTACT_EMAIL` | MusicBrainz request identification |
+
+Set required variables separately for Preview and Production in Vercel. Never commit their values. Preview deployments should use a preview database unless schema changes against the production database are deliberate and approved.
+
+## 4. Database migrations
+
+The standalone jukebox depends on these committed migrations, in order:
+
+1. `20260801213000_jukebox_song_metadata` adds album, duration, stable jukebox order, and the public-ordering index.
+2. `20260801233000_jukebox_audio_cleanup` adds the persisted Blob pathname and durable `AudioCleanup` table.
+3. `20260801234500_audio_cleanup_leases` adds cleanup scheduling, leases, terminal state, and its index.
+
+Before deploying code that reads these fields:
 
 ```bash
-npm run dev       # local development
-npm run build     # production build
-npm run start     # start production build
-npm run db:push   # apply Prisma schema to SQLite
-npm run db:seed   # seed starter data
+npx prisma validate
+npx prisma migrate status
+npx prisma migrate deploy
 ```
 
-## 16. Troubleshooting
+Run these with `DATABASE_URL` supplied securely for the intended database. Back up production first and verify `npx prisma migrate status` afterward. `prisma migrate deploy` applies committed migrations without generating new ones.
 
-### Admin login fails
+The current `npm run build` script also runs `prisma db push --accept-data-loss`. That means a Vercel build can mutate whichever database its deployment environment references. Apply and verify migrations before deployment, keep preview and production database scope intentional, and treat this build-script behavior as a release concern until it is separated into an explicit migration phase.
 
-Check `.env`:
+## 5. Admin jukebox workflow
 
-```env
-ADMIN_EMAIL=
-ADMIN_PASSWORD=
-ADMIN_SESSION_SECRET=
-```
+Sign in at `/admin`, then open **Songs**.
 
-Restart the dev server after changing `.env`.
+### Add a song
 
-### Import fails
+1. Enter the title and optional artist and album.
+2. Leave album blank to display `SINGLE`.
+3. Set a non-negative **Jukebox order**. Lower values appear first; equal values are ordered by title.
+4. Select **Visible in public jukebox** only when the song should appear publicly.
+5. Optionally select an MP3 or WAV file.
+6. Select **Add song**. The record is created first; if audio upload fails, the song remains and can be repaired from its row.
 
-Make sure dependencies installed:
+### Edit metadata, visibility, and order
+
+Edit title, artist, album, order, or **Public** in the song row and select **Save edits**. Clearing **Public** removes the song from `/jukebox` without deleting its metadata or audio.
+
+### Preview, upload, replace, and correct duration
+
+- Selecting a local file creates a browser-only preview and displays the browser-read duration.
+- **Upload audio** and **Replace audio** accept MP3 or WAV files up to 200 MB.
+- Upload bytes go directly from the browser to public Vercel Blob using multipart upload. The application server authenticates the admin, validates the song-scoped path, and issues the short-lived upload token; `BLOB_READ_WRITE_TOKEN` remains server-only.
+- After upload, the server verifies the exact Blob URL and pathname, streams metadata from Blob, rounds duration to whole seconds, and only then attaches the Blob to the song.
+- Use the row's audio control to preview the stored file.
+- To correct an inaccurate or unreadable duration, replace the audio with a valid source so the server recalculates it. The current admin UI does not expose a manual duration override.
+
+### Reorder
+
+Edit **Jukebox order** and save. Gaps are fine; values such as 10, 20, and 30 make later insertion easier. Ordering does not change until **Save edits** succeeds.
+
+### Delete
+
+The two actions intentionally have different storage effects:
+
+- **Delete; keep audio** deletes the song record and does not attempt Blob deletion.
+- **Delete + owned audio** deletes the song record and then requests deletion only when the database contains the exact app-owned Blob URL and pathname. External URLs and legacy audio without persisted ownership metadata are left untouched.
+
+The record deletion happens before Blob cleanup. Immediate Blob deletion uses ownership verification and an object version precondition. If it fails, the app writes an `AudioCleanup` task and later requests retry up to five due tasks when the song-delete or audio endpoint runs. Each task uses a five-minute lease, exponential backoff capped at one day, and becomes terminal after eight attempts.
+
+When deletion cannot be queued or a file cannot be proven owned, the admin message includes the exact Blob URL and pathname for manual cleanup. Delete only that named object from the configured store, then retry the intended admin action. Do not remove similarly named or untracked objects.
+
+## 6. Persistent Vercel Blob behavior
+
+Vercel Functions do not provide persistent writable filesystem storage. Files written at runtime under `public/`, `.next/`, `/tmp`, or another deployment path do not become durable public assets. `/tmp` is temporary function scratch space only.
+
+For the jukebox:
+
+- Connect the intended Vercel Blob store to the project.
+- Confirm `BLOB_READ_WRITE_TOKEN` exists in every Vercel environment where admins may upload or replace audio.
+- Redeploy after changing environment configuration.
+- Keep Blob access public because the player uses public audio URLs.
+- Do not put Blob credentials in client code or a `NEXT_PUBLIC_` variable.
+- Preserve both `Song.audioUrl` and `Song.audioStoragePath`; cleanup requires the exact pair.
+
+If `BLOB_READ_WRITE_TOKEN` is absent, token generation/finalization returns **Audio storage is not configured** and admin upload/replace is blocked. Existing local or external audio URLs may still play, but new persistent uploads are not release-ready.
+
+## 7. Regression gates
+
+Run from a clean checkout of the reviewed commit:
 
 ```bash
 npm install
-npx prisma generate
+npm test
+npx tsc --noEmit
+npx prisma validate
 ```
 
-For scanned PDFs, use manual review or add OCR. Text PDFs should parse.
-
-### Recording device does not show
-
-Browsers often hide device labels until microphone permission is granted. Open the Record tab, allow permission, then refresh.
-
-### Stripe checkout does not open
-
-Check `STRIPE_SECRET_KEY` and restart. In local test mode, use Stripe CLI for webhooks.
-
-### Database looks empty
-
-Run:
+For an isolated production Next.js compile that must not mutate a database, run Prisma client generation and `next build` directly with a non-production build-time `DATABASE_URL`:
 
 ```bash
-npx prisma db push
-npm run db:seed
+npx prisma generate
+npx next build
 ```
+
+The build output must include `/`, `/jukebox`, `/admin`, `/api/songs`, and `/api/admin/songs/audio`. Inspect public API responses and generated client chunks to confirm private lyric, chord, rehearsal, storage-path, and credential fields are absent.
+
+Use `npm run build` only when its configured `prisma db push --accept-data-loss` step is intended for the referenced database. A Vercel preview build currently executes that script.
+
+## 8. Vercel preview and production deployment
+
+1. Confirm the Vercel project is linked to `ggrissom/GeorgeGrissomLive`.
+2. Confirm the production branch is `main`.
+3. Confirm all required environment variable names are present in Preview and Production; do not print their values into logs or handoff notes.
+4. Apply and verify the migrations against the intended database.
+5. Push the reviewed feature branch normally. Git integration should create a Preview deployment.
+6. Confirm the Preview deployment metadata names the exact reviewed commit and reaches `READY`.
+7. Verify the unique HTTPS preview URL and its branch alias at `/jukebox`.
+8. Complete whole-branch review. Do not merge, promote, or change DNS while review is pending.
+9. After approval, merge normally to `main` and let the Git-linked production deployment build the reviewed commit.
+10. Confirm the production deployment commit, then verify `https://live.georgegrissom.com/jukebox`.
+
+Do not rewrite DNS unless the existing domain mapping is proven wrong. A domain alias may still point to the last production deployment while a feature preview is healthy; that is expected.
+
+## 9. Release verification
+
+At the feature preview and, only after approval, production:
+
+- HTTPS returns success for `/jukebox`.
+- The classic chrome artwork loads.
+- The catalog contains only real public songs and a final partial page has no blank cards.
+- Each intended audio URL loads and plays.
+- Play, pause, seek, previous, next, automatic advance, catalog open/close, keyboard navigation, and mobile touch navigation work.
+- The homepage uses the shared player.
+- `/admin`, setlists, calendar, requests, uploads, and booking still load.
+- Admin upload and replacement succeed against persistent Blob storage.
+- Both delete choices produce their documented storage behavior.
+- No private notes, storage paths, or credentials appear in the public jukebox API or client bundles.
+
+Record the verified commit SHA, preview URL, production URL, deployment state, migration state, and environment-variable presence in the release handoff. Record names and readiness only, never values.
+
+## 10. Other admin workflows
+
+- **Setlists:** create or duplicate private setlists, link a show and venue, search songs, assign them, and reorder.
+- **Calendar:** configure the three Google Calendar variables, share the calendar with the service-account email, and grant event-change access.
+- **Imports:** CSV, Excel, text PDF, and text files stage rows for review; scanned sources require manual/OCR handling.
+- **Recording:** browser recording requires microphone permission and saves through the existing recording flow. This flow is separate from jukebox Blob audio.
+- **Stripe:** without Stripe variables the checkout route records demo/manual payments.
+
+## 11. Troubleshooting
+
+### Admin login fails
+
+Confirm `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET` exist in the current environment, then restart or redeploy.
+
+### Database or build fails
+
+Confirm `DATABASE_URL`, run `npx prisma validate`, then `npx prisma migrate status`. Do not use `db push --accept-data-loss` against production as an ad-hoc repair.
+
+### Upload reports that storage is not configured
+
+Confirm `BLOB_READ_WRITE_TOKEN` is present in the same Vercel environment as the failing deployment and that the project is connected to the correct Blob store. Redeploy after correcting configuration.
+
+### Cleanup required
+
+Follow the admin message's exact URL and pathname. Check `AudioCleanup` for queued or terminal work. Delete only the exact tracked object; external and legacy URLs are intentionally protected from automatic deletion.
+
+### Preview is protected
+
+Use an authorized Vercel session or a temporary Vercel share link. Treat a protected-browser result separately from deployment health: deployment metadata may be `READY` while an unauthenticated browser receives an access challenge.
+
+### Jukebox shows an unavailable track
+
+Confirm the song is public, its `audioUrl` is reachable over HTTPS, and persistent upload finalization succeeded. Re-upload a valid MP3 or WAV when duration or metadata cannot be read.

@@ -1,50 +1,35 @@
 # GeorgeGrissomLive Web App MVP
 
-A runnable full-stack MVP for George Grissom's music site, audience request/tip flow, private performer song catalog, Google-backed performance calendar, fan media uploads, jukebox, and admin dashboard.
-
-This package is intentionally local-first so it can run on a contractor laptop immediately:
-
-- Next.js app router website and API routes
-- Prisma ORM
-- SQLite local database for MVP/dev
-- Google Performance Calendar-backed public calendar with local fallback
-- Admin calendar entry that syncs to Google Calendar when service-account env vars are configured
-- CSV / Excel / PDF / text song catalog imports
-- Optional OpenAI-assisted song row normalization
-- Optional MusicBrainz search for song metadata
-- Optional Stripe Checkout for tips, requests, catalog unlocks, and jukebox credits
-- Browser one-button recording with selectable mic / mixer / audio interface input
-- Admin-only private setlists with duplication, event/venue linking, searchable checkbox song assignment, and song-form setlist association
-- Straight-on realistic jukebox using the supplied reference artwork with a lightweight scroll-wheel song selector
-- Local uploaded media storage under `public/uploads`
+A full-stack Next.js application for George Grissom's public music site, audience requests and tips, calendar, fan uploads, standalone jukebox, and private admin dashboard.
 
 ## What is included
 
+- Next.js App Router website and API routes
+- Prisma ORM with PostgreSQL
+- Google Performance Calendar integration with local database fallback
+- CSV, Excel, PDF, and text song-catalog imports
+- Optional OpenAI-assisted row normalization and MusicBrainz metadata search
+- Optional Stripe Checkout for tips and requests
+- Browser recording with selectable mic or audio-interface input
+- Private setlists, song notes, requests, uploads, and booking administration
+- Reusable working jukebox on the homepage and at `/jukebox`
+- Generated catalog with five songs per page, two pages per desktop spread, and no placeholder cards
+- Persistent jukebox audio in Vercel Blob using browser-direct multipart uploads
+
 ```txt
-src/app/                 Next.js pages, admin dashboard, API routes
-src/lib/                 auth, database, file, import, AI, metadata utilities
-prisma/schema.prisma     database schema, including Event, Song, Setlist, and SetlistSong
-prisma/seed.ts           starter events/songs
-docs/INSTALL.md          full install/run instructions
-docs/SPEC.md             architecture/design spec
-legacy/                  copied files from the uploaded earlier static concept ZIP
+src/app/                 Next.js pages, admin dashboard, and API routes
+src/components/jukebox/  Reusable player, machine, catalog, and title cards
+src/lib/                 Auth, database, catalog, import, and metadata utilities
+prisma/schema.prisma     PostgreSQL schema
+prisma/migrations/       Production database migrations
+prisma/seed.ts           Starter events and songs
+docs/INSTALL.md          Install, administration, migration, and deployment guide
+docs/SPEC.md             Original application architecture/design spec
 ```
-
-## Private lyrics and learning notes
-
-The app is designed so lyrics, chords, and rehearsal notes are private admin-only fields by default:
-
-- `privateLyricsNotes`
-- `privateChordNotes`
-- `privateRehearsalNotes`
-
-The public site only shows song metadata unless an admin deliberately extends the public UI later.
 
 ## First run
 
-See [`docs/INSTALL.md`](docs/INSTALL.md).
-
-Quick version:
+See [`docs/INSTALL.md`](docs/INSTALL.md) for the full instructions.
 
 ```bash
 cp .env.example .env
@@ -52,35 +37,67 @@ npm run setup
 npm run dev
 ```
 
-Open:
+Open the public site at `http://localhost:3000`, the standalone player at `http://localhost:3000/jukebox`, and the admin dashboard at `http://localhost:3000/admin`.
 
-- Public site: `http://localhost:3000`
-- Admin dashboard: `http://localhost:3000/admin`
+## Jukebox administration
 
-Default login comes from `.env`:
+Sign in to `/admin` and open **Songs**.
 
-```txt
-ADMIN_EMAIL=admin@georgegrissom.com
-ADMIN_PASSWORD=change-this-password
-```
+1. Add a song with title, artist, optional album, jukebox order, public visibility, and optionally an MP3 or WAV file. A blank album displays as `SINGLE`.
+2. Use the row editor to change title, artist, album, order, or public visibility, then select **Save edits**. Lower order values appear first; equal values fall back to title order.
+3. Select a local audio file to preview it and its browser-read duration before uploading. **Upload audio** or **Replace audio** sends the bytes directly from the browser to public Vercel Blob storage; the application server issues the short-lived upload authorization and then verifies the stored Blob and duration before updating the song.
+4. Duration is calculated again on the server and stored as whole seconds. To correct a bad duration, replace the file with a valid MP3 or WAV so it is recalculated. There is no manual duration override in the current admin UI.
+5. Use the row's audio controls to preview the stored track. Clear **Public** to remove the song from the public jukebox without deleting it.
+6. Choose **Delete; keep audio** to remove only the database record. Choose **Delete + owned audio** to remove the record and request deletion of the exact app-owned Blob.
 
-Change it before using the app with real data.
+Replacement and deletion never remove arbitrary external or legacy URLs. The app deletes only when both the stored Blob URL and pathname prove ownership in the configured store. A failed immediate deletion is queued in `AudioCleanup` and retried with leases and backoff. If durable retry cannot be recorded or retries become terminal, the admin message gives the exact Blob URL and pathname for manual cleanup.
 
+Vercel function filesystem writes are ephemeral. Do not write runtime jukebox uploads into `public/`, `.next/`, or another local deployment directory. Jukebox audio persists only when `BLOB_READ_WRITE_TOKEN` connects the deployment to the intended Vercel Blob store.
+
+## Required production environment variable names
+
+Set these in Vercel for every environment that must run the full application. Values are intentionally not documented here.
+
+- `DATABASE_URL`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `ADMIN_SESSION_SECRET`
+- `NEXT_PUBLIC_SITE_URL`
+- `BLOB_READ_WRITE_TOKEN`
+
+Optional integrations use these variable names:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+- `OPENAI_API_KEY`
+- `GOOGLE_CALENDAR_ID`
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL`
+- `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`
+- `MUSICBRAINZ_CONTACT_EMAIL`
+
+Never commit environment values, Blob credentials, database credentials, or admin credentials.
+
+## Private lyrics and learning notes
+
+Lyrics, chords, and rehearsal notes are private admin-only fields:
+
+- `privateLyricsNotes`
+- `privateChordNotes`
+- `privateRehearsalNotes`
+
+The public jukebox response is allow-list based and does not expose those fields, storage credentials, or other admin-only metadata.
 
 ## Google Performance Calendar
 
-The public calendar keeps this site's custom styling and pulls event data from the configured Google Performance Calendar when service-account credentials are present. Admin-created shows save locally first, then sync to Google Calendar. If Google is unavailable or not configured, the public page falls back to local public events.
+The public calendar reads Google events when `GOOGLE_CALENDAR_ID`, `GOOGLE_SERVICE_ACCOUNT_EMAIL`, and `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` are configured. Admin-created shows save locally first and then sync. If Google is unavailable or not configured, the public page falls back to local public events.
 
-Add these to `.env`:
-
-```env
-GOOGLE_CALENDAR_ID="0d93f3b5191f80e930ce0cdb7249a796230adbd8ba2049e7e4e323ffc632cf68@group.calendar.google.com"
-GOOGLE_SERVICE_ACCOUNT_EMAIL=""
-GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=""
-```
-
-Share the Google calendar with the service account email and grant permission to make changes.
+Share the performance calendar with the configured service-account email and grant permission to make changes.
 
 ## Private setlists
 
-The admin dashboard includes a **Setlists** tab. Setlists are private for the MVP and can be created from scratch, duplicated from older setlists, linked to a show, assigned to a venue, and filled by searching songs and checking boxes. Songs can also be associated to setlists from the song editor by typing setlist names.
+The **Setlists** tab can create or duplicate private setlists, link them to a show and venue, search and assign songs, and reorder the result. Songs may also be associated with setlists from the song editor.
+
+## Release note
+
+Apply the committed Prisma migrations and complete the regression gates before merging a reviewed feature branch into `main`. A push to a non-production branch creates a Vercel preview; `main` is the production branch. Do not promote a preview or rewrite DNS until the whole branch has final approval. See [`docs/INSTALL.md`](docs/INSTALL.md) for the exact release sequence and current build-script caveat.
