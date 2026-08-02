@@ -7,6 +7,7 @@ import { JukeboxCatalog } from "./jukebox-catalog";
 import { JukeboxMachine } from "./jukebox-machine";
 import {
   cancelPlaybackAttempt,
+  runAuthorizedPlayback,
   runPlaybackAttempt,
   runReloadedPlaybackAttempt,
 } from "./jukebox-playback";
@@ -19,11 +20,17 @@ import {
 type JukeboxPlayerProps = {
   initialSongs: PublicJukeboxSong[];
   standalone?: boolean;
+  onBeforePlayback?: (
+    song: PublicJukeboxSong,
+  ) => boolean | Promise<boolean>;
+  getPlayStatus?: (song: PublicJukeboxSong) => string;
 };
 
 export function JukeboxPlayer({
   initialSongs,
   standalone = false,
+  onBeforePlayback,
+  getPlayStatus,
 }: JukeboxPlayerProps) {
   const initialSelection = chooseInitialSong(initialSongs);
   const [selectedSongId, setSelectedSongId] = useState<string | null>(
@@ -42,6 +49,7 @@ export function JukeboxPlayer({
   const songsRef = useRef(initialSongs);
   const selectedSongIdRef = useRef(selectedSongId);
   const playbackGenerationRef = useRef(0);
+  const beforePlaybackRef = useRef(onBeforePlayback);
 
   const selectedSong =
     initialSongs.find((song) => song.id === selectedSongId) ?? null;
@@ -54,6 +62,7 @@ export function JukeboxPlayer({
 
   songsRef.current = initialSongs;
   selectedSongIdRef.current = selectedSongId;
+  beforePlaybackRef.current = onBeforePlayback;
 
   function resetTrackState(song: PublicJukeboxSong | null) {
     setCurrentTime(0);
@@ -90,21 +99,26 @@ export function JukeboxPlayer({
   }
 
   async function selectAndPlay(song: PublicJukeboxSong) {
-    setSelectedSongId(song.id);
-    selectedSongIdRef.current = song.id;
-    resetTrackState(song);
+    await runAuthorizedPlayback(
+      () => beforePlaybackRef.current?.(song) ?? true,
+      async () => {
+        setSelectedSongId(song.id);
+        selectedSongIdRef.current = song.id;
+        resetTrackState(song);
 
-    if (!song.audioUrl) {
-      ++playbackGenerationRef.current;
-      const audio = audioRef.current;
-      audio?.pause();
-      audio?.removeAttribute("src");
-      audio?.load();
-      setError("This track is currently unavailable.");
-      return;
-    }
+        if (!song.audioUrl) {
+          ++playbackGenerationRef.current;
+          const audio = audioRef.current;
+          audio?.pause();
+          audio?.removeAttribute("src");
+          audio?.load();
+          setError("This track is currently unavailable.");
+          return;
+        }
 
-    await playSongAudio(song, true);
+        await playSongAudio(song, true);
+      },
+    );
   }
 
   useEffect(() => {
@@ -218,7 +232,10 @@ export function JukeboxPlayer({
       return;
     }
 
-    await playSongAudio(selectedSong, false);
+    await runAuthorizedPlayback(
+      () => beforePlaybackRef.current?.(selectedSong) ?? true,
+      () => playSongAudio(selectedSong, false),
+    );
   }
 
   async function retryPlayback() {
@@ -247,6 +264,7 @@ export function JukeboxPlayer({
         currentTime={currentTime}
         duration={duration}
         error={error}
+        playStatus={selectedSong && getPlayStatus ? getPlayStatus(selectedSong) : undefined}
         canGoPrevious={Boolean(previousSong)}
         canGoNext={Boolean(nextSong)}
         catalogButtonRef={catalogButtonRef}
