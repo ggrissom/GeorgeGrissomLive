@@ -31,52 +31,69 @@ model Event {
 }
 
 model Song {
-  id                   String        @id @default(cuid())
-  title                String
-  artist               String?
-  genre                String?
-  mood                 String?
-  tempoLabel           String?
-  requestable      Boolean   @default(true)
-  rightsStatus     String?
-  bpm                  Float?
-  keySignature         String?
-  audioUrl             String?
-  audioStoragePath     String?
-  album                String?
-  durationSeconds      Int?
-  jukeboxOrder         Int           @default(0)
-  minTipCents          Int           @default(0)
-  publicShortlist  Boolean   @default(false)
-  paidCatalog      Boolean   @default(false)
-  freePlayLimit        Int           @default(2)
-  isPublic             Boolean       @default(true)
-  privateLyricsNotes   String?
-  privateChordNotes    String?
+  id                    String        @id @default(cuid())
+  title                 String
+  artist                String?
+  genre                 String?
+  mood                  String?
+  tempoLabel            String?
+  requestable           Boolean       @default(true)
+  rightsStatus          String?
+  bpm                   Float?
+  keySignature          String?
+  audioUrl              String?
+  audioStoragePath      String?
+  album                 String?
+  durationSeconds       Int?
+  jukeboxOrder          Int           @default(0)
+  minTipCents           Int           @default(0)
+  publicShortlist       Boolean       @default(false)
+  paidCatalog           Boolean       @default(false)
+  freePlayLimit         Int           @default(2)
+  isPublic              Boolean       @default(true)
+  privateLyricsNotes    String?
+  privateChordNotes     String?
   privateRehearsalNotes String?
-  musicBrainzId        String?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
-  setlists             SetlistSong[]
-  requests             Request[]
+  musicBrainzId         String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  setlists              SetlistSong[]
+  requests              Request[]
 
   @@index([isPublic, jukeboxOrder, title])
 }
 
 model AudioCleanup {
-  id        String   @id @default(cuid())
-  audioUrl  String   @unique
-  pathname  String
-  reason    String
-  attempts  Int      @default(0)
-  lastError String?
-  nextAttemptAt DateTime @default(now())
+  id            String    @id @default(cuid())
+  audioUrl      String    @unique
+  pathname      String
+  reason        String
+  attempts      Int       @default(0)
+  lastError     String?
+  nextAttemptAt DateTime  @default(now())
   leaseUntil    DateTime?
-  terminalAt   DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  terminalAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([terminalAt, nextAttemptAt])
+}
+
+model AudioUploadReservation {
+  id          String    @id @default(cuid())
+  songId      String
+  pathname    String    @unique
+  audioUrl    String?   @unique
+  status      String    @default("issued")
+  expiresAt   DateTime
+  leaseUntil  DateTime?
+  completedAt DateTime?
+  finalizedAt DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, expiresAt])
 }
 
 model Setlist {
@@ -124,14 +141,14 @@ model Request {
 }
 
 model Payment {
-  id             String   @id @default(cuid())
-  requestId      String?
-  type           String
-  amountCents    Int
+  id              String   @id @default(cuid())
+  requestId       String?
+  type            String
+  amountCents     Int
   stripeSessionId String?
-  status         String   @default("pending")
-  createdAt      DateTime @default(now())
-  request        Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+  request         Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
 }
 
 model ImportJob {
