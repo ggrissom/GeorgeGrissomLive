@@ -41,6 +41,24 @@ export function clampCatalogPage(
   return Math.max(0, Math.min(lastPage, currentPage + delta));
 }
 
+export function getCatalogSpreadStart(pageIndex: number): number {
+  return Math.max(0, Math.floor(pageIndex / 2) * 2);
+}
+
+export function moveCatalogSpread(
+  currentPage: number,
+  delta: number,
+  pageCount: number,
+): number {
+  const spreadCount = Math.ceil(pageCount / 2);
+  const currentSpread = Math.floor(getCatalogSpreadStart(currentPage) / 2);
+  const nextSpread = Math.max(
+    0,
+    Math.min(Math.max(0, spreadCount - 1), currentSpread + delta),
+  );
+  return nextSpread * 2;
+}
+
 export function getTouchPageGesture(
   start: TouchPoint,
   end: TouchPoint,

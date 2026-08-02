@@ -1396,7 +1396,7 @@ body {
   bottom: clamp(0.75rem, 2.5svh, 1.6rem);
   z-index: 12;
   width: min(92vw, 48rem);
-  height: min(54svh, 31rem);
+  height: min(46svh, 31rem);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
@@ -1661,6 +1661,53 @@ body {
   height: min(76svh, 34rem);
 }
 
+@media (min-width: 601px) and (max-height: 820px) {
+  .jukebox-catalog {
+    --jukebox-short-height-vh: 52;
+    --jukebox-short-border-px: 5;
+    --jukebox-short-chrome-px: 44;
+    --jukebox-short-spread-pad-px: 4;
+    --jukebox-short-page-pad-px: 5;
+    --jukebox-short-card-min-px: 44;
+    --jukebox-short-card-gap-px: 3;
+    bottom: 0.5rem;
+    height: calc(var(--jukebox-short-height-vh) * 1svh);
+    border-width: calc(var(--jukebox-short-border-px) * 1px);
+  }
+
+  .jukebox-catalog-header,
+  .jukebox-catalog-navigation {
+    min-height: calc(var(--jukebox-short-chrome-px) * 1px);
+    padding-block: 0;
+  }
+
+  .jukebox-catalog-spread {
+    padding: calc(var(--jukebox-short-spread-pad-px) * 1px);
+  }
+
+  .jukebox-catalog-page {
+    gap: calc(var(--jukebox-short-card-gap-px) * 1px);
+    padding: calc(var(--jukebox-short-page-pad-px) * 1px);
+  }
+
+  .jukebox-song-card {
+    height: calc(var(--jukebox-short-card-min-px) * 1px);
+    min-height: calc(var(--jukebox-short-card-min-px) * 1px);
+    padding: 0.12rem 0.42rem;
+  }
+
+  .jukebox-song-card-artist,
+  .jukebox-song-card-album,
+  .jukebox-song-card-unavailable {
+    font-size: 0.58rem;
+  }
+
+  .jukebox-song-card-title,
+  .jukebox-song-card-duration {
+    font-size: 0.74rem;
+  }
+}
+
 @media (max-width: 600px) {
   .jukebox-player.is-standalone {
     align-items: center;
@@ -1693,7 +1740,7 @@ body {
   .jukebox-catalog {
     bottom: max(0.5rem, env(safe-area-inset-bottom));
     width: min(96vw, 26rem);
-    height: min(62svh, 31rem);
+    height: min(52svh, 31rem);
     border-width: 0.38rem;
     transform: translate(-50%, 112%);
   }

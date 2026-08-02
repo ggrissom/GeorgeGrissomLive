@@ -19,7 +19,9 @@ import {
 import {
   clampCatalogPage,
   closeCatalogAndRestoreFocus,
+  getCatalogSpreadStart,
   getTouchPageGesture,
+  moveCatalogSpread,
   selectCatalogSong,
 } from "./jukebox-catalog-navigation";
 import { SongCard } from "./song-card";
@@ -51,6 +53,7 @@ export function JukeboxCatalog({
   const [pageIndex, setPageIndex] = useState(() =>
     selectedPageIndex >= 0 ? selectedPageIndex : 0,
   );
+  const [narrow, setNarrow] = useState(false);
   const selectedCardRef = useRef<HTMLButtonElement>(null);
   const firstCardRef = useRef<HTMLButtonElement>(null);
   const catalogRef = useRef<HTMLElement>(null);
@@ -61,10 +64,27 @@ export function JukeboxCatalog({
   useEffect(() => {
     setPageIndex((current) => {
       const requested =
-        open && selectedPageIndex >= 0 ? selectedPageIndex : current;
+        open && selectedPageIndex >= 0
+          ? narrow
+            ? selectedPageIndex
+            : getCatalogSpreadStart(selectedPageIndex)
+          : current;
       return clampCatalogPage(requested, 0, pages.length);
     });
-  }, [open, pages.length, selectedPageIndex]);
+  }, [narrow, open, pages.length, selectedPageIndex]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 600px)");
+    const update = () => setNarrow(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
+
+  const visiblePageIndex = narrow
+    ? pageIndex
+    : getCatalogSpreadStart(pageIndex);
+  const currentSpreadIndex = Math.floor(visiblePageIndex / 2);
 
   useEffect(() => {
     if (!open || songs.length === 0) return;
@@ -74,7 +94,7 @@ export function JukeboxCatalog({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [open, pageIndex, songs.length]);
+  }, [open, visiblePageIndex, songs.length]);
 
   useEffect(
     () => () => {
@@ -91,15 +111,15 @@ export function JukeboxCatalog({
     }
   }, [open]);
 
-  const leftPage = pages[pageIndex];
-  const rightPage = pages[pageIndex + 1];
+  const leftPage = pages[visiblePageIndex];
+  const rightPage = narrow ? undefined : pages[visiblePageIndex + 1];
 
   function movePage(delta: number) {
     setPageIndex((current) => clampCatalogPage(current, delta, pages.length));
   }
 
   function moveSpread(delta: number) {
-    movePage(delta * 2);
+    setPageIndex((current) => moveCatalogSpread(current, delta, pages.length));
   }
 
   function closeCatalog() {
@@ -239,10 +259,10 @@ export function JukeboxCatalog({
       </header>
 
       {leftPage ? (
-        <div className="jukebox-catalog-spread" data-page-index={pageIndex}>
+        <div className="jukebox-catalog-spread" data-page-index={visiblePageIndex}>
           <CatalogPage
             songs={leftPage}
-            pageNumber={pageIndex + 1}
+            pageNumber={visiblePageIndex + 1}
             selectedSongId={selectedSongId}
             firstSongId={firstSongId}
             selectedCardRef={selectedCardRef}
@@ -252,7 +272,7 @@ export function JukeboxCatalog({
           {rightPage && (
             <CatalogPage
               songs={rightPage}
-              pageNumber={pageIndex + 2}
+              pageNumber={visiblePageIndex + 2}
               selectedSongId={selectedSongId}
               firstSongId={firstSongId}
               selectedCardRef={selectedCardRef}
@@ -269,20 +289,20 @@ export function JukeboxCatalog({
         <button
           type="button"
           onClick={() => moveSpread(-1)}
-          disabled={pageIndex === 0}
+          disabled={currentSpreadIndex === 0}
           aria-label="Previous catalog spread"
         >
           Previous songs
         </button>
         <span aria-live="polite">
           {pages.length
-            ? `Page ${pageIndex + 1} of ${pages.length} · spread ${Math.floor(pageIndex / 2) + 1} of ${spreads.length}`
+            ? `Page ${visiblePageIndex + 1} of ${pages.length} · spread ${currentSpreadIndex + 1} of ${spreads.length}`
             : "No spreads"}
         </span>
         <button
           type="button"
           onClick={() => moveSpread(1)}
-          disabled={pageIndex >= maxPageIndex}
+          disabled={currentSpreadIndex >= spreads.length - 1}
           aria-label="Next catalog spread"
         >
           Next songs
