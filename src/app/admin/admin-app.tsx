@@ -94,7 +94,7 @@ async function finalizeSongAudio(songId: string, blob: PutBlobResult) {
     throw new Error(`Audio uploaded but could not be attached. Retry with uploaded URL: ${blob.url}`);
   }
   const data = await res.json().catch(() => ({}));
-  const cleanupMessage = actionableAudioCleanupMessage(data);
+  const cleanupMessage = actionableAudioCleanupMessage(data, res.ok);
   if (!res.ok) {
     throw new Error(cleanupMessage ? `${data.error || "Audio finalization failed."} ${cleanupMessage}` : data.error || "Audio finalization failed.");
   }
@@ -530,7 +530,7 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
     if (!window.confirm(message)) return;
     const res = await fetch(`/api/songs?id=${encodeURIComponent(id)}&deleteAudio=${deleteAudio ? "1" : "0"}`, { method: "DELETE" });
     const data = await res.json().catch(() => ({}));
-    const cleanupMessage = actionableAudioCleanupMessage(data);
+    const cleanupMessage = actionableAudioCleanupMessage(data, res.ok);
     setToast(cleanupMessage || (res.ok ? (data.audioDeleted ? "Song and owned audio deleted." : "Song deleted; audio was kept.") : data.error || "Delete failed."));
     await refresh();
   }

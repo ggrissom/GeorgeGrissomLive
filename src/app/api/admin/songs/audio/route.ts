@@ -206,15 +206,31 @@ async function finalizeAudio(body: FinalizeBody) {
     );
   }
 
-  const cas = await settleAudioCasResult(
-    updateCount,
-    {
-      audioUrl: body.blob.url,
-      pathname: body.blob.pathname,
-      reason: "concurrent_finalization_lost",
-    },
-    cleanupJukeboxAudio,
-  );
+  let cas;
+  try {
+    cas = await settleAudioCasResult(
+      updateCount,
+      {
+        audioUrl: body.blob.url,
+        pathname: body.blob.pathname,
+        reason: "concurrent_finalization_lost",
+      },
+      () =>
+        prisma.song.findUnique({
+          where: { id: body.songId },
+          select: { audioUrl: true, audioStoragePath: true },
+        }),
+      cleanupJukeboxAudio,
+    );
+  } catch {
+    return NextResponse.json(
+      {
+        error:
+          "Concurrent audio update could not be resolved; retry finalization with the same uploaded Blob",
+      },
+      { status: 503 },
+    );
+  }
   if (cas.status === "conflict") {
     const detail = cleanupRequired(cas.cleanup, body.blob);
     return NextResponse.json(
