@@ -41,7 +41,22 @@ export function parseAudioClientPayload(clientPayload: string | null): {
   }
 }
 
-export function createAudioTokenPolicy(pathname: string, songId: string) {
+export function createAudioTokenPolicy(
+  pathname: string,
+  songId: string,
+  reservationId: string,
+) {
+  assertAudioUploadPath(pathname, songId);
+  return {
+    allowedContentTypes: [...SUPPORTED_AUDIO_MIME_TYPES],
+    maximumSizeInBytes: MAX_AUDIO_BYTES,
+    addRandomSuffix: false,
+    allowOverwrite: false,
+    tokenPayload: JSON.stringify({ reservationId, songId, pathname }),
+  };
+}
+
+export function assertAudioUploadPath(pathname: string, songId: string) {
   const prefix = `jukebox-audio/${encodeURIComponent(songId)}/`;
   const fileName = pathname.slice(prefix.length);
   if (
@@ -52,10 +67,35 @@ export function createAudioTokenPolicy(pathname: string, songId: string) {
   ) {
     throw new AudioUploadPolicyError("Audio upload path is invalid");
   }
-  return {
-    allowedContentTypes: [...SUPPORTED_AUDIO_MIME_TYPES],
-    maximumSizeInBytes: MAX_AUDIO_BYTES,
-    addRandomSuffix: false,
-    tokenPayload: JSON.stringify({ songId, pathname }),
-  };
+}
+
+export function parseAudioTokenPayload(tokenPayload: string | null | undefined): {
+  reservationId: string;
+  songId: string;
+  pathname: string;
+} {
+  try {
+    const payload = JSON.parse(tokenPayload || "null") as unknown;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("invalid payload");
+    }
+    const value = payload as Record<string, unknown>;
+    if (
+      typeof value.reservationId !== "string" ||
+      !value.reservationId.trim() ||
+      typeof value.songId !== "string" ||
+      !value.songId.trim() ||
+      typeof value.pathname !== "string" ||
+      !value.pathname
+    ) {
+      throw new Error("invalid upload tracking payload");
+    }
+    return {
+      reservationId: value.reservationId.trim(),
+      songId: value.songId.trim(),
+      pathname: value.pathname,
+    };
+  } catch {
+    throw new AudioUploadPolicyError("Audio upload tracking data is invalid");
+  }
 }
