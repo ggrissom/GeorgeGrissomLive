@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   cancelPlaybackAttempt,
+  runAuthorizedPlayback,
   runPlaybackAttempt,
   runReloadedPlaybackAttempt,
 } from "./jukebox-playback";
@@ -133,4 +134,30 @@ test("canceling a pending attempt clears loading and stale completion cannot res
   assert.equal(generation.current, 13);
   assert.equal(loading, false);
   assert.deepEqual(audio.operations, ["play", "pause"]);
+});
+
+test("a denied homepage play gate never starts audio", async () => {
+  let playCalls = 0;
+  const allowed = await runAuthorizedPlayback(
+    async () => false,
+    async () => {
+      playCalls += 1;
+    },
+  );
+
+  assert.equal(allowed, false);
+  assert.equal(playCalls, 0);
+});
+
+test("an allowed homepage play gate starts audio exactly once", async () => {
+  let playCalls = 0;
+  const allowed = await runAuthorizedPlayback(
+    async () => true,
+    async () => {
+      playCalls += 1;
+    },
+  );
+
+  assert.equal(allowed, true);
+  assert.equal(playCalls, 1);
 });
