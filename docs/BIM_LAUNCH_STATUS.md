@@ -6,9 +6,11 @@ Implemented a BIM storefront, one-time Stripe checkout, durable PostgreSQL licen
 
 Repository: `ggrissom/GeorgeGrissomLive`. Base: `main` at `c798ae355619b4020d6e66283c7d6974c73fea3e`. Work branch: `feature/bim-storefront-license-launch`. The current attached brief and the committed launch brief both name this repository; the older bim-bygeorge-essentials checkout was only fetched/inspected.
 
-Local preview: `http://127.0.0.1:3100/bim`. Branch deployment URL: pending push and Vercel result.
+Deployed preview: https://george-grissom-live-per2ek5k5-ggrissoms-projects.vercel.app/bim — **Vercel Ready**, implementation commit `6c743b5261f40cdc5b10f5a3675c9a363094f4d0`, deployment `dpl_E3RjHuDJ9wodvJZmr4SMuHofVLyg`. The preview uses the project's existing Vercel Authentication; signed-out requests reach Vercel login. The signed-in browser rendered the BIM storefront and its layout was visually inspected.
 
-The existing `https://bim.georgegrissom.com` returned HTTP 200 with the original PyBIM title during preflight. No domain binding or production promotion has been changed. A hostname-specific rewrite is ready to serve `/bim` at that domain's root once this project is intentionally connected. The music root remains its original route for other hosts.
+Branch preview alias: https://george-grissom-live-git-feature-bim-s-f17349-ggrissoms-projects.vercel.app/bim. Draft pull request: https://github.com/ggrissom/GeorgeGrissomLive/pull/1. Local preview: `http://127.0.0.1:3100/bim`.
+
+The existing `https://bim.georgegrissom.com` returned HTTP 200 with the original PyBIM title during preflight and after preview deployment. Vercel shows that domain on the older bim-bygeorge-essentials project. No domain binding or production promotion has been changed. A hostname-specific rewrite is ready to serve `/bim` at that domain's root once this project is intentionally connected. The music root remains its original route for other hosts.
 
 ## Implemented and verified locally
 
@@ -35,6 +37,7 @@ The existing `https://bim.georgegrissom.com` returned HTTP 200 with the original
 | Archive generation | Passed; 11 wrappers and original tool payloads, no live-source edits |
 | Local homepage HTTP | 200; BIM title and 11-tool suite present |
 | Browser checks | Desktop layout inspected; catalog filter works; suite page lists 11 tools and keeps checkout disabled while unconfigured |
+| Vercel preview | Ready; deployed BIM storefront rendered in the signed-in browser; existing preview authentication remains enabled |
 | Product/help pages | Suite, CennerIt, deferred Copy Scope, installation, download and terms pages all HTTP 200 |
 | Windows installer parser | Zero PowerShell syntax errors; live installation not performed |
 | Real Stripe-hosted test checkout | **Not run** — application sandbox credentials and backend environment are not connected |
@@ -95,16 +98,16 @@ No values or credentials are recorded here. Never rotate the encryption key with
 
 ## Remaining authorization and acceptance steps
 
-1. Restore access to the existing Vercel project. The connector returned no projects and a direct project read returned 404. The browser is now signed in and shows the existing george-grissom-live project; CLI access is being checked.
-2. Securely configure the sandbox secret, test database connection, and license-encryption key in the application environment. The browser's sandbox login does not itself give the application credentials.
+1. **Vercel access restored.** George approved CLI authorization, and the workspace is linked to the existing `george-grissom-live` project. The connector still cannot list/read it, but authenticated CLI and browser access work. No new Vercel project was created.
+2. Securely configure the sandbox secret, test database connection, and license-encryption key in the application environment. Existing `DATABASE_URL` and `ADMIN_PASSWORD` are protected Secret variables for Preview and Production; Vercel refuses to download their values. The project Storage page lists no connected managed database, so separate database management access is still needed for the explicit migration/upload. No protected values were bypassed or disclosed. Stripe CLI authorization was prepared but automatic approval review blocked entering its pairing code; specific user approval was requested. The browser's sandbox login does not itself give the application credentials.
 3. Run the additive `db/bim.sql` migration explicitly. Upload the private release, then run the sandbox-only catalog bootstrap. These scripts take credentials from their process environment and never log secret values. Copy the resulting nonsecret product/price IDs into this document.
-4. Configure the deployed sandbox webhook for checkout completion, delayed payment success, refunds, and disputes. Its signing secret belongs in the deployment environment, not in source.
+4. Configure the deployed sandbox webhook for checkout completion, delayed payment success, refunds, and disputes. Its signing secret belongs in the deployment environment, not in source. The preview currently requires Vercel Authentication, so an explicitly authorized public test endpoint or scoped webhook-access setup is needed before Stripe can deliver events there. No deployment protection was disabled.
 5. Complete one suite and one CennerIt checkout using Stripe test payment details. Verify actual event delivery, durable records, key retrieval, authorized ZIP, first/repeat/second activation, third-device rejection, wrong-tool rejection and refund revocation. Automated fake-adapter tests do not satisfy this step.
 6. Run packaged CennerIt in actual Revit through the shared license module, then validate every other candidate on each advertised version using disposable model copies. Only a matching verified release can pass the live checkout gate.
 7. After the required sandbox acceptance passes, prepare new live product/price IDs, configure support, enable only verified products, and confirm the requested domain is under the authorized Vercel account before rebinding. Do not reuse sandbox prices or overwrite unrelated live products.
 
 ## Private artifact
 
-Local archive: `.bim-private/ByGeorge-0.1.0-preview.zip`. It is deliberately ignored by Git and must be uploaded only to the private release database. It points at the eventual BIM domain in test mode and must be rebuilt for an actual preview host before testing there. Its manifest is not runtime approval.
+Local archive: `.bim-private/ByGeorge-0.1.0-preview.zip`. It is deliberately ignored by Git and must be uploaded only to the private release database. It points at the stable branch preview alias in test mode. That host still needs an authorized public activation endpoint before pyRevit can reach it. The manifest is not runtime approval.
 
-Archive SHA-256: `f701f12d092b085f811bc6abe83cd9137e69b6e8f3aee937f9fe8cd7a0f5fefc`.
+Archive SHA-256: `1e8bd8cee1b86136706d0fd5bdcfe4047d6c9b956891f618f63084dfb955387d`.
