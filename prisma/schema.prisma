@@ -31,30 +31,90 @@ model Event {
 }
 
 model Song {
-  id                   String        @id @default(cuid())
-  title                String
-  artist               String?
-  genre                String?
-  mood                 String?
-  tempoLabel           String?
-  requestable      Boolean   @default(true)
-  rightsStatus     String?
-  bpm                  Float?
-  keySignature         String?
-  audioUrl             String?
-  minTipCents          Int           @default(0)
-  publicShortlist  Boolean   @default(false)
-  paidCatalog      Boolean   @default(false)
-  freePlayLimit        Int           @default(2)
-  isPublic             Boolean       @default(true)
-  privateLyricsNotes   String?
-  privateChordNotes    String?
-  privateRehearsalNotes String?
-  musicBrainzId        String?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
-  setlists             SetlistSong[]
-  requests             Request[]
+  id                    String            @id @default(cuid())
+  slug                  String?           @unique
+  title                 String
+  artist                String?
+  album                 String?
+  composer              String?
+  genre                 String?
+  mood                  String?
+  tempoLabel            String?
+  bpm                    Float?
+  keySignature           String?
+  songKey                String?
+  lyricsText             String?
+  chordsText             String?
+  audioUrl               String?
+  previewUrl             String?
+  privateAudioPath       String?
+  durationSeconds        Float?
+  previewSeconds         Int               @default(30)
+  downloadPriceCents     Int               @default(200)
+  stripePriceId          String?
+  minTipCents            Int               @default(0)
+  requestable            Boolean           @default(true)
+  rightsStatus           String?
+  publicLyricsAllowed    Boolean           @default(false)
+  publicChordsAllowed    Boolean           @default(false)
+  publicShortlist        Boolean           @default(false)
+  paidCatalog            Boolean           @default(false)
+  freePlayLimit          Int               @default(3)
+  isPublic               Boolean           @default(true)
+  confidenceScore        Float?
+  sourceLinks            Json?
+  privateLyricsNotes     String?
+  privateChordNotes      String?
+  privateRehearsalNotes  String?
+  musicBrainzId          String?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  setlists               SetlistSong[]
+  requests               Request[]
+  payments               Payment[]
+  playbacks              SongPlayback[]
+  entitlements           SongEntitlement[]
+}
+
+model Listener {
+  id           String            @id @default(cuid())
+  tokenHash    String            @unique
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  playbacks    SongPlayback[]
+  entitlements SongEntitlement[]
+  payments     Payment[]
+}
+
+model SongPlayback {
+  id        String   @id @default(cuid())
+  listenerId String
+  songId     String
+  fullPlays  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  listener   Listener @relation(fields: [listenerId], references: [id], onDelete: Cascade)
+  song       Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([listenerId, songId])
+  @@index([songId])
+}
+
+model SongEntitlement {
+  id              String   @id @default(cuid())
+  listenerId      String
+  songId          String
+  stripeSessionId String?  @unique
+  customerEmail   String?
+  amountCents     Int      @default(200)
+  status          String   @default("paid")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  listener        Listener @relation(fields: [listenerId], references: [id], onDelete: Cascade)
+  song            Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([listenerId, songId])
+  @@index([songId])
 }
 
 model Setlist {
@@ -94,6 +154,8 @@ model Request {
   tipAmountCents  Int       @default(0)
   promoteUrl      String?
   status          String    @default("pending")
+  stripeSessionId String?
+  paymentStatus   String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   song            Song?     @relation(fields: [songId], references: [id], onDelete: SetNull)
@@ -102,14 +164,19 @@ model Request {
 }
 
 model Payment {
-  id             String   @id @default(cuid())
-  requestId      String?
-  type           String
-  amountCents    Int
+  id              String    @id @default(cuid())
+  requestId       String?
+  songId          String?
+  listenerId      String?
+  type            String
+  amountCents     Int
   stripeSessionId String?
-  status         String   @default("pending")
-  createdAt      DateTime @default(now())
-  request        Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  status          String    @default("pending")
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  request         Request?  @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  song            Song?     @relation(fields: [songId], references: [id], onDelete: SetNull)
+  listener        Listener? @relation(fields: [listenerId], references: [id], onDelete: SetNull)
 }
 
 model ImportJob {
