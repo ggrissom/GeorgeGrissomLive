@@ -3,46 +3,45 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const tracks = [
-  {
-    title: "One Question",
-    artist: "George Grissom",
-    audioUrl: "/audio/one-question.mp3",
-    metadataNote: "Album: SINGLE | Duration: 3:12",
-  },
-  {
-    title: "What a Shame",
-    artist: "George Grissom",
-    audioUrl: "/audio/what-a-shame-vocals.mp3",
-    metadataNote: "Album: SINGLE | Duration: 3:45",
-  },
+  ["one-question", "One Question", "SINGLE", 191.832],
+  ["what-a-shame", "What a Shame", "SINGLE", 225.072],
+  ["evangelina", "Evangelina", "SINGLE", 210.90907],
+  ["grass-before-the-sickle", "Grass Before The Sickle", "SINGLE", 215.818833],
+  ["light-under-the-moon", "Light Under The Moon", "SINGLE", 149.5562],
+  ["need-the-cage", "Need the Cage", "SINGLE", 219.39225],
+  ["nose-to-the-grindstone", "Nose to the Grindstone", "A Taste For Crow", 177.951043],
+  ["old-macdonald", "Old MacDonald", "SINGLE", 178.222268],
+  ["slow-dive", "Slow Dive", "SINGLE", 135.604535],
+  ["the-seed", "The Seed", "SINGLE", 209.454542],
+  ["white-house-road", "White House Road", "SINGLE", 254.112698],
+  ["who-did-that-to-you", "Who Did That to You?", "SINGLE", 255.272729],
 ] as const;
 
 async function main() {
-  for (const track of tracks) {
-    const existing = await prisma.song.findFirst({
-      where: { title: track.title, artist: track.artist },
-      select: { id: true },
-    });
-
+  for (const [slug, title, album, durationSeconds] of tracks) {
     const data = {
-      title: track.title,
-      artist: track.artist,
-      genre: "Original",
-      audioUrl: track.audioUrl,
-      privateRehearsalNotes: track.metadataNote,
+      slug,
+      title,
+      artist: "George Grissom",
+      album,
+      durationSeconds,
+      previewUrl: `/audio/previews/${slug}-preview.mp3`,
+      audioPath: `private/audio/${slug}.mp3`,
+      audioUrl: null,
+      downloadPriceCents: 200,
       requestable: true,
       publicShortlist: true,
-      paidCatalog: false,
+      paidCatalog: true,
       minTipCents: 0,
-      freePlayLimit: 2,
+      freePlayLimit: 3,
       isPublic: true,
     };
 
-    if (existing) {
-      await prisma.song.update({ where: { id: existing.id }, data });
-    } else {
-      await prisma.song.create({ data });
-    }
+    await prisma.song.upsert({
+      where: { slug },
+      update: data,
+      create: data,
+    });
   }
 }
 
