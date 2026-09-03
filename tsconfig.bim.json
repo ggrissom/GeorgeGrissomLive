@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["next-env.d.ts", "src/app/bim/**/*.ts", "src/app/bim/**/*.tsx", "src/app/api/bim/**/*.ts", "src/lib/bim/**/*.ts", "src/middleware.ts", "scripts/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", ".next", ".bim-private"]
+}

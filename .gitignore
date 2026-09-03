@@ -2,6 +2,13 @@ node_modules
 .next
 .env
 .env.local
+.env.*.local
+.vercel/
+.bim-private/
+artifacts/
+__pycache__/
+*.pyc
+*.tsbuildinfo
 *.db
 *.db-journal
 *.sqlite

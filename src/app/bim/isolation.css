@@ -1,0 +1,5 @@
+/* The music app reserves a right column for its player. BIM uses the full page. */
+.bim-store > main:not(.bim-document) { width: 100%; margin: 0; padding: 0; }
+.bim-store > main.bim-document { width: 100%; padding-right: 5%; }
+.bim-store nav a:hover { color: var(--ink); text-decoration: underline; }
+@media (max-width: 640px) { .bim-store > main.bim-document { padding-right: 6%; } }

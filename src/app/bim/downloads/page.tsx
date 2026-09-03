@@ -1,0 +1,3 @@
+import LicenseDownload from "./download-form";
+export const metadata={title:"Your download | ByGeorge BIM",robots:{index:false,follow:false}};
+export default function Downloads(){return <main className="bim-document bim-narrow"><p className="bim-eyebrow">YOUR TOOLBOX</p><h1>Pick up where<br/>you left off.</h1><p className="bim-lead">Enter the activation key from your purchase receipt to download your collection.</p><LicenseDownload/><p>The key unlocks only the tools you purchased. Keep it private. If you need help recovering a key, use the support contact on the license and support page.</p></main>;}
