@@ -27,12 +27,16 @@ export default async function Home() {
       }))}
       initialSongs={songs.map(song => ({
         id: song.id,
+        slug: song.slug,
         title: song.title,
         artist: song.artist,
+        album: song.album,
+        durationSeconds: song.durationSeconds,
         genre: song.genre,
         mood: song.mood,
         tempoLabel: song.tempoLabel,
-        audioUrl: song.audioUrl,
+        previewUrl: song.previewUrl,
+        downloadPriceCents: song.downloadPriceCents,
         requestable: song.requestable,
         publicShortlist: song.publicShortlist,
         paidCatalog: song.paidCatalog,
