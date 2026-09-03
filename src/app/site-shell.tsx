@@ -16,12 +16,16 @@ type EventRow = {
 
 type SongRow = {
   id: string;
+  slug?: string | null;
   title: string;
   artist?: string | null;
+  album?: string | null;
+  durationSeconds?: number | null;
   genre?: string | null;
   mood?: string | null;
   tempoLabel?: string | null;
-  audioUrl?: string | null;
+  previewUrl?: string | null;
+  downloadPriceCents: number;
   minTipCents: number;
   freePlayLimit: number;
 };
@@ -35,15 +39,24 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
   const [toast, setToast] = useState("");
   const [catalogUnlocked, setCatalogUnlocked] = useState(false);
   const [plays, setPlays] = useState<Record<string, number>>({});
+  const [downloadUrls, setDownloadUrls] = useState<Record<string, string>>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("gg-theme") || "dark";
     const unlocked = localStorage.getItem("gg-catalog-unlocked") === "1";
-    setPlays(JSON.parse(localStorage.getItem("gg-song-plays") || "{}"));
     setTheme(savedTheme);
     setCatalogUnlocked(unlocked);
     document.documentElement.dataset.theme = savedTheme;
+
+    const params = new URLSearchParams(location.search);
+    if (params.get("purchase") === "success") {
+      setToast("Purchase complete. The song is unlocked for full playback and download on this browser.");
+      history.replaceState({}, "", location.pathname + location.hash);
+    } else if (params.get("purchase") === "error") {
+      setToast("Payment could not be verified. No charge entitlement was granted.");
+      history.replaceState({}, "", location.pathname + location.hash);
+    }
   }, []);
 
   useEffect(() => {
@@ -61,54 +74,60 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
   }
 
   async function playSong(song: SongRow) {
-    const currentPlays = plays[song.id] || 0;
-    if (currentPlays >= song.freePlayLimit && !catalogUnlocked) {
-      setCreditModal(true);
+    setCurrentSong(song);
+    const res = await fetch(`/api/songs/${encodeURIComponent(song.id)}/play`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) {
+      setToast(data.error || "This song could not be played.");
       return;
     }
 
-    const updated = { ...plays, [song.id]: currentPlays + 1 };
-    localStorage.setItem("gg-song-plays", JSON.stringify(updated));
-    setPlays(updated);
+    if (typeof data.fullPlays === "number") {
+      setPlays(prev => ({ ...prev, [song.id]: data.fullPlays }));
+    }
+    if (data.downloadUrl) {
+      setDownloadUrls(prev => ({ ...prev, [song.id]: data.downloadUrl }));
+    }
+
+    if (data.audioUrl && audioRef.current) {
+      audioRef.current.src = data.audioUrl;
+      await audioRef.current.play().catch(() => setToast("Browser blocked autoplay. Tap play on the player."));
+    }
+
+    if (data.mode === "preview") {
+      setCreditModal(true);
+      setToast(`${song.title}: three free full plays used. Playing the 30-second preview.`);
+    } else if (data.purchased) {
+      setToast(`${song.title} is purchased — unlimited full plays and download unlocked.`);
+    } else if (typeof data.remainingFullPlays === "number") {
+      const word = data.remainingFullPlays === 1 ? "play" : "plays";
+      setToast(`${song.title}: ${data.remainingFullPlays} free full ${word} remaining.`);
+    }
+  }
+
+  async function buySong(song: SongRow) {
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "song_download", songId: song.id })
+    });
+    const data = await res.json();
+    if (data.checkoutUrl) {
+      location.href = data.checkoutUrl;
+      return;
+    }
+    setToast(data.message || data.error || "Checkout is unavailable.");
+  }
+
+  async function playPreview(song: SongRow) {
+    if (!song.previewUrl || !audioRef.current) {
+      setToast("Preview unavailable for this song.");
+      return;
+    }
     setCurrentSong(song);
-
-    if (song.audioUrl && audioRef.current) {
-      audioRef.current.src = song.audioUrl;
-      await audioRef.current.play().catch(() => setToast("Browser blocked autoplay. Tap play on the audio player."));
-    } else {
-      setToast(`${song.title} selected. Add an audio file URL in admin to play real music.`);
-    }
-  }
-
-  async function buyCredits() {
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "jukebox_credits", label: "Jukebox credits", amountCents: 100 })
-    });
-    const data = await res.json();
-    if (data.checkoutUrl) location.href = data.checkoutUrl;
-    if (data.demoMode) {
-      localStorage.setItem("gg-catalog-unlocked", "1");
-      setCatalogUnlocked(true);
-      setCreditModal(false);
-      setToast("Demo mode: catalog unlocked locally. Connect Stripe for real credit purchases.");
-    }
-  }
-
-  async function unlockCatalog() {
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "catalog_unlock", label: "Full song catalog unlock", amountCents: 100 })
-    });
-    const data = await res.json();
-    if (data.checkoutUrl) location.href = data.checkoutUrl;
-    if (data.demoMode) {
-      localStorage.setItem("gg-catalog-unlocked", "1");
-      setCatalogUnlocked(true);
-      setToast("Demo mode: full catalog unlocked for this browser.");
-    }
+    audioRef.current.src = song.previewUrl;
+    await audioRef.current.play().catch(() => setToast("Browser blocked autoplay. Tap play on the player."));
+    setCreditModal(false);
   }
 
   function venueSearch(event: EventRow) {
@@ -155,12 +174,12 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
       <main id="top">
         <section className="hero snap">
           <div className="copy">
-            <p className="eyebrow">Live web app MVP</p>
-            <h1>Requests, tips, private setlists, and a quarter jukebox built for the show.</h1>
-            <p>Fans get the vibe. George gets the dashboard. The private learning catalog stays private inside the app.</p>
+            <p className="eyebrow">George Grissom Live</p>
+            <h1>Pick a song. Three full plays are on the house.</h1>
+            <p>After the third full play, the jukebox switches that song to a 30-second preview. Own the MP3 for $2 and unlock unlimited full playback plus download.</p>
             <div className="actions">
-              <a className="button" href="#requests">Request a song</a>
-              <button className="button secondary" onClick={unlockCatalog}>Tip to unlock full catalog</button>
+              <a className="button" href="#jukebox">Open the jukebox</a>
+              <a className="button secondary" href="#requests">Request a live song</a>
             </div>
             {toast && <p className="toast">{toast}</p>}
           </div>
@@ -170,7 +189,7 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
           <div className="panel">
             <p className="eyebrow">Jukebox</p>
             <h2>Spin the wheel, pick the center title, then play.</h2>
-            <p className="muted">The jukebox renders only the visible wheel rows, so the catalog stays fast as it grows. Audio files can be attached in the admin dashboard.</p>
+            <p className="muted">Every track includes three free full plays per visitor. After that: 30-second previews, or buy the MP3 for $2.</p>
             <JukeboxSongWheel
               songs={songs}
               plays={plays}
@@ -180,6 +199,13 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
               onPlay={playSong}
               visibleRadius={5}
             />
+            {currentSong && (
+              <div className="actions">
+                <button className="button" onClick={() => buySong(currentSong)}>Buy MP3 · ${(currentSong.downloadPriceCents / 100).toFixed(2)}</button>
+                {currentSong.previewUrl && <button className="button secondary" onClick={() => playPreview(currentSong)}>30-sec preview</button>}
+                {downloadUrls[currentSong.id] && <a className="button secondary" href={downloadUrls[currentSong.id]}>Download purchased MP3</a>}
+              </div>
+            )}
           </div>
         </section>
 
@@ -224,16 +250,17 @@ export default function SiteShell({ initialEvents, initialSongs }: { initialEven
         </section>
       </main>
 
-      {creditModal && (
+      {creditModal && currentSong && (
         <div className="modal-backdrop" onMouseDown={(event) => {
           if (event.currentTarget === event.target) setCreditModal(false);
         }}>
           <div className="modal" role="dialog" aria-modal="true">
-            <h2>Jukebox credits</h2>
-            <p>You used the free plays for that song. Buy credits or come back later.</p>
+            <h2>Three full plays used</h2>
+            <p>{currentSong.title} is now limited to a 30-second preview on this browser. Buy the MP3 for $2 to unlock unlimited full playback and download.</p>
             <div className="actions">
-              <button className="button" onClick={buyCredits}>Buy credits</button>
-              <button className="button secondary" onClick={() => setCreditModal(false)}>Maybe later</button>
+              <button className="button" onClick={() => buySong(currentSong)}>Buy & download · $2</button>
+              <button className="button secondary" onClick={() => playPreview(currentSong)}>Play 30-sec preview</button>
+              <button className="button secondary" onClick={() => setCreditModal(false)}>Close</button>
             </div>
           </div>
         </div>
