@@ -31,30 +31,73 @@ model Event {
 }
 
 model Song {
-  id                   String        @id @default(cuid())
-  title                String
-  artist               String?
-  genre                String?
-  mood                 String?
-  tempoLabel           String?
-  requestable      Boolean   @default(true)
-  rightsStatus     String?
-  bpm                  Float?
-  keySignature         String?
-  audioUrl             String?
-  minTipCents          Int           @default(0)
-  publicShortlist  Boolean   @default(false)
-  paidCatalog      Boolean   @default(false)
-  freePlayLimit        Int           @default(2)
-  isPublic             Boolean       @default(true)
-  privateLyricsNotes   String?
-  privateChordNotes    String?
+  id                    String         @id @default(cuid())
+  slug                  String?        @unique
+  title                 String
+  artist                String?
+  album                 String?
+  composer              String?
+  genre                 String?
+  mood                  String?
+  tempoLabel            String?
+  bpm                   Float?
+  keySignature          String?
+  songKey               String?
+  durationSeconds       Float?
+  audioUrl              String?
+  previewUrl            String?
+  audioPath             String?
+  downloadPriceCents    Int            @default(200)
+  minTipCents           Int            @default(0)
+  requestable           Boolean        @default(true)
+  rightsStatus          String?
+  publicShortlist       Boolean        @default(false)
+  paidCatalog           Boolean        @default(false)
+  freePlayLimit         Int            @default(3)
+  isPublic              Boolean        @default(true)
+  lyricsText            String?
+  chordsText            String?
+  publicLyricsAllowed   Boolean        @default(false)
+  publicChordsAllowed   Boolean        @default(false)
+  privateLyricsNotes    String?
+  privateChordNotes     String?
   privateRehearsalNotes String?
-  musicBrainzId        String?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
-  setlists             SetlistSong[]
-  requests             Request[]
+  musicBrainzId         String?
+  confidenceScore       Float?
+  sourceLinks           Json?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  setlists              SetlistSong[]
+  requests              Request[]
+  plays                 SongPlay[]
+  purchases             SongPurchase[]
+}
+
+model SongPlay {
+  id        String   @id @default(cuid())
+  visitorId String
+  songId    String
+  fullPlays Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  song      Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([visitorId, songId])
+  @@index([songId])
+}
+
+model SongPurchase {
+  id              String   @id @default(cuid())
+  visitorId       String
+  songId          String
+  stripeSessionId String   @unique
+  amountCents     Int      @default(200)
+  customerEmail   String?
+  createdAt       DateTime @default(now())
+  song            Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([visitorId, songId])
+  @@index([songId])
 }
 
 model Setlist {
@@ -94,6 +137,8 @@ model Request {
   tipAmountCents  Int       @default(0)
   promoteUrl      String?
   status          String    @default("pending")
+  paymentStatus   String?
+  stripeSessionId String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   song            Song?     @relation(fields: [songId], references: [id], onDelete: SetNull)
@@ -102,14 +147,15 @@ model Request {
 }
 
 model Payment {
-  id             String   @id @default(cuid())
-  requestId      String?
-  type           String
-  amountCents    Int
+  id              String   @id @default(cuid())
+  requestId       String?
+  type            String
+  amountCents     Int
   stripeSessionId String?
-  status         String   @default("pending")
-  createdAt      DateTime @default(now())
-  request        Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  status          String   @default("pending")
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  request         Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
 }
 
 model ImportJob {
@@ -147,8 +193,11 @@ model FanUpload {
   eventId      String?
   uploaderName String?
   filename     String
+  fileName     String?
+  storagePath  String?
   mimeType     String
   note         String?
+  status       String   @default("pending")
   approved     Boolean  @default(false)
   createdAt    DateTime @default(now())
   event        Event?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
