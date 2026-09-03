@@ -1,0 +1,27 @@
+BYGEORGE BIM - TEMPORARY LAUNCH INSTALLER
+
+1. Install full Autodesk Revit and a compatible pyRevit release with IronPython.
+   Revit LT is not supported. Suite target: Revit 2024-2026. Runtime verification
+   is pending; do not use an unverified release on production models.
+2. Close all Revit windows. Extract ALL files from the downloaded ZIP.
+3. Right-click Install-ByGeorge.ps1 and select Run with PowerShell.
+   No administrator privileges or execution-policy changes are required.
+4. Open Revit. Find the ByGeorge tab; use pyRevit > Reload if needed.
+5. Click a purchased tool and enter your activation key. Keep the key private.
+
+MANUAL INSTALL (if your policy blocks scripts)
+Copy ByGeorge.extension to %APPDATA%\pyRevit\Extensions.
+If a folder with that name exists, first move it into a dated backup outside
+the Extensions folder. Do not merge old and new extension files.
+
+The installer backs up an existing copy to %APPDATA%\ByGeorge\Backups.
+To roll back: close Revit, move the new extension aside, and restore the backup.
+
+ACTIVATION
+One named user, two computers. Internet is required each time a tool starts.
+Only purchased features activate. Windows encrypts the saved key for your user.
+For a device reset or replacement key, contact the support address shown on
+your store's license and support page, using your purchasing email address.
+
+This archive includes no Revit models, passwords, or payment credentials.
+The package's RELEASE.json identifies its source hashes, features, and mode.

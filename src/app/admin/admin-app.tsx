@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 type Tab = "live" | "events" | "setlists" | "songs" | "import" | "search" | "record" | "uploads" | "bookings";
 
@@ -121,11 +122,11 @@ export default function AdminApp() {
   return (
     <>
       <header className="site-header">
-        <a className="brand" href="/">
+        <Link className="brand" href="/">
           <span className="mic">🎙️</span>
           <span><strong>George Admin</strong><small>Private performer dashboard</small></span>
-        </a>
-        <nav><a href="/">Public site</a></nav>
+        </Link>
+        <nav><Link href="/">Public site</Link></nav>
         <button className="ghost" onClick={logout}>Log out</button>
       </header>
       <main className="admin-shell">
