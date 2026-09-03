@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
-    return NextResponse.json({ skipped: true, reason: "Stripe not configured" });
+    return NextResponse.json({ skipped: true, reason: "Stripe not configured" }, { status: 503 });
   }
 
   const Stripe = (await import("stripe")).default;
@@ -22,11 +22,37 @@ export async function POST(request: Request) {
   }
 
   if (event.type === "checkout.session.completed") {
-    const session: any = event.data.object;
+    const session = event.data.object as any;
     await prisma.payment.updateMany({
       where: { stripeSessionId: session.id },
       data: { status: "paid" }
     });
+
+    const songId = session.metadata?.songId;
+    const listenerId = session.metadata?.listenerId;
+    if (session.metadata?.type === "song_download" && songId && listenerId) {
+      const song = await prisma.song.findUnique({ where: { id: songId } });
+      if (song) {
+        await prisma.songEntitlement.upsert({
+          where: { listenerId_songId: { listenerId, songId } },
+          create: {
+            listenerId,
+            songId,
+            stripeSessionId: session.id,
+            customerEmail: session.customer_details?.email || null,
+            amountCents: session.amount_total || song.downloadPriceCents || 200,
+            status: "paid"
+          },
+          update: {
+            stripeSessionId: session.id,
+            customerEmail: session.customer_details?.email || null,
+            amountCents: session.amount_total || song.downloadPriceCents || 200,
+            status: "paid"
+          }
+        });
+      }
+    }
+
     if (session.metadata?.requestId) {
       await prisma.request.updateMany({
         where: { stripeSessionId: session.id },
