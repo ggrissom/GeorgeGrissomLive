@@ -7,12 +7,18 @@ function songPublicShape(song: any, admin: boolean) {
   if (admin) return { ...song, lyricSearchLinks: lyricSearchLinks(song.title, song.artist) };
   return {
     id: song.id,
+    slug: song.slug,
     title: song.title,
     artist: song.artist,
+    album: song.album,
     genre: song.genre,
     mood: song.mood,
     tempoLabel: song.tempoLabel,
-    audioUrl: song.audioUrl,
+    audioUrl: song.previewUrl || song.audioUrl,
+    previewUrl: song.previewUrl,
+    durationSeconds: song.durationSeconds,
+    previewSeconds: song.previewSeconds,
+    downloadPriceCents: song.downloadPriceCents,
     requestable: song.requestable,
     publicShortlist: song.publicShortlist,
     paidCatalog: song.paidCatalog,
@@ -44,9 +50,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   if (!(await isAdminRequest())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await request.json();
-  const song = await prisma.song.create({
-    data: normalizeSongInput(body)
-  });
+  const song = await prisma.song.create({ data: normalizeSongInput(body) });
   await attachSongToSetlists(song.id, body);
   const saved = await prisma.song.findUnique({
     where: { id: song.id },
@@ -82,9 +86,10 @@ export async function DELETE(request: Request) {
 function normalizeSongInput(body: any, patch = false) {
   const data: any = {};
   const fields = [
-    "title", "artist", "composer", "genre", "mood", "tempoLabel", "bpm", "songKey", "lyricsText", "chordsText",
-    "audioUrl", "privateRehearsalNotes", "privateLyricsNotes", "privateChordNotes", "rightsStatus",
-    "publicLyricsAllowed", "publicChordsAllowed", "requestable", "publicShortlist", "paidCatalog",
+    "slug", "title", "artist", "album", "composer", "genre", "mood", "tempoLabel", "bpm", "songKey", "keySignature",
+    "lyricsText", "chordsText", "audioUrl", "previewUrl", "privateAudioPath", "durationSeconds", "previewSeconds",
+    "downloadPriceCents", "stripePriceId", "privateRehearsalNotes", "privateLyricsNotes", "privateChordNotes", "rightsStatus",
+    "publicLyricsAllowed", "publicChordsAllowed", "requestable", "publicShortlist", "paidCatalog", "isPublic",
     "minTipCents", "freePlayLimit", "confidenceScore", "sourceLinks"
   ];
 
@@ -93,10 +98,9 @@ function normalizeSongInput(body: any, patch = false) {
   }
 
   if (!patch && !data.title) data.title = "Untitled Song";
-  if (data.bpm !== undefined && data.bpm !== null && data.bpm !== "") data.bpm = Number(data.bpm);
-  if (data.minTipCents !== undefined && data.minTipCents !== null && data.minTipCents !== "") data.minTipCents = Number(data.minTipCents);
-  if (data.freePlayLimit !== undefined && data.freePlayLimit !== null && data.freePlayLimit !== "") data.freePlayLimit = Number(data.freePlayLimit);
-
+  for (const numeric of ["bpm", "minTipCents", "freePlayLimit", "durationSeconds", "previewSeconds", "downloadPriceCents", "confidenceScore"]) {
+    if (data[numeric] !== undefined && data[numeric] !== null && data[numeric] !== "") data[numeric] = Number(data[numeric]);
+  }
   return data;
 }
 
@@ -110,10 +114,7 @@ function requestedSetlistNames(body: any) {
 }
 
 async function nextPosition(setlistId: string) {
-  const last = await prisma.setlistSong.findFirst({
-    where: { setlistId },
-    orderBy: { position: "desc" }
-  });
+  const last = await prisma.setlistSong.findFirst({ where: { setlistId }, orderBy: { position: "desc" } });
   return (last?.position ?? -1) + 1;
 }
 
@@ -123,9 +124,7 @@ async function attachSongToSetlists(songId: string, body: any) {
 
   for (const setlistId of setlistIds) {
     const existing = await prisma.setlistSong.findUnique({ where: { setlistId_songId: { setlistId, songId } } });
-    if (!existing) {
-      await prisma.setlistSong.create({ data: { setlistId, songId, position: await nextPosition(setlistId) } });
-    }
+    if (!existing) await prisma.setlistSong.create({ data: { setlistId, songId, position: await nextPosition(setlistId) } });
   }
 
   for (const name of names) {
@@ -141,8 +140,6 @@ async function attachSongToSetlists(songId: string, body: any) {
       });
     }
     const existing = await prisma.setlistSong.findUnique({ where: { setlistId_songId: { setlistId: setlist.id, songId } } });
-    if (!existing) {
-      await prisma.setlistSong.create({ data: { setlistId: setlist.id, songId, position: await nextPosition(setlist.id) } });
-    }
+    if (!existing) await prisma.setlistSong.create({ data: { setlistId: setlist.id, songId, position: await nextPosition(setlist.id) } });
   }
 }
