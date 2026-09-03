@@ -3,6 +3,29 @@ import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 
+async function grantSongPurchase(session: any) {
+  if (session.metadata?.type !== "song_download") return;
+  const visitorId = session.metadata?.visitorId;
+  const songId = session.metadata?.songId;
+  if (!visitorId || !songId) return;
+
+  await prisma.songPurchase.upsert({
+    where: { visitorId_songId: { visitorId, songId } },
+    update: {
+      stripeSessionId: session.id,
+      amountCents: Number(session.amount_total || 200),
+      customerEmail: session.customer_details?.email || null
+    },
+    create: {
+      visitorId,
+      songId,
+      stripeSessionId: session.id,
+      amountCents: Number(session.amount_total || 200),
+      customerEmail: session.customer_details?.email || null
+    }
+  });
+}
+
 export async function POST(request: Request) {
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
     return NextResponse.json({ skipped: true, reason: "Stripe not configured" });
@@ -27,6 +50,7 @@ export async function POST(request: Request) {
       where: { stripeSessionId: session.id },
       data: { status: "paid" }
     });
+    await grantSongPurchase(session);
     if (session.metadata?.requestId) {
       await prisma.request.updateMany({
         where: { stripeSessionId: session.id },
