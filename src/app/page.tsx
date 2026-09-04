@@ -70,17 +70,17 @@ export default function Home() {
   return (
     <main className="gg-page">
       <section className="gg-hero">
-        <p className="gg-kicker">George Grissom Live</p>
-        <h1>Jukebox, songs, photos, and booking.</h1>
+        <p className="gg-kicker">George Grissom Music</p>
+        <h1>Songs for people who’ve lived a little.</h1>
         <p>
-          Stream the songs, book the gig, and grab downloads straight from the jukebox.
+          Original songs, live acoustic sets, and a voice that leaves a mark.
         </p>
         <div className="gg-hero-actions">
           <a className="gg-button gg-button-primary" href="mailto:booking@georgegrissom.com?subject=Booking%20George%20Grissom%20Live">
             Book George
           </a>
           <a className="gg-button gg-button-secondary" href="#jukebox">
-            Play Jukebox
+            Hear the Music
           </a>
         </div>
       </section>
@@ -92,7 +92,7 @@ export default function Home() {
       <section className="gg-section">
         <div className="gg-section-heading">
           <p className="gg-kicker">Photos</p>
-          <h2>Live Photos</h2>
+          <h2>Caught in the act.</h2>
         </div>
 
         {photos.length > 0 ? (
@@ -102,16 +102,16 @@ export default function Home() {
             ))}
           </div>
         ) : (
-          <p className="gg-empty">Upload photos to public/images and they will show here.</p>
+          <p className="gg-empty">New photos are coming soon.</p>
         )}
       </section>
 
       <section className="gg-section gg-booking">
         <p className="gg-kicker">Booking</p>
-        <h2>Book George for your event</h2>
-        <p>Send the date, venue, city, event type, budget, and contact number.</p>
+        <h2>Put George on the bill.</h2>
+        <p>Send the date, place, crowd, budget, and the best number to reach you. George will take it from there.</p>
         <a className="gg-button gg-button-primary" href="mailto:booking@georgegrissom.com?subject=Booking%20George%20Grissom%20Live">
-          Email booking@georgegrissom.com
+          Start the conversation
         </a>
       </section>
     </main>
