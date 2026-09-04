@@ -43,8 +43,7 @@ export default function CartSuccessPage() {
         <p className="gg-kicker">Paid</p>
         <h1>Downloads Unlocked</h1>
         <p>
-          Your selected songs are now marked purchased on this device. Return to the jukebox;
-          the download icons will be green.
+          Your songs are ready. Head back to the jukebox and use the green download arrows whenever you want them.
         </p>
         <Link className="gg-button gg-button-primary" href="/">
           Back to Jukebox
