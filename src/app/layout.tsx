@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "George Grissom Live",
-  description: "Live music, requests, tips, jukebox, calendar, and fan uploads for George Grissom."
+  title: "George Grissom Music",
+  description: "Original music and live acoustic performance from Seattle-area singer-songwriter George Grissom."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
