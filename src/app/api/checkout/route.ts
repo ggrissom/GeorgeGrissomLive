@@ -3,6 +3,12 @@ import { prisma } from "@/lib/db";
 import { ensureVisitorId, getVisitorId, setVisitorCookie } from "@/lib/jukebox-access";
 import { audioAssetForSlug } from "@/lib/audio-catalog";
 
+function stripePriceFromSourceLinks(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const priceId = (value as Record<string, unknown>).stripePriceId;
+  return typeof priceId === "string" && priceId.startsWith("price_") ? priceId : null;
+}
+
 export async function POST(request: Request) {
   const body = await request.json();
   const type = String(body.type || "tip");
@@ -22,7 +28,7 @@ export async function POST(request: Request) {
     if (!asset) return NextResponse.json({ error: "Song is not in the active MP3 catalog" }, { status: 404 });
     amountCents = song.downloadPriceCents || 200;
     label = `${song.title} — MP3 download`;
-    stripePriceId = asset.stripePriceId || null;
+    stripePriceId = stripePriceFromSourceLinks(song.sourceLinks) || asset.stripePriceId || null;
     metadata = { type, visitorId, songId: song.id, songSlug: song.slug || "" };
   }
 
