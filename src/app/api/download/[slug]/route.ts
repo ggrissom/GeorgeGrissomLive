@@ -12,20 +12,21 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   if (!visitorId) return NextResponse.json({ error: "Purchase required" }, { status: 401 });
 
   const song = await prisma.song.findUnique({ where: { slug } });
-  if (!song?.audioPath) return NextResponse.json({ error: "Song unavailable" }, { status: 404 });
+  if (!song?.downloadPath) return NextResponse.json({ error: "WAV master unavailable" }, { status: 404 });
 
   const purchase = await prisma.songPurchase.findUnique({
     where: { visitorId_songId: { visitorId, songId: song.id } }
   });
   if (!purchase) return NextResponse.json({ error: "Purchase required" }, { status: 403 });
 
-  const file = await readFile(path.join(process.cwd(), song.audioPath));
+  const file = await readFile(path.join(process.cwd(), song.downloadPath));
   return new Response(file, {
     headers: {
-      "Content-Type": "audio/mpeg",
+      "Content-Type": "audio/wav",
       "Content-Length": String(file.length),
-      "Content-Disposition": `attachment; filename="${song.slug}.mp3"`,
-      "Cache-Control": "private, no-store"
+      "Content-Disposition": `attachment; filename="${song.slug}.wav"`,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff"
     }
   });
 }
