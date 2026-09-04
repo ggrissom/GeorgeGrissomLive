@@ -1,28 +1,61 @@
 {
-  "updatedAt": "2026-08-01T14:18:00-07:00",
-  "targetFolder": "public/audio",
+  "updatedAt": "2026-09-04T13:30:00-07:00",
+  "storage": {
+    "driveRootFolderId": "1xVusRvzgfFFGlav2BC668qwAetP5O6bd",
+    "mp3FolderId": "1nehMnQIlk7-JJPfxsRP0Uj3Wh0V2x535",
+    "wavFolderId": "1YqW_Byz0XBAqOMsjM-y91_NlxIprVe9m",
+    "repositoryMp3Path": "private/audio/mp3",
+    "repositoryWavPath": "private/audio/wav"
+  },
   "tracks": [
     {
-      "title": "One Question",
-      "artist": "George Grissom",
-      "album": "SINGLE",
-      "durationSeconds": 191.832,
-      "format": "audio/mpeg",
-      "preparedFileName": "one-question.mp3",
-      "targetPath": "/audio/one-question.mp3",
-      "driveFileId": "1nAoTFlH8apvsBZSf6Pgf1LA18-Bx1fRN",
-      "driveUrl": "https://drive.google.com/file/d/1nAoTFlH8apvsBZSf6Pgf1LA18-Bx1fRN/view?usp=drivesdk"
+      "slug": "what-a-shame",
+      "title": "What a Shame",
+      "durationSeconds": 226.549773,
+      "mp3": { "fileName": "what-a-shame.mp3", "driveFileId": "1j-jXKv8XWXjNSpM29ICqPRi_yItIGrk9", "purpose": "jukebox playback/preview" },
+      "wav": { "fileName": "what-a-shame.wav", "driveFileId": "1SstUXGr0C78uiavltys6X-c6HdaAHjIi", "purpose": "paid download master", "source": "24-bit 44.1 kHz PCM WAV" }
     },
     {
-      "title": "What a Shame",
-      "artist": "George Grissom",
-      "album": "SINGLE",
-      "durationSeconds": 225.072,
-      "format": "audio/mpeg",
-      "preparedFileName": "what-a-shame-vocals.mp3",
-      "targetPath": "/audio/what-a-shame-vocals.mp3",
-      "driveFileId": "1ZEWPPcH-pTTOr2p1oLPDbyn_XGseW0yp",
-      "driveUrl": "https://drive.google.com/file/d/1ZEWPPcH-pTTOr2p1oLPDbyn_XGseW0yp/view?usp=drivesdk"
+      "slug": "this-song-is-about-you",
+      "title": "This Song Is About You",
+      "durationSeconds": 221.425488,
+      "mp3": { "fileName": "this-song-is-about-you.mp3", "driveFileId": "1d6PuYw4EnFQSz8PT5plQlnWN9SQkAlwm", "purpose": "jukebox playback/preview" },
+      "wav": { "fileName": "this-song-is-about-you.wav", "driveFileId": "1vcR2UAbrINKXKx6e_iLDGw5M8V205eAg", "purpose": "paid download master", "source": "24-bit 44.1 kHz PCM WAV" }
+    },
+    {
+      "slug": "damnit-just-you-hold-on",
+      "title": "Damnit, Just You Hold On",
+      "durationSeconds": 159.069773,
+      "mp3": { "fileName": "damnit-just-you-hold-on.mp3", "driveFileId": "1He1tB4oYsn305S2B-OUIim2f6o3TOIcQ", "purpose": "jukebox playback/preview" },
+      "wav": { "fileName": "damnit-just-you-hold-on.wav", "driveFileId": "15agxRsQKtQr34voMnSFcY-NvMxCI1G0c", "purpose": "paid download master", "source": "24-bit 44.1 kHz PCM WAV" }
+    },
+    {
+      "slug": "get-in-loser",
+      "title": "Get In Loser",
+      "durationSeconds": 257.014354,
+      "mp3": { "fileName": "get-in-loser.mp3", "driveFileId": "1hOvmSqNd8sJQKhKZnDYoSGzssP4rKpX-", "purpose": "jukebox playback/preview" },
+      "wav": { "fileName": "get-in-loser.wav", "driveFileId": "1pYUGFF8O5QtQE-yy69BjVRYv-fXnYJdx", "purpose": "paid download master", "source": "24-bit 44.1 kHz PCM WAV" }
+    },
+    {
+      "slug": "and-another-thing-screams",
+      "title": "And Another Thing",
+      "durationSeconds": 189.397846,
+      "mp3": { "fileName": "and-another-thing-screams.mp3", "driveFileId": "1Op07qVypypgnrBT1XcxzDk3Tjqy6uyd0", "purpose": "jukebox playback/preview" },
+      "wav": { "fileName": "and-another-thing-screams.wav", "driveFileId": "1VoqqTsoTGvb4Jozdj7sU7kjKXe-69qvT", "purpose": "paid download master", "source": "24-bit 44.1 kHz PCM WAV" }
+    },
+    {
+      "slug": "nose-to-the-grindstone",
+      "title": "Nose to the Grindstone",
+      "durationSeconds": 177.951043,
+      "mp3": { "fileName": "nose-to-the-grindstone.mp3", "driveFileId": "1A5suXnpT6tO-cB_DxGvfpRtbVV3nPnDa", "purpose": "jukebox playback/preview" },
+      "wav": { "fileName": "nose-to-the-grindstone.wav", "driveFileId": "1c4SPN_b9wMeE5PsaMPF7JixefdMRb1oh", "purpose": "paid download master", "source": "converted losslessly from ALAC" }
+    },
+    {
+      "slug": "one-question",
+      "title": "One Question",
+      "durationSeconds": 191.832,
+      "mp3": { "fileName": "one-question.mp3", "driveFileId": "1r7oOGiQgoWqnAvHnlm2msOInZ78YnyOV", "purpose": "jukebox playback/preview" },
+      "wav": { "fileName": "one-question.wav", "driveFileId": "1xkA0JahBpeHgI2OdMM2yOtrP0ZNxoa9G", "purpose": "paid download", "source": "WAV container converted from supplied MP3; replace when a true lossless master is available" }
     }
   ]
 }
