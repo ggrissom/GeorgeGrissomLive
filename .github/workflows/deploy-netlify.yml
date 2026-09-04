@@ -1,0 +1,34 @@
+name: Deploy to Netlify
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Trigger Netlify deploy hook
+        run: |
+          set -euo pipefail
+          if [ -z "${NETLIFY_DEPLOY_HOOK:-}" ]; then
+            echo "WARNING: NETLIFY_DEPLOY_HOOK not configured in secrets"
+            echo "Site will not deploy automatically. Configure the secret in Settings > Secrets and variables > Actions"
+            exit 0
+          fi
+          curl -X POST "${NETLIFY_DEPLOY_HOOK}" \
+            -H "Content-Type: application/json" \
+            -d '{"trigger":"github-actions"}' \
+            -w "\nDeploy triggered: %{http_code}\n"
+        env:
+          NETLIFY_DEPLOY_HOOK: ${{ secrets.NETLIFY_DEPLOY_HOOK }}
+
+      - name: Wait for deployment
+        run: |
+          echo "Deployment triggered. Netlify will build and deploy the site."
+          echo "Check the Netlify dashboard for deployment status."
