@@ -5,14 +5,20 @@ import { AUDIO_CATALOG } from "../src/lib/audio-catalog";
 const prisma = new PrismaClient();
 const PRICE_CENTS = 200;
 
+function isNonProductionDeploy() {
+  if (process.env.VERCEL && process.env.VERCEL_ENV !== "production") return true;
+  if (process.env.NETLIFY && process.env.CONTEXT !== "production") return true;
+  return false;
+}
+
 async function main() {
   if (!process.env.STRIPE_SECRET_KEY) {
     console.log("Stripe song product sync skipped: STRIPE_SECRET_KEY is not configured.");
     return;
   }
 
-  if (process.env.VERCEL && process.env.VERCEL_ENV !== "production") {
-    console.log(`Stripe song product sync skipped in ${process.env.VERCEL_ENV || "non-production"} deployment.`);
+  if (isNonProductionDeploy()) {
+    console.log("Stripe song product sync skipped outside the production deployment.");
     return;
   }
 
