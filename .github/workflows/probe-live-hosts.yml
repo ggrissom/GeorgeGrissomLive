@@ -1,0 +1,63 @@
+name: Probe live hosting aliases
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/probe-live-hosts.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe domains and deployment aliases
+        shell: bash
+        run: |
+          set -uo pipefail
+          urls=(
+            "https://georgegrissom.com/"
+            "https://www.georgegrissom.com/"
+            "https://live.georgegrissom.com/"
+            "https://george-grissom-live.vercel.app/"
+            "https://george-grissom-live-git-main-bygeorge.vercel.app/"
+            "https://george-grissom-live-git-feature-finish-jukebox-3792fb-bygeorge.vercel.app/"
+            "https://charming-vacherin-a10395.netlify.app/"
+            "https://deploy-preview-4--charming-vacherin-a10395.netlify.app/"
+          )
+          : > host-probe.txt
+          for url in "${urls[@]}"; do
+            echo "===== $url =====" | tee -a host-probe.txt
+            curl -L --max-time 35 --connect-timeout 10 -sS \
+              -o /tmp/body.html \
+              -D /tmp/headers.txt \
+              -w 'status=%{http_code}\neffective_url=%{url_effective}\nremote_ip=%{remote_ip}\ncontent_type=%{content_type}\n' \
+              "$url" 2>&1 | tee -a host-probe.txt || true
+            echo "--- response headers ---" >> host-probe.txt
+            sed -n '1,30p' /tmp/headers.txt >> host-probe.txt 2>/dev/null || true
+            echo "--- title / body sample ---" >> host-probe.txt
+            grep -io '<title[^>]*>[^<]*</title>' /tmp/body.html | head -1 >> host-probe.txt 2>/dev/null || true
+            tr '\n' ' ' < /tmp/body.html | head -c 700 >> host-probe.txt 2>/dev/null || true
+            printf '\n\n' >> host-probe.txt
+          done
+
+      - name: DNS records
+        shell: bash
+        run: |
+          {
+            echo "===== DNS ====="
+            dig +short A georgegrissom.com
+            dig +short AAAA georgegrissom.com
+            dig +short CNAME www.georgegrissom.com
+            dig +short CNAME live.georgegrissom.com
+            dig +short NS georgegrissom.com
+          } | tee -a host-probe.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: host-probe
+          path: host-probe.txt
+          retention-days: 3
