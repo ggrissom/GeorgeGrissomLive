@@ -127,7 +127,7 @@ export function JukeboxPlayer({ songs }: { songs: SongForJukebox[] }) {
   if (!songs.length) {
     return (
       <div className="gg-jukebox-shell">
-        <p className="gg-empty">Upload songs to public/audio and they will show in the jukebox.</p>
+        <p className="gg-empty">The jukebox is quiet for the moment. Check back soon.</p>
       </div>
     );
   }
@@ -186,7 +186,7 @@ export function JukeboxPlayer({ songs }: { songs: SongForJukebox[] }) {
         <audio ref={audioRef} controls preload="metadata" className="gg-audio" />
       </div>
 
-      {!isReady ? <p className="gg-empty">Loading jukebox…</p> : null}
+      {!isReady ? <p className="gg-empty">Warming up the jukebox…</p> : null}
     </div>
   );
 }
