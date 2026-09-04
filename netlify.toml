@@ -1,0 +1,19 @@
+[build]
+  base = "."
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[redirects]]
+  from = "https://www.georgegrissom.com/*"
+  to = "https://georgegrissom.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://live.georgegrissom.com/*"
+  to = "https://georgegrissom.com/:splat"
+  status = 301
+  force = true
