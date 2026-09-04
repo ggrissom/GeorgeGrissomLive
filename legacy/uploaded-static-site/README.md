@@ -1,6 +1,8 @@
 # georgegrissomDotCom
 
-First-pass static concept rebuild for George Grissom's music site.
+Archived first-pass static concept rebuild for George Grissom's music site.
+
+> Archived: the production deployment now builds the Next.js application from the repository root using `netlify.toml`. This directory is retained only for historical reference.
 
 ## Included
 - Sticky header with static branding
@@ -26,9 +28,8 @@ First-pass static concept rebuild for George Grissom's music site.
 - Uploads are front-end demo only. Production needs cloud storage, moderation, auth, and database support.
 - Payments are not wired up. Connect the paywall button to Stripe, Square, PayPal, or another payment flow.
 - This package does not include scraped media from the live site.
-- I cannot directly save to GitHub or Google Drive from here.
 
-## Suggested next build phase
+## Historical next-phase notes
 1. Replace placeholder songs and media
 2. Add real event data
 3. Add payment checkout and credit tracking
