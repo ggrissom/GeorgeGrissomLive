@@ -2,12 +2,15 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type RefObject,
   type WheelEvent
 } from "react";
+import { calculateFittedFontSize } from "@/lib/fit-text";
 
 export type JukeboxSong = {
   id: string;
@@ -20,6 +23,85 @@ export type JukeboxSong = {
   minTipCents?: number;
   freePlayLimit: number;
 };
+
+function FittedNowPlayingTitle({ title }: { title: string }) {
+  const titleRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const titleElement = titleRef.current;
+    if (!titleElement) return;
+
+    const container = titleElement.parentElement;
+    if (!container) return;
+
+    let frame = 0;
+    let cancelled = false;
+
+    const fit = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (cancelled || !titleRef.current) return;
+
+        const element = titleRef.current;
+        element.style.removeProperty("font-size");
+
+        const maxFontSize = Number.parseFloat(window.getComputedStyle(element).fontSize);
+        const availableWidth = element.clientWidth;
+        const measuredWidth = element.scrollWidth;
+        let fittedFontSize = calculateFittedFontSize({
+          availableWidth,
+          measuredWidth,
+          maxFontSize,
+          minFontSize: 1
+        });
+
+        element.style.fontSize = `${fittedFontSize}px`;
+
+        // Protect against sub-pixel font rounding on narrow mobile layouts.
+        for (let attempt = 0; attempt < 64 && element.scrollWidth > element.clientWidth + 0.5; attempt += 1) {
+          fittedFontSize = Math.max(1, fittedFontSize - 0.25);
+          element.style.fontSize = `${fittedFontSize}px`;
+        }
+      });
+    };
+
+    const observer = new ResizeObserver(fit);
+    observer.observe(container);
+    window.addEventListener("resize", fit);
+    window.addEventListener("orientationchange", fit);
+    void document.fonts?.ready.then(fit);
+    fit();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", fit);
+      window.removeEventListener("orientationchange", fit);
+    };
+  }, [title]);
+
+  return (
+    <strong
+      ref={titleRef}
+      style={{
+        display: "block",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "clip",
+        whiteSpace: "nowrap",
+        wordBreak: "normal",
+        overflowWrap: "normal",
+        fontSize: "clamp(0.68rem, 1.05vw, 0.95rem)",
+        lineHeight: 1.05
+      }}
+    >
+      {title}
+    </strong>
+  );
+}
 
 export default function ReferenceJukebox({
   songs,
@@ -52,7 +134,7 @@ export default function ReferenceJukebox({
 
         <div className="reference-jukebox-now" aria-live="polite">
           <span>NOW PLAYING</span>
-          <strong>{currentSong?.title || "Pick a song"}</strong>
+          <FittedNowPlayingTitle title={currentSong?.title || "Pick a song"} />
           <small>{currentSong?.artist || "George Grissom"}</small>
         </div>
 
