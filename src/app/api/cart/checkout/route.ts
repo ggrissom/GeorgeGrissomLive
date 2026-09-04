@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json(
-      { error: "STRIPE_SECRET_KEY is missing in Vercel environment variables." },
+      { error: "Song downloads are temporarily unavailable. Please try again shortly." },
       { status: 500 }
     );
   }
