@@ -3,11 +3,16 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type RefObject,
   type WheelEvent
 } from "react";
+import {
+  DEFAULT_MAX_TITLE_PX,
+  fitSingleLineFontSize
+} from "@/lib/fit-single-line-text";
 
 export type JukeboxSong = {
   id: string;
@@ -20,6 +25,61 @@ export type JukeboxSong = {
   minTipCents?: number;
   freePlayLimit: number;
 };
+
+function NowPlayingTitle({ title }: { title: string }) {
+  const titleRef = useRef<HTMLElement>(null);
+  const [fontSize, setFontSize] = useState(DEFAULT_MAX_TITLE_PX);
+
+  useEffect(() => {
+    const element = titleRef.current;
+    if (!element) return;
+
+    let frame = 0;
+    const measure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const current = titleRef.current;
+        if (!current) return;
+        current.style.fontSize = `${DEFAULT_MAX_TITLE_PX}px`;
+        const availableWidth = current.clientWidth;
+        const measuredWidth = current.scrollWidth;
+        setFontSize(fitSingleLineFontSize({ availableWidth, measuredWidth }));
+      });
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    if (element.parentElement) observer.observe(element.parentElement);
+    window.addEventListener("orientationchange", measure);
+    window.addEventListener("resize", measure);
+    document.fonts?.ready.then(measure).catch(() => undefined);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("orientationchange", measure);
+      window.removeEventListener("resize", measure);
+    };
+  }, [title]);
+
+  return (
+    <strong
+      ref={titleRef}
+      title={title}
+      style={{
+        fontSize: `${fontSize}px`,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "clip",
+        wordBreak: "normal",
+        overflowWrap: "normal"
+      }}
+    >
+      {title}
+    </strong>
+  );
+}
 
 export default function ReferenceJukebox({
   songs,
@@ -52,7 +112,7 @@ export default function ReferenceJukebox({
 
         <div className="reference-jukebox-now" aria-live="polite">
           <span>NOW PLAYING</span>
-          <strong>{currentSong?.title || "Pick a song"}</strong>
+          <NowPlayingTitle title={currentSong?.title || "Pick a song"} />
           <small>{currentSong?.artist || "George Grissom"}</small>
         </div>
 
