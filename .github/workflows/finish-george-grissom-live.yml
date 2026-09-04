@@ -1,0 +1,52 @@
+name: Finish George Grissom Live
+
+on:
+  push:
+    branches:
+      - agent/finish-george-grissom-live
+    paths:
+      - scripts/finish-george-grissom-live.py
+      - .github/workflows/finish-george-grissom-live.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/finish-george-grissom-live
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply approved migration
+        run: python scripts/finish-george-grissom-live.py
+
+      - name: Remove one-time migration files
+        run: |
+          rm -f scripts/finish-george-grissom-live.py
+          rm -f .github/workflows/finish-george-grissom-live.yml
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused unit tests
+        run: npm run test:unit
+
+      - name: Validate patch formatting
+        run: git diff --check
+
+      - name: Commit completed implementation
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Finish responsive jukebox and WAV delivery"
+          git push origin HEAD:agent/finish-george-grissom-live
