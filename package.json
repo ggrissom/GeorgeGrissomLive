@@ -8,6 +8,7 @@
     "build": "prisma generate && prisma db push --accept-data-loss && npm run db:seed-live-audio && next build",
     "start": "next start",
     "lint": "next lint",
+    "test:title-fit": "tsx --test src/lib/fit-single-line-text.test.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev --name init",
     "db:push": "prisma db push",
