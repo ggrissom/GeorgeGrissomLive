@@ -5,11 +5,6 @@ import { AUDIO_CATALOG } from "../src/lib/audio-catalog";
 const prisma = new PrismaClient();
 const PRICE_CENTS = 200;
 
-function existingStripeLinks(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return value as Record<string, unknown>;
-}
-
 async function main() {
   if (!process.env.STRIPE_SECRET_KEY) {
     console.log("Stripe song product sync skipped: STRIPE_SECRET_KEY is not configured.");
@@ -29,7 +24,7 @@ async function main() {
     if (!product) {
       product = await stripe.products.create({
         name: `${track.title} — MP3 Download`,
-        description: `Full-length 320 kbps MP3 download by George Grissom.`,
+        description: "Full-length 320 kbps MP3 download by George Grissom.",
         metadata: {
           song_slug: track.slug,
           artist: "George Grissom",
@@ -69,13 +64,11 @@ async function main() {
 
     const song = await prisma.song.findUnique({ where: { slug: track.slug } });
     if (!song) throw new Error(`Song seed missing for ${track.slug}`);
-    const sourceLinks = existingStripeLinks(song.sourceLinks);
     await prisma.song.update({
       where: { id: song.id },
       data: {
         downloadPriceCents: PRICE_CENTS,
         sourceLinks: {
-          ...sourceLinks,
           stripeProductId: product.id,
           stripePriceId: price.id,
           fullMp3DriveFileId: track.fullDriveFileId,
