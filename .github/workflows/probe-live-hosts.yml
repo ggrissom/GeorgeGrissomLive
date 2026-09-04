@@ -8,7 +8,6 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - .github/workflows/probe-live-hosts.yml
       - docs/hosting-probe-pr.md
   workflow_dispatch:
 
@@ -28,25 +27,40 @@ jobs:
             "https://www.georgegrissom.com/"
             "https://live.georgegrissom.com/"
             "https://george-grissom-live.vercel.app/"
-            "https://george-grissom-live-git-main-bygeorge.vercel.app/"
-            "https://george-grissom-live-git-feature-finish-jukebox-3792fb-bygeorge.vercel.app/"
-            "https://george-grissom-live-git-probe-hosting-aliases-bygeorge.vercel.app/"
+            "https://george-grissom-live.vercel.app/api/audio-storage-status"
+            "https://george-grissom-live.vercel.app/api/preview/one-question"
+            "https://george-grissom-live.vercel.app/api/songs"
             "https://charming-vacherin-a10395.netlify.app/"
-            "https://deploy-preview-4--charming-vacherin-a10395.netlify.app/"
           )
           : > host-probe.txt
           for url in "${urls[@]}"; do
             echo "===== $url =====" | tee -a host-probe.txt
-            curl -L --max-time 35 --connect-timeout 10 -sS \
-              -o /tmp/body.html \
+            rm -f /tmp/body /tmp/headers.txt
+            curl -L --max-time 45 --connect-timeout 10 -sS \
+              -o /tmp/body \
               -D /tmp/headers.txt \
-              -w 'status=%{http_code}\neffective_url=%{url_effective}\nremote_ip=%{remote_ip}\ncontent_type=%{content_type}\n' \
+              -w 'status=%{http_code}\neffective_url=%{url_effective}\nremote_ip=%{remote_ip}\ncontent_type=%{content_type}\nsize=%{size_download}\n' \
               "$url" 2>&1 | tee -a host-probe.txt || true
             echo "--- response headers ---" >> host-probe.txt
-            sed -n '1,30p' /tmp/headers.txt >> host-probe.txt 2>/dev/null || true
-            echo "--- title / body sample ---" >> host-probe.txt
-            grep -io '<title[^>]*>[^<]*</title>' /tmp/body.html | head -1 >> host-probe.txt 2>/dev/null || true
-            tr '\n' ' ' < /tmp/body.html | head -c 700 >> host-probe.txt 2>/dev/null || true
+            sed -n '1,35p' /tmp/headers.txt >> host-probe.txt 2>/dev/null || true
+            echo "--- body sample ---" >> host-probe.txt
+            head -c 1600 /tmp/body >> host-probe.txt 2>/dev/null || true
+            printf '\n\n' >> host-probe.txt
+          done
+
+      - name: Test custom domains directly against Vercel
+        shell: bash
+        run: |
+          for host in georgegrissom.com www.georgegrissom.com live.georgegrissom.com; do
+            echo "===== VERCEL DIRECT: $host =====" | tee -a host-probe.txt
+            rm -f /tmp/vercel-body /tmp/vercel-headers
+            curl -k -L --resolve "$host:443:76.76.21.21" \
+              --max-time 35 --connect-timeout 10 -sS \
+              -o /tmp/vercel-body -D /tmp/vercel-headers \
+              -w 'status=%{http_code}\neffective_url=%{url_effective}\ncontent_type=%{content_type}\n' \
+              "https://$host/" 2>&1 | tee -a host-probe.txt || true
+            sed -n '1,35p' /tmp/vercel-headers >> host-probe.txt 2>/dev/null || true
+            head -c 1200 /tmp/vercel-body >> host-probe.txt 2>/dev/null || true
             printf '\n\n' >> host-probe.txt
           done
 
@@ -55,11 +69,11 @@ jobs:
         run: |
           {
             echo "===== DNS ====="
-            dig +short A georgegrissom.com
-            dig +short AAAA georgegrissom.com
-            dig +short CNAME www.georgegrissom.com
-            dig +short CNAME live.georgegrissom.com
-            dig +short NS georgegrissom.com
+            echo "A apex:"; dig +short A georgegrissom.com
+            echo "AAAA apex:"; dig +short AAAA georgegrissom.com
+            echo "CNAME www:"; dig +short CNAME www.georgegrissom.com
+            echo "CNAME live:"; dig +short CNAME live.georgegrissom.com
+            echo "NS:"; dig +short NS georgegrissom.com
           } | tee -a host-probe.txt
 
       - uses: actions/upload-artifact@v4
