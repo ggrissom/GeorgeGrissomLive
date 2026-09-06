@@ -1,0 +1,98 @@
+name: Temporary Vercel domain assignment
+
+on:
+  push:
+    branches:
+      - copilot/finish-production-complete-jukebox
+
+permissions:
+  contents: read
+
+jobs:
+  assign-domains:
+    runs-on: ubuntu-latest
+    env:
+      TEAM_ID: team_ANc1kIyqoKsaghBNgpGhMa7D
+      PROJECT_ID: prj_3kCNNEP697PhzwkDybYgsc2v4G72
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Verify VERCEL_TOKEN secret is present
+        shell: bash
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "VERCEL_TOKEN secret missing"
+            exit 1
+          fi
+
+      - name: Add project domains via Vercel API (idempotent)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          domains=(
+            "georgegrissom.com"
+            "www.georgegrissom.com"
+            "live.georgegrissom.com"
+          )
+
+          endpoint="https://api.vercel.com/v10/projects/${PROJECT_ID}/domains?teamId=${TEAM_ID}"
+
+          sanitize_response() {
+            node -e '
+              const text = process.argv[1] || "";
+              try {
+                const o = JSON.parse(text);
+                const out = {
+                  name: o.name ?? null,
+                  verified: o.verified ?? null,
+                  verification: Array.isArray(o.verification)
+                    ? o.verification.map(v => ({ type: v?.type ?? null, domain: v?.domain ?? null, value: v?.value ?? null, reason: v?.reason ?? null }))
+                    : null,
+                  error: o.error
+                    ? { code: o.error.code ?? null, message: o.error.message ?? null }
+                    : null,
+                  message: o.message ?? null
+                };
+                process.stdout.write(JSON.stringify(out));
+              } catch {
+                process.stdout.write(JSON.stringify({ raw: text.slice(0, 1000) }));
+              }
+            ' "$1"
+          }
+
+          already_exists_like() {
+            node -e '
+              const text = process.argv[1] || "";
+              let msg = text.toLowerCase();
+              let code = "";
+              try {
+                const o = JSON.parse(text);
+                msg = String(o?.error?.message || o?.message || "").toLowerCase();
+                code = String(o?.error?.code || o?.code || "").toLowerCase();
+              } catch {}
+              const found = code.includes("already") || msg.includes("already") || msg.includes("exists") || msg.includes("taken");
+              process.stdout.write(found ? "1" : "0");
+            ' "$1"
+          }
+
+          for domain in "${domains[@]}"; do
+            payload=$(printf '{"name":"%s"}' "$domain")
+            response_file=$(mktemp)
+
+            http_status=$(curl -sS -o "$response_file" -w "%{http_code}" \
+              -X POST "$endpoint" \
+              --oauth2-bearer "$VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data "$payload")
+
+            response_body=$(cat "$response_file")
+            sanitized=$(sanitize_response "$response_body")
+            exists_like=$(already_exists_like "$response_body")
+
+            if [[ "$http_status" =~ ^20[01]$ ]] || [ "$exists_like" = "1" ]; then
+              echo "${domain}: success (HTTP ${http_status}) ${sanitized}"
+            else
+              echo "${domain}: failed (HTTP ${http_status}) ${sanitized}"
+              exit 1
+            fi
+          done
