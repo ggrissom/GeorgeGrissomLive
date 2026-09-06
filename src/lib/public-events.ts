@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import {
   isGoogleCalendarConfigured,
   listGooglePerformanceEvents,
+  listPublicIcalPerformanceEvents,
   type PublicCalendarEvent
 } from "@/lib/google-calendar";
 
@@ -29,14 +30,18 @@ export async function localPublicEvents(limit = 50): Promise<PublicCalendarEvent
 }
 
 export async function publicEventsFromPerformanceCalendar(limit = 50): Promise<PublicCalendarEvent[]> {
-  if (!isGoogleCalendarConfigured()) {
-    return localPublicEvents(limit);
+  if (isGoogleCalendarConfigured()) {
+    try {
+      return await listGooglePerformanceEvents(limit);
+    } catch (error) {
+      console.error("Authenticated Google Calendar API unavailable; trying the public iCal feed.", error);
+    }
   }
 
   try {
-    return await listGooglePerformanceEvents(limit);
+    return await listPublicIcalPerformanceEvents(limit);
   } catch (error) {
-    console.error("Google Calendar unavailable; returning local fallback events.", error);
+    console.error("Public Performance Calendar feed unavailable; returning local fallback events.", error);
     return localPublicEvents(limit);
   }
 }
