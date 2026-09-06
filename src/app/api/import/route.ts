@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     data: {
       fileName: file.name,
       fileType: file.type || "unknown",
-      storagePath: saved.publicPath,
+      storagePath: saved.storagePath,
       status: "parsing"
     }
   });

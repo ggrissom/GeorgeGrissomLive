@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       songId: String(form.get("songId") || "") || null,
       title: String(form.get("title") || "") || file.name,
       inputDeviceLabel: String(form.get("inputDeviceLabel") || "") || null,
-      storagePath: saved.publicPath,
+      storagePath: saved.storagePath,
       mimeType: file.type || null,
       durationSeconds: Number(form.get("durationSeconds") || 0) || null,
       visibility: "private"

@@ -4,21 +4,17 @@ import { AUDIO_CATALOG } from "../src/lib/audio-catalog";
 const prisma = new PrismaClient();
 
 async function main() {
-  const activeSlugs = AUDIO_CATALOG.map(track => track.slug);
-
-  await prisma.song.updateMany({
-    where: {
-      paidCatalog: true,
-      slug: { notIn: activeSlugs }
-    },
-    data: {
-      publicShortlist: false,
-      requestable: false,
-      isPublic: false
-    }
-  });
-
   for (const track of AUDIO_CATALOG) {
+    const existing = await prisma.song.findFirst({
+      where: {
+        OR: [
+          { slug: track.slug },
+          { title: track.title }
+        ]
+      },
+      orderBy: { updatedAt: "desc" }
+    });
+
     const data = {
       slug: track.slug,
       title: track.title,
@@ -38,11 +34,15 @@ async function main() {
       isPublic: true
     };
 
-    await prisma.song.upsert({
-      where: { slug: track.slug },
-      update: data,
-      create: data
-    });
+    if (existing) {
+      await prisma.song.update({
+        where: { id: existing.id },
+        data
+      });
+      continue;
+    }
+
+    await prisma.song.create({ data });
   }
 }
 

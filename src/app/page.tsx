@@ -7,9 +7,9 @@ export default async function Home() {
   const [events, songs] = await Promise.all([
     publicEventsFromPerformanceCalendar(50),
     prisma.song.findMany({
-      where: { publicShortlist: true },
+      where: { isPublic: true },
       orderBy: { title: "asc" },
-      take: 100
+      take: 500
     })
   ]);
 
