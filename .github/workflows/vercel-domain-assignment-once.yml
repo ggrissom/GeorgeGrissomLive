@@ -1,0 +1,52 @@
+name: Vercel domain assignment (one-time)
+
+on:
+  push:
+    branches:
+      - ops/vercel-domain-assignment
+
+permissions:
+  contents: read
+
+jobs:
+  assign-domains:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TEAM_ID: team_ANc1kIyqoKsaghBNgpGhMa7D
+      VERCEL_PROJECT_ID: prj_3kCNNEP697PhzwkDybYgsc2v4G72
+    steps:
+      - name: Check Vercel token
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::error::VERCEL_TOKEN secret missing"
+            exit 2
+          fi
+          echo "VERCEL_TOKEN secret is present"
+
+      - name: Add Vercel project domains
+        shell: bash
+        run: |
+          set -euo pipefail
+          for domain in georgegrissom.com www.georgegrissom.com live.georgegrissom.com; do
+            tmp="$(mktemp)"
+            code="$(curl -sS -o "$tmp" -w '%{http_code}' \
+              -X POST \
+              "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/domains?teamId=${VERCEL_TEAM_ID}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              -H 'Content-Type: application/json' \
+              --data "{\"name\":\"${domain}\"}")"
+
+            echo "${domain}: HTTP ${code}"
+            if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+              jq -c '{name, apexName, verified, redirect, gitBranch}' "$tmp" 2>/dev/null || true
+            else
+              jq -c '{error: (.error // {code: "unknown", message: "unspecified"})}' "$tmp" 2>/dev/null || true
+              if [ "$code" != "409" ]; then
+                exit 1
+              fi
+            fi
+            rm -f "$tmp"
+          done
