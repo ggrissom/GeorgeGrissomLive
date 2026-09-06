@@ -5,7 +5,7 @@
   "description": "George Grissom live music website + audience request system + admin dashboard MVP.",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push --accept-data-loss && npm run db:seed-live-audio && npm run stripe:sync-song-products && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "test:title-fit": "tsx --test src/lib/fit-single-line-text.test.ts",
@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@vercel/blob": "^0.27.1",
     "googleapis": "^144.0.0",
     "next": "^15.0.0",
     "openai": "^4.68.0",

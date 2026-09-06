@@ -15,13 +15,21 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "Missing file" }, { status: 400 });
-  const saved = await saveUploadFile(file, "fan-media");
+  let saved;
+  try {
+    saved = await saveUploadFile(file, "fan-media", { requirePersistent: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Upload storage is unavailable." },
+      { status: 503 }
+    );
+  }
   const upload = await prisma.fanUpload.create({
     data: {
       eventId: String(form.get("eventId") || "") || null,
       uploaderName: String(form.get("uploaderName") || "") || null,
       note: String(form.get("note") || "") || null,
-      storagePath: saved.publicPath,
+      storagePath: saved.storagePath,
       fileName: file.name,
       mimeType: file.type || null
     }

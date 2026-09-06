@@ -775,6 +775,13 @@ html[data-theme="light"] .jukebox {
   display: block;
 }
 
+.wheel-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(0.82rem, 1.45vw, 1.02rem);
+}
+
 .wheel-row span,
 .wheel-row em {
   color: var(--muted);
