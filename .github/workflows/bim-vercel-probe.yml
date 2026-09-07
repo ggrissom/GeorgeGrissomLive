@@ -1,4 +1,4 @@
-name: Prepare standalone BIM Vercel project
+name: Verify standalone BIM production
 
 on:
   push:
@@ -9,11 +9,12 @@ permissions:
   contents: read
 
 jobs:
-  prepare:
+  verify-production:
     runs-on: ubuntu-latest
     env:
       TEAM_ID: team_ANc1kIyqoKsaghBNgpGhMa7D
       PROJECT_ID: prj_96bezO8lqJ1aRz9zkEAdjWekXhDf
+      MERGE_SHA: 6f81a4fdbfe484aa7855d6f4efb22e6a6b7f6afc
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - name: Verify token
@@ -21,23 +22,54 @@ jobs:
         run: |
           test -n "$VERCEL_TOKEN" || { echo "VERCEL_TOKEN secret missing"; exit 1; }
 
-      - name: Set Next.js project configuration
+      - name: Find and verify production deployment
         shell: bash
         run: |
           set -euo pipefail
-          response=$(curl -fsS \
-            -X PATCH \
-            --oauth2-bearer "$VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data '{"framework":"nextjs","buildCommand":"npm run build","installCommand":"npm install"}' \
-            "https://api.vercel.com/v9/projects/${PROJECT_ID}?teamId=${TEAM_ID}")
-          printf '%s' "$response" > /tmp/project.json
-          node -e 'const p=require("/tmp/project.json"); console.log(JSON.stringify({id:p.id,name:p.name,framework:p.framework,buildCommand:p.buildCommand,installCommand:p.installCommand,repo:p.link?.repo||null}))'
+          deployment_id=""
+          deployment_url=""
+          for attempt in $(seq 1 30); do
+            body=$(curl -fsS --oauth2-bearer "$VERCEL_TOKEN" "https://api.vercel.com/v7/deployments?projectId=${PROJECT_ID}&target=production&sha=${MERGE_SHA}&teamId=${TEAM_ID}&limit=5")
+            printf '%s' "$body" > /tmp/deployments.json
+            deployment_id=$(node -e 'const b=require("/tmp/deployments.json"); process.stdout.write((b.deployments?.[0]?.uid||b.deployments?.[0]?.id||""))')
+            deployment_url=$(node -e 'const b=require("/tmp/deployments.json"); process.stdout.write((b.deployments?.[0]?.url||""))')
+            [ -n "$deployment_id" ] && break
+            sleep 4
+          done
+          [ -n "$deployment_id" ] || { echo "No production deployment found for ${MERGE_SHA}"; exit 1; }
+          echo "DEPLOYMENT_ID=$deployment_id" >> "$GITHUB_ENV"
+          echo "DEPLOYMENT_URL=$deployment_url" >> "$GITHUB_ENV"
+          echo "Found deployment: $deployment_id https://$deployment_url"
 
-      - name: Verify BIM domain remains assigned and verified
+          for attempt in $(seq 1 40); do
+            detail=$(curl -fsS --oauth2-bearer "$VERCEL_TOKEN" "https://api.vercel.com/v13/deployments/${deployment_id}?teamId=${TEAM_ID}")
+            printf '%s' "$detail" > /tmp/deployment.json
+            state=$(node -e 'const d=require("/tmp/deployment.json"); process.stdout.write(d.readyState||d.status||"")')
+            echo "Deployment state: $state"
+            if [ "$state" = "READY" ]; then exit 0; fi
+            if [ "$state" = "ERROR" ] || [ "$state" = "CANCELED" ] || [ "$state" = "BLOCKED" ]; then
+              node -e 'const d=require("/tmp/deployment.json"); console.log(JSON.stringify({id:d.id,url:d.url,readyState:d.readyState,status:d.status,errorCode:d.errorCode||null,errorMessage:d.errorMessage||null}))'
+              exit 1
+            fi
+            sleep 4
+          done
+          echo "Deployment did not reach READY"
+          exit 1
+
+      - name: Verify custom domain serves migrated BIM storefront
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -LfsS --max-time 30 -H 'User-Agent: ByGeorge-production-verifier/1.0' https://bim.georgegrissom.com/ -o /tmp/bim.html
+          grep -Fq 'Your model.' /tmp/bim.html
+          grep -Fq 'LESS REPETITION. MORE REVIT.' /tmp/bim.html
+          grep -Fq 'BYGEORGE / BIM' /tmp/bim.html
+          echo "Production storefront markers verified at https://bim.georgegrissom.com/"
+
+      - name: Verify project domain assignment
         shell: bash
         run: |
           set -euo pipefail
           body=$(curl -fsS --oauth2-bearer "$VERCEL_TOKEN" "https://api.vercel.com/v9/projects/${PROJECT_ID}/domains?teamId=${TEAM_ID}&limit=100")
           printf '%s' "$body" > /tmp/domains.json
-          node -e 'const b=require("/tmp/domains.json"); const d=(b.domains||[]).find(x=>x.name==="bim.georgegrissom.com"); if(!d||!d.verified){console.error("bim.georgegrissom.com is not verified on target project");process.exit(1)}; console.log(JSON.stringify({name:d.name,verified:d.verified,gitBranch:d.gitBranch||null}))'
+          node -e 'const b=require("/tmp/domains.json"); const d=(b.domains||[]).find(x=>x.name==="bim.georgegrissom.com"); if(!d||!d.verified){process.exit(1)}; console.log(JSON.stringify({name:d.name,verified:d.verified,gitBranch:d.gitBranch||null}))'
