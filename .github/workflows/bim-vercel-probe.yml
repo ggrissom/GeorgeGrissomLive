@@ -1,4 +1,4 @@
-name: Probe BIM Vercel ownership
+name: Prepare standalone BIM Vercel project
 
 on:
   push:
@@ -9,10 +9,11 @@ permissions:
   contents: read
 
 jobs:
-  probe:
+  prepare:
     runs-on: ubuntu-latest
     env:
       TEAM_ID: team_ANc1kIyqoKsaghBNgpGhMa7D
+      PROJECT_ID: prj_96bezO8lqJ1aRz9zkEAdjWekXhDf
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - name: Verify token
@@ -20,16 +21,23 @@ jobs:
         run: |
           test -n "$VERCEL_TOKEN" || { echo "VERCEL_TOKEN secret missing"; exit 1; }
 
-      - name: List projects and project domains safely
+      - name: Set Next.js project configuration
         shell: bash
         run: |
           set -euo pipefail
-          projects=$(curl -fsS --oauth2-bearer "$VERCEL_TOKEN" "https://api.vercel.com/v9/projects?teamId=${TEAM_ID}&limit=100")
-          printf '%s' "$projects" > /tmp/projects.json
-          node -e 'const p=require("/tmp/projects.json"); for(const x of p.projects||[]){console.log(JSON.stringify({id:x.id,name:x.name,framework:x.framework||null,repo:x.link?.repo||x.link?.repoId||null,repoType:x.link?.type||null,rootDirectory:x.rootDirectory||null}))}'
-          ids=$(node -e 'const p=require("/tmp/projects.json"); process.stdout.write((p.projects||[]).map(x=>x.id).join(" "))')
-          for id in $ids; do
-            body=$(curl -fsS --oauth2-bearer "$VERCEL_TOKEN" "https://api.vercel.com/v9/projects/${id}/domains?teamId=${TEAM_ID}&limit=100")
-            printf '%s' "$body" > /tmp/domains.json
-            PROJECT_ID="$id" node -e 'const b=require("/tmp/domains.json"); const d=(b.domains||[]).map(x=>({name:x.name,verified:x.verified,gitBranch:x.gitBranch||null})); if(d.length) console.log(JSON.stringify({projectId:process.env.PROJECT_ID,domains:d}))'
-          done
+          response=$(curl -fsS \
+            -X PATCH \
+            --oauth2-bearer "$VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"framework":"nextjs","buildCommand":"npm run build","installCommand":"npm install"}' \
+            "https://api.vercel.com/v9/projects/${PROJECT_ID}?teamId=${TEAM_ID}")
+          printf '%s' "$response" > /tmp/project.json
+          node -e 'const p=require("/tmp/project.json"); console.log(JSON.stringify({id:p.id,name:p.name,framework:p.framework,buildCommand:p.buildCommand,installCommand:p.installCommand,repo:p.link?.repo||null}))'
+
+      - name: Verify BIM domain remains assigned and verified
+        shell: bash
+        run: |
+          set -euo pipefail
+          body=$(curl -fsS --oauth2-bearer "$VERCEL_TOKEN" "https://api.vercel.com/v9/projects/${PROJECT_ID}/domains?teamId=${TEAM_ID}&limit=100")
+          printf '%s' "$body" > /tmp/domains.json
+          node -e 'const b=require("/tmp/domains.json"); const d=(b.domains||[]).find(x=>x.name==="bim.georgegrissom.com"); if(!d||!d.verified){console.error("bim.georgegrissom.com is not verified on target project");process.exit(1)}; console.log(JSON.stringify({name:d.name,verified:d.verified,gitBranch:d.gitBranch||null}))'
