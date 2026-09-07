@@ -1,0 +1,48 @@
+name: Probe BIM Vercel ownership
+
+on:
+  push:
+    branches:
+      - ops/bim-vercel-cutover
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      TEAM_ID: team_ANc1kIyqoKsaghBNgpGhMa7D
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Verify token
+        shell: bash
+        run: |
+          test -n "$VERCEL_TOKEN" || { echo "VERCEL_TOKEN secret missing"; exit 1; }
+
+      - name: List projects and project domains safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          projects=$(curl -fsS --oauth2-bearer "$VERCEL_TOKEN" "https://api.vercel.com/v9/projects?teamId=${TEAM_ID}&limit=100")
+          printf '%s' "$projects" > /tmp/projects.json
+          node <<'NODE'
+          const fs=require('fs');
+          const p=JSON.parse(fs.readFileSync('/tmp/projects.json','utf8'));
+          for(const x of p.projects||[]){
+            const repo=x.link?.repo || x.link?.repoId || null;
+            console.log(JSON.stringify({id:x.id,name:x.name,framework:x.framework||null,repo,repoType:x.link?.type||null,rootDirectory:x.rootDirectory||null}));
+          }
+          NODE
+
+          ids=$(node -e "const p=require('/tmp/projects.json'); console.log((p.projects||[]).map(x=>x.id).join(' '))")
+          for id in $ids; do
+            body=$(curl -fsS --oauth2-bearer "$VERCEL_TOKEN" "https://api.vercel.com/v9/projects/${id}/domains?teamId=${TEAM_ID}&limit=100")
+            PROJECT_ID="$id" DOMAIN_BODY="$body" node <<'NODE'
+            const b=JSON.parse(process.env.DOMAIN_BODY||'{}');
+            const domains=(b.domains||[]).map(d=>({name:d.name,verified:d.verified,gitBranch:d.gitBranch||null}));
+            if(domains.some(d=>d.name==='bim.georgegrissom.com') || domains.length){
+              console.log(JSON.stringify({projectId:process.env.PROJECT_ID,domains}));
+            }
+            NODE
+          done
