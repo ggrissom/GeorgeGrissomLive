@@ -1,9 +1,17 @@
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/db";
 import { publicEventsFromPerformanceCalendar } from "@/lib/public-events";
+import { ensureAudioCatalogSongs } from "@/lib/ensure-audio-catalog";
 import SiteShell from "./site-shell";
 
 export default async function Home() {
+  try {
+    await ensureAudioCatalogSongs();
+  } catch (error) {
+    // Never take the public site down just because the repair pass could not run.
+    console.error("Audio catalog repair failed", error);
+  }
+
   const [events, songs] = await Promise.all([
     publicEventsFromPerformanceCalendar(50),
     prisma.song.findMany({
