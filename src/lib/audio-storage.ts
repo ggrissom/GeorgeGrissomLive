@@ -115,12 +115,60 @@ async function readDriveAudio(fileId: string, range?: string | null): Promise<Au
   };
 }
 
+/**
+ * Link-shared Drive files can be delivered without a service account. This is
+ * the production fallback used by the jukebox when Vercel does not have Drive
+ * service-account credentials. The response must be actual media, never an
+ * HTML permission/login page.
+ */
+async function readPublicDriveAudio(fileId: string, range?: string | null): Promise<AudioFileResponse> {
+  const url = new URL("https://drive.usercontent.google.com/download");
+  url.searchParams.set("id", fileId);
+  url.searchParams.set("export", "download");
+  url.searchParams.set("confirm", "t");
+
+  const response = await fetch(url, {
+    redirect: "follow",
+    cache: "no-store",
+    headers: range ? { Range: range } : undefined
+  });
+  const contentType = response.headers.get("content-type") || "";
+  if (!response.ok || contentType.includes("text/html")) {
+    throw new Error(`Public Google Drive audio unavailable (${response.status}, ${contentType || "unknown type"}).`);
+  }
+
+  const body = Buffer.from(await response.arrayBuffer());
+  const status: 200 | 206 = response.status === 206 ? 206 : 200;
+  const contentRange = response.headers.get("content-range");
+  return {
+    body,
+    status,
+    headers: {
+      "Accept-Ranges": response.headers.get("accept-ranges") || "bytes",
+      "Content-Length": response.headers.get("content-length") || String(body.length),
+      ...(contentRange ? { "Content-Range": contentRange } : {})
+    }
+  };
+}
+
 export async function readAudioFile(source: AudioFileSource, range?: string | null) {
-  if (source.driveFileId && isGoogleDriveAudioConfigured()) {
-    return readDriveAudio(source.driveFileId, range);
+  if (source.driveFileId) {
+    if (isGoogleDriveAudioConfigured()) {
+      return readDriveAudio(source.driveFileId, range);
+    }
+
+    try {
+      return await readPublicDriveAudio(source.driveFileId, range);
+    } catch (driveError) {
+      if (!source.localPath) throw driveError;
+      try {
+        return await readLocalAudio(source.localPath, range);
+      } catch (localError) {
+        throw new AggregateError([driveError, localError], "Audio is unavailable from Google Drive and local storage.");
+      }
+    }
   }
-  if (source.localPath) {
-    return readLocalAudio(source.localPath, range);
-  }
+
+  if (source.localPath) return readLocalAudio(source.localPath, range);
   throw new Error("Audio file source is unavailable.");
 }
