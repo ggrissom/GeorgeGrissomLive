@@ -83,3 +83,32 @@ Known production problems requiring Claude via Perplexity ownership:
 - Custom-domain routing must be verified independently of Vercel preview success.
 
 Recommended next owner/task: Claude via Perplexity — inspect current `main`, all open PRs, production deployment/runtime/data/storage, then restore the full functional jukebox/catalog with durable audio delivery and production verification.
+
+## 2026-09-10 jukebox catalog + player repair
+
+Agent: ChatGPT
+
+Task: Put all seven documented MP3 catalog songs on the public site and update the image-based jukebox with the requested functional controls: previous, play/pause, next, mute, volume, star progress scrubber, and a scrollable picker list.
+
+Branch: `main`
+
+Starting commit: `52c591255899a769381d6b46c578231c97434eee`
+
+Ending implementation commit before this log entry: `bdb5711156de11da1c7d2af6ea5a4fe770963fcb`
+
+Files changed:
+
+- `src/lib/ensure-audio-catalog.ts` — non-destructive repair that creates only missing canonical rows for the seven documented audio assets.
+- `src/app/page.tsx` — runs the safe missing-row repair before loading public songs; failures are logged without taking the page down.
+- `src/components/reference-jukebox.tsx` — custom previous/play-pause/next/mute/volume controls, actual now-playing title tracking, seek/progress state, hidden native audio element, and scrollable picker behavior.
+- `src/components/reference-jukebox-player.module.css` — horizontal transport styling, star-shaped progress thumb, volume control, visible side scrollbar, and stable picker-row styling.
+
+Catalog assets preserved from `src/lib/audio-catalog.ts`: One Question; What a Shame; This Song Is About You; Damnit, Just You Hold On; Get In Loser; And Another Thing; Nose to the Grindstone.
+
+Database/storage effects: no destructive seed and no audio binaries added to the public repository. The site creates only missing Song rows from the existing seven-track canonical manifest when the public homepage runs. Existing song records are not overwritten.
+
+Calendar/Stripe effects: none intentionally changed.
+
+Verification: GitHub/Vercel status for implementation commit `bdb5711156de11da1c7d2af6ea5a4fe770963fcb` reached `success`. Production custom-domain rendering and actual browser audio playback still require an HTTP/browser smoke test because the available Vercel connector could not enumerate/fetch this project despite the GitHub Vercel deployment check succeeding.
+
+Recommended next task: browser smoke-test the production custom domain for seven visible songs and exercise selection, play/pause, previous/next, mute, volume, seeking, preview limit, and one full-track playback path before making additional visual changes.
