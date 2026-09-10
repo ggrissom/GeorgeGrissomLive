@@ -193,6 +193,8 @@
 .pickerRow {
   flex: 0 0 auto !important;
   min-height: clamp(1.12rem, 2vw, 1.55rem) !important;
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 @media (max-width: 760px) {
