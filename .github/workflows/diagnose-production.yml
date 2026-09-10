@@ -1,0 +1,46 @@
+name: Diagnose live Vercel production
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    env:
+      TEAM_ID: team_ANc1kIyqoKsaghBNgpGhMa7D
+      PROJECT_ID: prj_3kCNNEP697PhzwkDybYgsc2v4G72
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Inspect production project, domains, deployments and environment names
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VERCEL_TOKEN:-}" || { echo 'VERCEL_TOKEN missing'; exit 2; }
+          auth=(-H "Authorization: Bearer ${VERCEL_TOKEN}")
+
+          echo '=== PROJECT ==='
+          curl -fsS "https://api.vercel.com/v9/projects/${PROJECT_ID}?teamId=${TEAM_ID}" "${auth[@]}" \
+            | jq '{id,name,framework,rootDirectory,link,targets}'
+
+          echo '=== DOMAINS ==='
+          curl -fsS "https://api.vercel.com/v9/projects/${PROJECT_ID}/domains?teamId=${TEAM_ID}&limit=100" "${auth[@]}" \
+            | jq '{domains:[.domains[]|{name,verified,redirect,gitBranch,updatedAt}]}'
+
+          echo '=== RECENT DEPLOYMENTS ==='
+          curl -fsS "https://api.vercel.com/v6/deployments?projectId=${PROJECT_ID}&teamId=${TEAM_ID}&limit=12" "${auth[@]}" \
+            | jq '{deployments:[.deployments[]|{uid,url,state,target,created,meta:{githubCommitSha:.meta.githubCommitSha,githubCommitRef:.meta.githubCommitRef,githubCommitMessage:.meta.githubCommitMessage}}]}'
+
+          echo '=== REQUIRED ENV NAMES / TARGETS ONLY ==='
+          curl -fsS "https://api.vercel.com/v9/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" "${auth[@]}" \
+            | jq '{envs:[.envs[]|select(.key=="DATABASE_URL" or .key=="GOOGLE_SERVICE_ACCOUNT_EMAIL" or .key=="GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY" or .key=="NEXT_PUBLIC_SITE_URL")|{key,target,type}]}'
+
+          echo '=== LIVE DOMAIN MARKERS ==='
+          for host in georgegrissom.com www.georgegrissom.com live.georgegrissom.com; do
+            echo "--- ${host} ---"
+            curl -sSIL --max-time 15 "https://${host}/" | sed -n '1,20p' || true
+            curl -sSL --max-time 15 "https://${host}/" | grep -Eo 'Pick a song|Live music website concept rebuild|Three full plays|Jukebox' | head -8 || true
+          done
