@@ -1,5 +1,7 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/db";
+import { AUDIO_CATALOG } from "@/lib/audio-catalog";
 import { publicEventsFromPerformanceCalendar } from "@/lib/public-events";
 import { ensureAudioCatalogSongs } from "@/lib/ensure-audio-catalog";
 import SiteShell from "./site-shell";
@@ -8,18 +10,22 @@ export default async function Home() {
   try {
     await ensureAudioCatalogSongs();
   } catch (error) {
-    // Never take the public site down just because the repair pass could not run.
     console.error("Audio catalog repair failed", error);
   }
 
-  const [events, songs] = await Promise.all([
+  const catalogSlugs = AUDIO_CATALOG.map(track => track.slug);
+  const [events, databaseSongs] = await Promise.all([
     publicEventsFromPerformanceCalendar(50),
     prisma.song.findMany({
-      where: { isPublic: true },
-      orderBy: { title: "asc" },
-      take: 500
+      where: { slug: { in: catalogSlugs }, isPublic: true }
     })
   ]);
+
+  const songBySlug = new Map(databaseSongs.flatMap(song => song.slug ? [[song.slug, song] as const] : []));
+  const songs = AUDIO_CATALOG.flatMap(track => {
+    const song = songBySlug.get(track.slug);
+    return song ? [song] : [];
+  });
 
   return (
     <SiteShell
