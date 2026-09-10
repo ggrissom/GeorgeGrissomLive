@@ -15,7 +15,7 @@ jobs:
       PROJECT_ID: prj_3kCNNEP697PhzwkDybYgsc2v4G72
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - name: Inspect production project, domains, deployments and environment names
+      - name: Inspect and smoke-test production
         shell: bash
         run: |
           set -euo pipefail
@@ -24,23 +24,71 @@ jobs:
 
           echo '=== PROJECT ==='
           curl -fsS "https://api.vercel.com/v9/projects/${PROJECT_ID}?teamId=${TEAM_ID}" "${auth[@]}" \
-            | jq '{id,name,framework,rootDirectory,link,targets}'
+            | jq '{id,name,framework,rootDirectory,link:{type:.link.type,repo:.link.repo,org:.link.org,productionBranch:.link.productionBranch},targets:{production:{id:.targets.production.id,readyState:.targets.production.readyState,url:.targets.production.url,sha:.targets.production.meta.githubCommitSha}}}'
 
           echo '=== DOMAINS ==='
           curl -fsS "https://api.vercel.com/v9/projects/${PROJECT_ID}/domains?teamId=${TEAM_ID}&limit=100" "${auth[@]}" \
-            | jq '{domains:[.domains[]|{name,verified,redirect,gitBranch,updatedAt}]}'
-
-          echo '=== RECENT DEPLOYMENTS ==='
-          curl -fsS "https://api.vercel.com/v6/deployments?projectId=${PROJECT_ID}&teamId=${TEAM_ID}&limit=12" "${auth[@]}" \
-            | jq '{deployments:[.deployments[]|{uid,url,state,target,created,meta:{githubCommitSha:.meta.githubCommitSha,githubCommitRef:.meta.githubCommitRef,githubCommitMessage:.meta.githubCommitMessage}}]}'
+            | jq '{domains:[.domains[]|select(.name=="georgegrissom.com" or .name=="www.georgegrissom.com" or .name=="live.georgegrissom.com")|{name,verified,redirect,gitBranch}]}'
 
           echo '=== REQUIRED ENV NAMES / TARGETS ONLY ==='
           curl -fsS "https://api.vercel.com/v9/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" "${auth[@]}" \
             | jq '{envs:[.envs[]|select(.key=="DATABASE_URL" or .key=="GOOGLE_SERVICE_ACCOUNT_EMAIL" or .key=="GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY" or .key=="NEXT_PUBLIC_SITE_URL")|{key,target,type}]}'
 
-          echo '=== LIVE DOMAIN MARKERS ==='
-          for host in georgegrissom.com www.georgegrissom.com live.georgegrissom.com; do
-            echo "--- ${host} ---"
-            curl -sSIL --max-time 15 "https://${host}/" | sed -n '1,20p' || true
-            curl -sSL --max-time 15 "https://${host}/" | grep -Eo 'Pick a song|Live music website concept rebuild|Three full plays|Jukebox' | head -8 || true
+          echo '=== WAIT FOR THIS COMMIT IN PRODUCTION ==='
+          deployment_id=''
+          for attempt in $(seq 1 36); do
+            row=$(curl -fsS "https://api.vercel.com/v6/deployments?projectId=${PROJECT_ID}&teamId=${TEAM_ID}&limit=20" "${auth[@]}" \
+              | jq -c --arg sha "$GITHUB_SHA" '.deployments[] | select(.meta.githubCommitSha==$sha and .target=="production")' | head -1)
+            state=$(printf '%s' "$row" | jq -r '.state // empty')
+            deployment_id=$(printf '%s' "$row" | jq -r '.uid // empty')
+            echo "attempt=${attempt} deployment=${deployment_id:-none} state=${state:-none}"
+            if [ "$state" = 'READY' ]; then break; fi
+            if [ "$state" = 'ERROR' ] || [ "$state" = 'CANCELED' ]; then exit 1; fi
+            sleep 5
           done
+          test -n "$deployment_id"
+          test "$state" = 'READY'
+
+          echo '=== LIVE HOMEPAGE ==='
+          headers=$(mktemp)
+          body=$(mktemp)
+          curl -fsSL -D "$headers" -o "$body" 'https://georgegrissom.com/'
+          head -20 "$headers"
+          echo "song-title-count=$(grep -Eo 'One Question|What a Shame|This Song Is About You|Damnit, Just You Hold On|Get In Loser|And Another Thing|Nose to the Grindstone' "$body" | sort -u | wc -l)"
+          grep -Eo 'Pick a song|Live music website concept rebuild|Three full plays|Jukebox' "$body" | sort -u || true
+
+          echo '=== PUBLIC SONG API ==='
+          songs=$(mktemp)
+          curl -fsSL 'https://georgegrissom.com/api/songs' -o "$songs"
+          jq '[.[]|{id,slug,title,previewUrl,freePlayLimit}]' "$songs"
+          canonical_count=$(jq '[.[]|select(.slug=="one-question" or .slug=="what-a-shame" or .slug=="this-song-is-about-you" or .slug=="damnit-just-you-hold-on" or .slug=="get-in-loser" or .slug=="and-another-thing-screams" or .slug=="nose-to-the-grindstone")]|length' "$songs")
+          echo "canonical-public-count=$canonical_count"
+
+          echo '=== DIRECT DRIVE VISIBILITY ==='
+          for file_id in 1r7oOGiQgoWqnAvHnlm2msOInZ78YnyOV 1wrJfeUUIFt9p82gGvJMjak-PX4AOxRjP 15U25EQnz0DVAqOysyHK3ub9KSWzrwY9g; do
+            code=$(curl -sSL -r 0-1023 -o /tmp/drive.bin -D /tmp/drive.h -w '%{http_code}' "https://drive.usercontent.google.com/download?id=${file_id}&export=download&confirm=t")
+            type=$(grep -i '^content-type:' /tmp/drive.h | tail -1 | tr -d '\r' || true)
+            bytes=$(wc -c </tmp/drive.bin)
+            echo "$file_id HTTP=$code $type bytes=$bytes"
+          done
+
+          echo '=== END-TO-END FIRST TRACK PLAY ==='
+          first_id=$(jq -r '.[]|select(.slug=="one-question")|.id' "$songs" | head -1)
+          test -n "$first_id"
+          play=$(mktemp)
+          jar=$(mktemp)
+          play_code=$(curl -sS -c "$jar" -b "$jar" -X POST -o "$play" -w '%{http_code}' "https://georgegrissom.com/api/songs/${first_id}/play")
+          echo "play-http=$play_code"
+          jq '{mode,purchased,fullPlays,remainingFullPlays,audioUrl,error}' "$play"
+          test "$play_code" = '200'
+          audio_url=$(jq -r '.audioUrl // empty' "$play")
+          test -n "$audio_url"
+          audio_headers=$(mktemp)
+          audio_body=$(mktemp)
+          audio_code=$(curl -sS -c "$jar" -b "$jar" -r 0-4095 -D "$audio_headers" -o "$audio_body" -w '%{http_code}' "https://georgegrissom.com${audio_url}")
+          audio_type=$(grep -i '^content-type:' "$audio_headers" | tail -1 | tr -d '\r' || true)
+          audio_bytes=$(wc -c <"$audio_body")
+          echo "audio-http=$audio_code $audio_type bytes=$audio_bytes"
+          test "$audio_code" = '200' -o "$audio_code" = '206'
+          grep -qi '^content-type: audio/mpeg' "$audio_headers"
+          test "$audio_bytes" -gt 0
