@@ -2,11 +2,11 @@ import { prisma } from "@/lib/db";
 import { AUDIO_CATALOG } from "@/lib/audio-catalog";
 
 /**
- * Production-safe catalog repair: only creates canonical audio rows that are
- * missing from the database. Existing songs and their user/admin data are left
- * untouched. This prevents the jukebox from collapsing to the subset that
- * happened to be seeded previously without reintroducing destructive deploy
- * seeding.
+ * Production-safe canonical audio repair.
+ *
+ * It never deletes songs and never performs destructive deployment seeding.
+ * Missing canonical tracks are created, while existing canonical rows are only
+ * repaired when publication or audio-delivery fields would prevent playback.
  */
 export async function ensureAudioCatalogSongs() {
   const slugs = AUDIO_CATALOG.map(track => track.slug);
@@ -14,32 +14,64 @@ export async function ensureAudioCatalogSongs() {
 
   const existing = await prisma.song.findMany({
     where: { slug: { in: slugs } },
-    select: { slug: true }
+    select: {
+      id: true,
+      slug: true,
+      isPublic: true,
+      previewUrl: true,
+      audioPath: true,
+      downloadPath: true,
+      durationSeconds: true
+    }
   });
-  const existingSlugs = new Set(existing.map(song => song.slug).filter(Boolean));
-  const missing = AUDIO_CATALOG.filter(track => !existingSlugs.has(track.slug));
+  const bySlug = new Map(existing.flatMap(song => song.slug ? [[song.slug, song] as const] : []));
 
-  if (!missing.length) return;
+  for (const track of AUDIO_CATALOG) {
+    const song = bySlug.get(track.slug);
+    if (!song) {
+      await prisma.song.create({
+        data: {
+          slug: track.slug,
+          title: track.title,
+          artist: "George Grissom",
+          album: track.album,
+          durationSeconds: track.durationSeconds,
+          previewUrl: `/api/preview/${track.slug}`,
+          audioPath: track.fullPath,
+          downloadPath: track.fullPath,
+          audioUrl: null,
+          downloadPriceCents: 200,
+          requestable: true,
+          publicShortlist: true,
+          paidCatalog: true,
+          minTipCents: 0,
+          freePlayLimit: 3,
+          isPublic: true
+        }
+      });
+      continue;
+    }
 
-  await prisma.song.createMany({
-    data: missing.map(track => ({
-      slug: track.slug,
-      title: track.title,
-      artist: "George Grissom",
-      album: track.album,
-      durationSeconds: track.durationSeconds,
-      previewUrl: `/api/preview/${track.slug}`,
-      audioPath: track.fullPath,
-      downloadPath: track.fullPath,
-      audioUrl: null,
-      downloadPriceCents: 200,
-      requestable: true,
-      publicShortlist: true,
-      paidCatalog: true,
-      minTipCents: 0,
-      freePlayLimit: 3,
-      isPublic: true
-    })),
-    skipDuplicates: true
-  });
+    const expectedPreview = `/api/preview/${track.slug}`;
+    if (
+      !song.isPublic ||
+      song.previewUrl !== expectedPreview ||
+      song.audioPath !== track.fullPath ||
+      song.downloadPath !== track.fullPath ||
+      song.durationSeconds !== track.durationSeconds
+    ) {
+      await prisma.song.update({
+        where: { id: song.id },
+        data: {
+          isPublic: true,
+          previewUrl: expectedPreview,
+          audioPath: track.fullPath,
+          downloadPath: track.fullPath,
+          durationSeconds: track.durationSeconds,
+          requestable: true,
+          paidCatalog: true
+        }
+      });
+    }
+  }
 }
