@@ -34,6 +34,7 @@ Never put credentials, tokens, private keys, secrets, or payment data in this fi
 - Performance Calendar ID: `0d93f3b5191f80e930ce0cdb7249a796230adbd8ba2049e7e4e323ffc632cf68@group.calendar.google.com`
 - Audio manifest: `docs/audio-assets.json`
 - Audio catalog code: `src/lib/audio-catalog.ts`
+- Standalone player: `src/components/jukebox-player/`
 
 ## Audio source of truth
 
@@ -70,45 +71,43 @@ Smoke-test event visible in the Performance Calendar at this baseline: `SHOW at 
 
 Important open work:
 
-- PR #8: `Harden production path: preserve full catalog, disable destructive build seeding, and move uploads to durable storage`. This is a draft and should be rebased/reviewed against current `main`, not blindly merged.
+- PR #8: `Harden production path: preserve full catalog, disable destructive build seeding, and move uploads to durable storage`. This was subsequently merged on 2026-09-06.
 - PR #9: `Install and configure Vercel Web Analytics`. Lower priority than functional production repair.
-
-Known production problems requiring Claude via Perplexity ownership:
-
-- Production public catalog has collapsed to only a small subset / two songs in observed UI.
-- Audio playback/storage path is not reliably production-safe.
-- End-to-end jukebox behavior must be verified: catalog → selection → full/free play → preview → Stripe purchase → entitlement → download.
-- Build-time database mutation/destructive seeding must not be used.
-- Fan uploads need durable storage.
-- Custom-domain routing must be verified independently of Vercel preview success.
-
-Recommended next owner/task: Claude via Perplexity — inspect current `main`, all open PRs, production deployment/runtime/data/storage, then restore the full functional jukebox/catalog with durable audio delivery and production verification.
 
 ## 2026-09-10 jukebox catalog + player repair
 
 Agent: ChatGPT
 
-Task: Put all seven documented MP3 catalog songs on the public site and update the image-based jukebox with the requested functional controls: previous, play/pause, next, mute, volume, star progress scrubber, and a scrollable picker list.
+Task: Put all seven documented MP3 catalog songs on the public site and update the image-based jukebox with functional controls.
+
+Initial implementation commit before standalone extraction: `bdb5711156de11da1c7d2af6ea5a4fe770963fcb`.
+
+## 2026-09-10 standalone jukebox player integration
+
+Agent: ChatGPT
+
+Task: Move the jukebox player into its own self-contained GitHub folder in the existing repository, integrate that standalone module into the website, guarantee the canonical seven songs are published without duplicates, and improve production playback reliability.
 
 Branch: `main`
 
-Starting commit: `52c591255899a769381d6b46c578231c97434eee`
+Implementation:
 
-Ending implementation commit before this log entry: `bdb5711156de11da1c7d2af6ea5a4fe770963fcb`
+- `src/components/jukebox-player/JukeboxPlayer.tsx` — standalone player UI and HTMLAudioElement synchronization.
+- `src/components/jukebox-player/JukeboxPlayer.module.css` — player-local controls, progress, picker and skin-overlay styling.
+- `src/components/jukebox-player/player-state.ts` — dedupe and previous/next wrap behavior.
+- `src/components/jukebox-player/player-state.test.ts` — state regression tests.
+- `src/components/jukebox-player/index.ts` — standalone module export.
+- `src/components/reference-jukebox.tsx` is now only a compatibility re-export, so the existing website consumes the standalone module without duplicating implementation.
+- `src/lib/ensure-audio-catalog.ts` now creates missing canonical rows and repairs canonical rows that are unpublished or have broken delivery paths, without deleting unrelated songs.
+- `src/app/page.tsx` restricts and orders the public jukebox to the seven canonical `AUDIO_CATALOG` slugs, eliminating duplicate/placeholder rows from the player.
+- `src/lib/audio-storage.ts` prefers authenticated Google Drive delivery when configured and now attempts Google Drive link-shared media delivery before local fallback when service-account environment variables are absent.
 
-Files changed:
+Canonical picker tracks: One Question; What a Shame; This Song Is About You; Damnit, Just You Hold On; Get In Loser; And Another Thing; Nose to the Grindstone.
 
-- `src/lib/ensure-audio-catalog.ts` — non-destructive repair that creates only missing canonical rows for the seven documented audio assets.
-- `src/app/page.tsx` — runs the safe missing-row repair before loading public songs; failures are logged without taking the page down.
-- `src/components/reference-jukebox.tsx` — custom previous/play-pause/next/mute/volume controls, actual now-playing title tracking, seek/progress state, hidden native audio element, and scrollable picker behavior.
-- `src/components/reference-jukebox-player.module.css` — horizontal transport styling, star-shaped progress thumb, volume control, visible side scrollbar, and stable picker-row styling.
+Controls: previous, play/pause, next, enlarged mute/unmute speaker icon next to the volume slider, accurate elapsed/duration tracking, draggable star progress control, and a scrollable seven-song picker. Shuffle and repeat are not included.
 
-Catalog assets preserved from `src/lib/audio-catalog.ts`: One Question; What a Shame; This Song Is About You; Damnit, Just You Hold On; Get In Loser; And Another Thing; Nose to the Grindstone.
+Tests actually run: local Node 22 unit test cycle for `dedupeSongs` and `adjacentSongIndex`; test first failed because implementation was absent, then passed after implementation: 2 passed, 0 failed.
 
-Database/storage effects: no destructive seed and no audio binaries added to the public repository. The site creates only missing Song rows from the existing seven-track canonical manifest when the public homepage runs. Existing song records are not overwritten.
+Deployment verification: GitHub's Vercel status for code commit `6172f8d733cf448b32abebaf5cd3ec681292141f` reached `success`.
 
-Calendar/Stripe effects: none intentionally changed.
-
-Verification: GitHub/Vercel status for implementation commit `bdb5711156de11da1c7d2af6ea5a4fe770963fcb` reached `success`. Production custom-domain rendering and actual browser audio playback still require an HTTP/browser smoke test because the available Vercel connector could not enumerate/fetch this project despite the GitHub Vercel deployment check succeeding.
-
-Recommended next task: browser smoke-test the production custom domain for seven visible songs and exercise selection, play/pause, previous/next, mute, volume, seeking, preview limit, and one full-track playback path before making additional visual changes.
+Runtime verification limitation: the connected Vercel project/deployment inspection tools did not resolve this project and the Opera Browser Connector was not connected, so an actual production audio request was not exercised in this session. Do not claim browser playback is proven until it is exercised. The Drive no-credential fallback requires the referenced audio files to permit link-shared unauthenticated download; otherwise production must use the existing Google service-account environment variables or private durable blob delivery.
