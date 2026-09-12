@@ -10,7 +10,7 @@ import {
 } from "react";
 import { DEFAULT_MAX_TITLE_PX, fitSingleLineFontSize } from "@/lib/fit-single-line-text";
 import { adjacentSongIndex, dedupeSongs } from "./player-state";
-import styles from "./JukeboxPlayer.module.css";
+import styles from "./StardustSkin.module.css";
 
 export type JukeboxSong = {
   id: string;
@@ -228,10 +228,11 @@ export default function JukeboxPlayer({
       <div className={styles.skin}>
         <img
           className={styles.skinImage}
-          src="/images/reference-jukebox.png"
-          alt="George Grissom jukebox player"
+          src="/images/stardust-jukebox.webp"
+          alt="George Grissom Stardust Nights jukebox player"
           draggable={false}
         />
+        <div className={styles.deckMask} aria-hidden="true" />
 
         <div className={styles.transport} aria-label="Audio controls">
           <button type="button" className={styles.transportButton} onClick={() => moveSong(-1)} disabled={!playerSongs.length} aria-label="Previous song">⏮</button>
