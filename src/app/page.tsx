@@ -1,11 +1,27 @@
 export const dynamic = "force-dynamic";
 
-import { PUBLIC_TRACKS } from "@/lib/public-track-catalog";
+import { prisma } from "@/lib/db";
+import { ensurePublicPlayerCatalog } from "@/lib/ensure-public-player-catalog";
+import { normalizePlayerSeason } from "@/lib/public-track-catalog";
 import { publicEventsFromPerformanceCalendar } from "@/lib/public-events";
 import SiteShell from "./site-shell";
 
 export default async function Home() {
-  const events = await publicEventsFromPerformanceCalendar(50);
+  await ensurePublicPlayerCatalog();
+
+  const [events, songs] = await Promise.all([
+    publicEventsFromPerformanceCalendar(50),
+    prisma.song.findMany({
+      where: {
+        isPublic: true,
+        publicShortlist: true
+      },
+      orderBy: [
+        { album: "asc" },
+        { title: "asc" }
+      ]
+    })
+  ]);
 
   return (
     <SiteShell
@@ -19,7 +35,12 @@ export default async function Home() {
         state: event.state,
         notes: event.notes
       }))}
-      tracks={PUBLIC_TRACKS.map(({ slug, title, era }) => ({ slug, title, era }))}
+      tracks={songs.map(song => ({
+        id: song.id,
+        slug: song.slug,
+        title: song.title,
+        season: normalizePlayerSeason(song.album)
+      }))}
     />
   );
 }
