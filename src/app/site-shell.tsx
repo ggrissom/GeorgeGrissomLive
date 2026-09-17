@@ -150,7 +150,7 @@ export default function SiteShell({
 
     if (response.ok) {
       setBookingStatus("Inquiry received.");
-      event.currentTarget.reset();
+      formElement.reset();
     } else {
       setBookingStatus("Could not send. Try again in a moment.");
     }
