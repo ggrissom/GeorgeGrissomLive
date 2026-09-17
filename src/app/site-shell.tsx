@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import ReferenceJukebox, { JukeboxSongWheel } from "../components/reference-jukebox";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import styles from "./record-site.module.css";
 
 type EventRow = {
   id: string;
@@ -14,350 +14,369 @@ type EventRow = {
   notes?: string | null;
 };
 
-type SongRow = {
-  id: string;
-  slug?: string | null;
+type Track = {
+  slug: string;
   title: string;
-  artist?: string | null;
-  album?: string | null;
-  durationSeconds?: number | null;
-  genre?: string | null;
-  mood?: string | null;
-  tempoLabel?: string | null;
-  previewUrl?: string | null;
-  downloadPriceCents: number;
-  minTipCents: number;
-  freePlayLimit: number;
+  era: "now" | "archive";
 };
 
-export default function SiteShell({ initialEvents, initialSongs }: { initialEvents: EventRow[]; initialSongs: SongRow[] }) {
-  const [theme, setTheme] = useState("dark");
-  const [songs, setSongs] = useState<SongRow[]>(initialSongs);
-  const [events] = useState<EventRow[]>(initialEvents);
-  const [currentSong, setCurrentSong] = useState<SongRow | null>(null);
-  const [creditModal, setCreditModal] = useState(false);
-  const [toast, setToast] = useState("");
-  const [catalogUnlocked, setCatalogUnlocked] = useState(false);
-  const [plays, setPlays] = useState<Record<string, number>>({});
-  const [downloadUrls, setDownloadUrls] = useState<Record<string, string>>({});
+const wave = [34,52,44,72,62,38,58,78,46,66,84,54,42,74,91,66,48,70,55,81,63,44,73,88,51,69,39,76,58,83,47,72,93,60,42,67,79,53,70,86,46,61,77,55,89,64,48,74,58,82,45,68,90,57,41,73,85,52,62,76,49,71,87,56];
+
+export default function SiteShell({
+  initialEvents,
+  tracks
+}: {
+  initialEvents: EventRow[];
+  tracks: Track[];
+}) {
+  const [activeTrack, setActiveTrack] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "now" | "archive">("all");
+  const [progress, setProgress] = useState(0);
+  const [elapsed, setElapsed] = useState("0:00");
+  const [duration, setDuration] = useState("0:00");
+  const [bookingStatus, setBookingStatus] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const current = tracks[activeTrack];
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return tracks.filter(track => {
+      const eraMatch = filter === "all" || track.era === filter;
+      const textMatch = !q || track.title.toLowerCase().includes(q);
+      return eraMatch && textMatch;
+    });
+  }, [tracks, query, filter]);
+
+  const upcoming = useMemo(
+    () => initialEvents
+      .filter(event => new Date(event.startsAt).getTime() >= Date.now() - 86400000)
+      .sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt))
+      .slice(0, 6),
+    [initialEvents]
+  );
+
   useEffect(() => {
-    const savedTheme = localStorage.getItem("gg-theme") || "dark";
-    const unlocked = localStorage.getItem("gg-catalog-unlocked") === "1";
-    setTheme(savedTheme);
-    setCatalogUnlocked(unlocked);
-    document.documentElement.dataset.theme = savedTheme;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    const params = new URLSearchParams(location.search);
-    if (params.get("purchase") === "success") {
-      setToast("Purchase complete. The song is unlocked for full playback and download on this browser.");
-      history.replaceState({}, "", location.pathname + location.hash);
-    } else if (params.get("purchase") === "error") {
-      setToast("Payment could not be verified. No charge entitlement was granted.");
-      history.replaceState({}, "", location.pathname + location.hash);
-    }
-  }, []);
+    const update = () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        setProgress((audio.currentTime / audio.duration) * 100);
+        setElapsed(formatTime(audio.currentTime));
+        setDuration(formatTime(audio.duration));
+      }
+    };
+    const ended = () => nextTrack();
+    const pause = () => setPlaying(false);
+    const play = () => setPlaying(true);
 
-  useEffect(() => {
-    if (!catalogUnlocked) return;
-    fetch("/api/songs?unlock=1")
-      .then(res => res.json())
-      .then(setSongs)
-      .catch(() => {});
-  }, [catalogUnlocked]);
+    audio.addEventListener("timeupdate", update);
+    audio.addEventListener("loadedmetadata", update);
+    audio.addEventListener("ended", ended);
+    audio.addEventListener("pause", pause);
+    audio.addEventListener("play", play);
 
-  function changeTheme(next: string) {
-    setTheme(next);
-    document.documentElement.dataset.theme = next;
-    localStorage.setItem("gg-theme", next);
+    return () => {
+      audio.removeEventListener("timeupdate", update);
+      audio.removeEventListener("loadedmetadata", update);
+      audio.removeEventListener("ended", ended);
+      audio.removeEventListener("pause", pause);
+      audio.removeEventListener("play", play);
+    };
+  });
+
+  function selectTrack(track: Track) {
+    const index = tracks.findIndex(item => item.slug === track.slug);
+    if (index < 0) return;
+    setActiveTrack(index);
+    setTimeout(() => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.load();
+      audio.play().catch(() => setPlaying(false));
+    }, 0);
   }
 
-  async function playSong(song: SongRow) {
-    setCurrentSong(song);
-    const res = await fetch(`/api/songs/${encodeURIComponent(song.id)}/play`, { method: "POST" });
-    const data = await res.json();
-    if (!res.ok) {
-      setToast(data.error || "This song could not be played.");
-      return;
-    }
-
-    if (typeof data.fullPlays === "number") {
-      setPlays(prev => ({ ...prev, [song.id]: data.fullPlays }));
-    }
-    if (data.downloadUrl) {
-      setDownloadUrls(prev => ({ ...prev, [song.id]: data.downloadUrl }));
-    }
-
-    if (data.audioUrl && audioRef.current) {
-      audioRef.current.src = data.audioUrl;
-      await audioRef.current.play().catch(() => setToast("Browser blocked autoplay. Tap play on the player."));
-    }
-
-    if (data.mode === "preview") {
-      setCreditModal(true);
-      setToast(`${song.title}: three free full plays used. Playing the 30-second preview.`);
-    } else if (data.purchased) {
-      setToast(`${song.title} is purchased — unlimited full plays and download unlocked.`);
-    } else if (typeof data.remainingFullPlays === "number") {
-      const word = data.remainingFullPlays === 1 ? "play" : "plays";
-      setToast(`${song.title}: ${data.remainingFullPlays} free full ${word} remaining.`);
-    }
+  function togglePlay() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) audio.play().catch(() => setPlaying(false));
+    else audio.pause();
   }
 
-  async function buySong(song: SongRow) {
-    const res = await fetch("/api/checkout", {
+  function previousTrack() {
+    setActiveTrack(index => (index - 1 + tracks.length) % tracks.length);
+    setTimeout(() => audioRef.current?.play().catch(() => setPlaying(false)), 0);
+  }
+
+  function nextTrack() {
+    setActiveTrack(index => (index + 1) % tracks.length);
+    setTimeout(() => audioRef.current?.play().catch(() => setPlaying(false)), 0);
+  }
+
+  function seek(percent: number) {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(audio.duration)) return;
+    audio.currentTime = audio.duration * (percent / 100);
+  }
+
+  async function submitBooking(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBookingStatus("Sending…");
+    const form = new FormData(event.currentTarget);
+    const details = [
+      form.get("message"),
+      "",
+      "Location: " + (form.get("location") || "Not provided"),
+      "Event type: " + (form.get("eventType") || "Not provided"),
+      "Audience: " + (form.get("audience") || "Not provided"),
+      "Budget / fee range: " + (form.get("budget") || "Not provided")
+    ].join("\n");
+
+    const response = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "song_download", songId: song.id })
+      body: JSON.stringify({
+        name: form.get("name"),
+        email: form.get("email"),
+        phone: form.get("phone"),
+        date: form.get("date"),
+        venue: form.get("venue"),
+        message: details
+      })
     });
-    const data = await res.json();
-    if (data.checkoutUrl) {
-      location.href = data.checkoutUrl;
-      return;
-    }
-    setToast(data.message || data.error || "Checkout is unavailable.");
-  }
 
-  async function playPreview(song: SongRow) {
-    if (!song.previewUrl || !audioRef.current) {
-      setToast("Preview unavailable for this song.");
-      return;
+    if (response.ok) {
+      setBookingStatus("Inquiry received.");
+      event.currentTarget.reset();
+    } else {
+      setBookingStatus("Could not send. Try again in a moment.");
     }
-    setCurrentSong(song);
-    audioRef.current.src = song.previewUrl;
-    await audioRef.current.play().catch(() => setToast("Browser blocked autoplay. Tap play on the player."));
-    setCreditModal(false);
-  }
-
-  function venueSearch(event: EventRow) {
-    const query = encodeURIComponent([event.venueName, event.city, event.state].filter(Boolean).join(" "));
-    window.open(`https://www.google.com/search?q=${query}`, "_blank", "noopener,noreferrer");
   }
 
   return (
-    <>
-      <div className="stage-bg" aria-hidden="true" />
-      <header className="site-header">
-        <a className="brand" href="#top" aria-label="George Grissom Live home">
-          <span className="mic">🎙️</span>
-          <span>
-            <strong>George Grissom</strong>
-            <small>Dive-bar soul · Winery daylight · Jukebox attitude</small>
-          </span>
-        </a>
-        <nav>
-          <a href="#jukebox">Jukebox</a>
-          <a href="#calendar">Calendar</a>
-          <a href="#requests">Requests</a>
-          <a href="#promote">Promote</a>
-          <a href="#uploads">Uploads</a>
-          <a href="#booking">Booking</a>
-          <a href="/admin">Admin</a>
-        </nav>
-        <button className="ghost" onClick={() => changeTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? "☀️" : "🌙"}</button>
-      </header>
+    <div className={styles.site}>
+      <audio ref={audioRef} src={current ? `/api/public-audio/${encodeURIComponent(current.slug)}` : undefined} preload="metadata" />
 
-      <aside className="jukebox-scene reference-jukebox-scene" aria-label="Jukebox player">
-        <ReferenceJukebox
-          songs={songs}
-          plays={plays}
-          catalogUnlocked={catalogUnlocked}
-          currentSong={currentSong}
-          selectedSongId={currentSong?.id}
-          onSelect={setCurrentSong}
-          onPlay={playSong}
-          audioRef={audioRef}
-        />
+      <aside className={styles.rail} aria-label="Site navigation">
+        <a className={styles.railMark} href="#home" aria-label="George Grissom home">GG</a>
+        <nav>
+          <a href="#home" title="Home">⌂</a>
+          <a href="#chapters" title="Story">◇</a>
+          <a href="#music" title="Music">▤</a>
+          <a href="#shows" title="Shows">▦</a>
+          <a href="#booking" title="Booking">＋</a>
+        </nav>
       </aside>
 
-      <main id="top">
-        <section className="hero snap">
-          <div className="copy">
-            <p className="eyebrow">George Grissom Live</p>
-            <h1>Pick a song. Three full plays are on the house.</h1>
-            <p>After the third full play, the jukebox switches that song to a 30-second preview. Own the MP3 for $2 and unlock unlimited full playback plus download.</p>
-            <div className="actions">
-              <a className="button" href="#jukebox">Open the jukebox</a>
-              <a className="button secondary" href="#requests">Request a live song</a>
+      <main className={styles.main}>
+        <section id="home" className={styles.hero}>
+          <div className={styles.heroTexture} />
+          <div className={styles.heroContent}>
+            <p className={styles.kicker}>SEATTLE · SONGWRITER · PERFORMER</p>
+            <h1>George<br />Grissom</h1>
+            <p className={styles.lead}>Three chapters. One catalog. Music built for loud rooms, close rooms, and everything between.</p>
+            <div className={styles.actions}>
+              <button onClick={togglePlay} className={styles.primary}>{playing ? "Pause" : "Listen now"}</button>
+              <a href="#shows" className={styles.secondary}>Shows</a>
+              <a href="#booking" className={styles.secondary}>Book George</a>
             </div>
-            {toast && <p className="toast">{toast}</p>}
+          </div>
+          <div className={styles.heroMonogram} aria-hidden="true">
+            <span>G</span><span>G</span>
           </div>
         </section>
 
-        <section id="jukebox" className="card-section snap">
-          <div className="panel">
-            <p className="eyebrow">Jukebox</p>
-            <h2>Spin the wheel, pick the center title, then play.</h2>
-            <p className="muted">Every track includes three free full plays per visitor. After that: 30-second previews, or buy the MP3 for $2.</p>
-            <JukeboxSongWheel
-              songs={songs}
-              plays={plays}
-              catalogUnlocked={catalogUnlocked}
-              selectedSongId={currentSong?.id}
-              onSelect={setCurrentSong}
-              onPlay={playSong}
-              visibleRadius={5}
-            />
-            {currentSong && (
-              <div className="actions">
-                <button className="button" onClick={() => buySong(currentSong)}>Buy MP3 · ${(currentSong.downloadPriceCents / 100).toFixed(2)}</button>
-                {currentSong.previewUrl && <button className="button secondary" onClick={() => playPreview(currentSong)}>30-sec preview</button>}
-                {downloadUrls[currentSong.id] && <a className="button secondary" href={downloadUrls[currentSong.id]}>Download purchased MP3</a>}
+        <section id="chapters" className={styles.section}>
+          <div className={styles.sectionHeading}>
+            <div>
+              <p className={styles.kicker}>THE LONG VERSION, CUT SHORT</p>
+              <h2>Three seasons</h2>
+            </div>
+            <p>Not a reinvention. A through-line—from Seattle stages, to stripped-down rooms, to the recordings and performances happening now.</p>
+          </div>
+
+          <div className={styles.chapterGrid}>
+            <article className={styles.chapter}>
+              <span className={styles.chapterNo}>01</span>
+              <p className={styles.chapterLabel}>COUNTERFIST</p>
+              <h3>The band years</h3>
+              <p>George fronted Seattle progressive/alternative rock band Counterfist. The catalog includes <em>Chiral</em>, <em>Vertical Mile</em>, and the <em>Give Up the Ghost</em> EP, with documented Seattle shows at The Showbox, Neumos, and El Corazón.</p>
+              <div className={styles.textLinks}>
+                <a href="https://music.apple.com/us/artist/counterfist/449060552" target="_blank" rel="noreferrer">Apple Music ↗</a>
+                <a href="https://open.spotify.com/artist/0v55V86JsnB0FjvSlfkHzW" target="_blank" rel="noreferrer">Spotify ↗</a>
               </div>
-            )}
+            </article>
+
+            <article className={styles.chapter}>
+              <span className={styles.chapterNo}>02</span>
+              <p className={styles.chapterLabel}>SOLO / ACOUSTIC</p>
+              <h3>The room gets closer</h3>
+              <p>Electric history stripped to voice, guitar, rhythm, and the song itself. Built for intimate rooms where the performance has nowhere to hide.</p>
+              <a className={styles.inlineCta} href="#music">Hear the recordings →</a>
+            </article>
+
+            <article className={styles.chapter}>
+              <span className={styles.chapterNo}>03</span>
+              <p className={styles.chapterLabel}>GEORGE GRISSOM LIVE</p>
+              <h3>What is happening now</h3>
+              <p>Current originals, works in progress, live dates, and the evolving archive. The player below opens the full working catalog currently online.</p>
+              <a className={styles.inlineCta} href="#shows">See upcoming dates →</a>
+            </article>
           </div>
         </section>
 
-        <section id="calendar" className="card-section snap light-scene">
-          <div className="panel">
-            <p className="eyebrow">Calendar</p>
-            <h2>Upcoming dates</h2>
-            <p className="muted">Dates are pulled from the Performance Google Calendar when configured, while this page keeps the custom site styling.</p>
-            <div className="event-list">
-              {events.length === 0 && <p>No public dates yet. Add shows in the admin dashboard.</p>}
-              {events.map(event => (
-                <article className="event" key={event.id}>
-                  <time>{new Date(event.startsAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</time>
-                  <button onClick={() => venueSearch(event)}>{event.venueName}</button>
-                  <span>{[event.city, event.state].filter(Boolean).join(", ") || event.title}</span>
-                  {event.notes && <p>{event.notes}</p>}
-                </article>
-              ))}
+        <section id="music" className={styles.section}>
+          <div className={styles.sectionHeading}>
+            <div>
+              <p className={styles.kicker}>THE RECORDS + THE WORKBENCH</p>
+              <h2>Music</h2>
             </div>
+            <p>{tracks.length} playable files from the current master inventory. No paywall here; sales comes next.</p>
+          </div>
+
+          <div className={styles.musicTools}>
+            <div className={styles.filters}>
+              <button className={filter === "all" ? styles.activeFilter : ""} onClick={() => setFilter("all")}>All</button>
+              <button className={filter === "now" ? styles.activeFilter : ""} onClick={() => setFilter("now")}>Current / solo</button>
+              <button className={filter === "archive" ? styles.activeFilter : ""} onClick={() => setFilter("archive")}>Counterfist archive</button>
+            </div>
+            <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tracks" aria-label="Search tracks" />
+          </div>
+
+          <div className={styles.trackGrid}>
+            {filtered.map(track => {
+              const index = tracks.findIndex(item => item.slug === track.slug);
+              const selected = index === activeTrack;
+              return (
+                <button key={track.slug} className={selected ? styles.trackActive : styles.track} onClick={() => selectTrack(track)}>
+                  <span className={styles.trackIndex}>{String(index + 1).padStart(2, "0")}</span>
+                  <span className={styles.trackTitle}>{track.title}</span>
+                  <span className={styles.trackEra}>{track.era === "archive" ? "ARCHIVE" : "PLAY"}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className={styles.releaseStrip}>
+            <article>
+              <span>2001</span><strong>Chiral</strong><p>Counterfist</p>
+            </article>
+            <article>
+              <span>2008</span><strong>Vertical Mile</strong><p>Counterfist</p>
+              <a href="https://open.spotify.com/album/4NtQ8p7GN8aZH0JjkFqh4f" target="_blank" rel="noreferrer">Listen ↗</a>
+            </article>
+            <article>
+              <span>2011</span><strong>Give Up the Ghost</strong><p>Counterfist EP</p>
+              <a href="https://music.apple.com/us/album/give-up-the-ghost-ep/1063852643" target="_blank" rel="noreferrer">Listen ↗</a>
+            </article>
           </div>
         </section>
 
-        <section id="requests" className="card-section snap">
-          <RequestForm songs={songs.filter(song => song.id)} events={events} setToast={setToast} />
-        </section>
+        <section id="shows" className={styles.showSection}>
+          <div className={styles.showGlow} />
+          <div className={styles.sectionHeading}>
+            <div>
+              <p className={styles.kicker}>LIVE</p>
+              <h2>Upcoming shows</h2>
+            </div>
+            <p>Public dates from George's performance calendar.</p>
+          </div>
 
-        <section id="promote" className="card-section snap daytime">
-          <div className="panel">
-            <p className="eyebrow">Promote Me</p>
-            <h2>Post a live clip or photo, then claim a free request.</h2>
-            <p>Fans can add a promo link in their request message. In the admin queue, promoted requests get a small priority bump for review.</p>
-            <a className="button" href="#requests">Claim through a request</a>
+          <div className={styles.events}>
+            {upcoming.length === 0 && (
+              <article className={styles.emptyEvent}>
+                <span>NEW DATES</span>
+                <h3>More shows are being added.</h3>
+                <a href="#booking">Book a date →</a>
+              </article>
+            )}
+            {upcoming.map(event => (
+              <article className={styles.eventCard} key={event.id}>
+                <time>
+                  <strong>{new Date(event.startsAt).toLocaleDateString("en-US", { day: "2-digit" })}</strong>
+                  <span>{new Date(event.startsAt).toLocaleDateString("en-US", { month: "short" }).toUpperCase()}</span>
+                </time>
+                <div>
+                  <p>{event.title}</p>
+                  <h3>{event.venueName}</h3>
+                  <span>{[event.city, event.state].filter(Boolean).join(", ")}</span>
+                </div>
+                <span className={styles.eventTime}>{new Date(event.startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+              </article>
+            ))}
           </div>
         </section>
 
-        <section id="uploads" className="card-section snap">
-          <FanUploadForm events={events} setToast={setToast} />
+        <section id="booking" className={styles.bookingSection}>
+          <div className={styles.bookingIntro}>
+            <p className={styles.kicker}>BOOKING</p>
+            <h2>Put a date on the calendar.</h2>
+            <p>Venue, private event, winery, bar, listening room, or something that does not fit neatly into a category.</p>
+          </div>
+
+          <form className={styles.bookingForm} onSubmit={submitBooking}>
+            <label>Name<input name="name" required /></label>
+            <label>Email<input name="email" type="email" /></label>
+            <label>Phone<input name="phone" /></label>
+            <label>Date<input name="date" type="date" /></label>
+            <label>Venue / event<input name="venue" /></label>
+            <label>City / location<input name="location" /></label>
+            <label>Event type<input name="eventType" placeholder="Venue, private event, winery…" /></label>
+            <label>Estimated audience<input name="audience" /></label>
+            <label>Budget / fee range<input name="budget" /></label>
+            <label className={styles.fullField}>Tell me about the gig<textarea name="message" rows={5} /></label>
+            <div className={styles.formFooter}>
+              <button className={styles.primary} type="submit">Send inquiry</button>
+              <span>{bookingStatus}</span>
+            </div>
+          </form>
         </section>
 
-        <section id="booking" className="card-section snap daytime">
-          <BookingForm setToast={setToast} />
-        </section>
+        <footer className={styles.footer}>
+          <strong>GEORGE GRISSOM</strong>
+          <span>Seattle, Washington</span>
+          <div>
+            <a href="#music">Music</a>
+            <a href="#shows">Shows</a>
+            <a href="#booking">Booking</a>
+          </div>
+          <small>© {new Date().getFullYear()} George Grissom</small>
+        </footer>
       </main>
 
-      {creditModal && currentSong && (
-        <div className="modal-backdrop" onMouseDown={(event) => {
-          if (event.currentTarget === event.target) setCreditModal(false);
-        }}>
-          <div className="modal" role="dialog" aria-modal="true">
-            <h2>Three full plays used</h2>
-            <p>{currentSong.title} is now limited to a 30-second preview on this browser. Buy the MP3 for $2 to unlock unlimited full playback and download.</p>
-            <div className="actions">
-              <button className="button" onClick={() => buySong(currentSong)}>Buy & download · $2</button>
-              <button className="button secondary" onClick={() => playPreview(currentSong)}>Play 30-sec preview</button>
-              <button className="button secondary" onClick={() => setCreditModal(false)}>Close</button>
-            </div>
-          </div>
+      <div className={styles.player} aria-label="Music player">
+        <div className={styles.playerIdentity}>
+          <span className={styles.playerMark}>GG</span>
+          <div><strong>{current?.title || "Select a track"}</strong><small>{current?.era === "archive" ? "Counterfist archive" : "George Grissom"}</small></div>
         </div>
-      )}
-    </>
+
+        <div className={styles.controls}>
+          <button onClick={previousTrack} aria-label="Previous track">‹</button>
+          <button className={styles.playButton} onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>{playing ? "Ⅱ" : "▶"}</button>
+          <button onClick={nextTrack} aria-label="Next track">›</button>
+        </div>
+
+        <div className={styles.wave} onClick={event => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          seek(((event.clientX - rect.left) / rect.width) * 100);
+        }}>
+          {wave.map((height, index) => (
+            <i key={index} style={{ height: `${height}%` }} className={(index / wave.length) * 100 <= progress ? styles.wavePlayed : ""} />
+          ))}
+        </div>
+
+        <div className={styles.time}><span>{elapsed}</span><b>/</b><span>{duration}</span></div>
+      </div>
+    </div>
   );
 }
 
-function RequestForm({ songs, events, setToast }: { songs: SongRow[]; events: EventRow[]; setToast: (value: string) => void }) {
-  const [loading, setLoading] = useState(false);
-
-  async function submit(formData: FormData) {
-    setLoading(true);
-    const tip = Math.round(Number(formData.get("tipAmount") || "0") * 100);
-    const body = {
-      songId: formData.get("songId") || null,
-      eventId: formData.get("eventId") || null,
-      customSongTitle: formData.get("customSongTitle"),
-      requesterName: formData.get("requesterName"),
-      message: formData.get("message"),
-      tipAmountCents: tip,
-      promoteUrl: formData.get("promoteUrl")
-    };
-    const res = await fetch("/api/requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const data = await res.json();
-    setLoading(false);
-    if (data.checkoutUrl) location.href = data.checkoutUrl;
-    else setToast(data.demoMode ? "Request submitted in demo/manual-payment mode." : "Request submitted.");
-  }
-
-  return (
-    <form className="panel form" action={submit}>
-      <p className="eyebrow">Setlist & Requests</p>
-      <h2>Request a song for the live queue.</h2>
-      <select name="eventId" defaultValue="">
-        <option value="">Tonight / no event selected</option>
-        {events.map(event => <option key={event.id} value={event.id}>{new Date(event.startsAt).toLocaleDateString()} · {event.venueName}</option>)}
-      </select>
-      <select name="songId" defaultValue="">
-        <option value="">Pick from visible list</option>
-        {songs.map(song => <option key={song.id} value={song.id}>{song.title} — {song.artist || "George Grissom"}</option>)}
-      </select>
-      <input name="customSongTitle" placeholder="Or type a song not shown" />
-      <input name="requesterName" placeholder="Your name" />
-      <input name="tipAmount" type="number" min="0" step="0.25" placeholder="Tip amount, e.g. 5.00" />
-      <input name="promoteUrl" placeholder="Promo post link, optional" />
-      <textarea name="message" placeholder="Message for George" />
-      <button className="button" disabled={loading}>{loading ? "Submitting..." : "Send request / tip"}</button>
-      <p className="muted">The audience cannot see George’s private live setlist.</p>
-    </form>
-  );
-}
-
-function FanUploadForm({ events, setToast }: { events: EventRow[]; setToast: (value: string) => void }) {
-  const [loading, setLoading] = useState(false);
-
-  async function submit(formData: FormData) {
-    setLoading(true);
-    const res = await fetch("/api/uploads", { method: "POST", body: formData });
-    setLoading(false);
-    setToast(res.ok ? "Upload received. George/admin can approve it before it appears publicly." : "Upload failed.");
-  }
-
-  return (
-    <form className="panel form" action={submit}>
-      <p className="eyebrow">Photos & Video</p>
-      <h2>Send show media to George.</h2>
-      <select name="eventId" defaultValue="">
-        <option value="">Select event, optional</option>
-        {events.map(event => <option key={event.id} value={event.id}>{new Date(event.startsAt).toLocaleDateString()} · {event.venueName}</option>)}
-      </select>
-      <input name="uploaderName" placeholder="Your name" />
-      <input name="file" type="file" accept="image/*,video/*,audio/*" required />
-      <textarea name="note" placeholder="What should George know about this upload?" />
-      <button className="button" disabled={loading}>{loading ? "Uploading..." : "Upload for review"}</button>
-    </form>
-  );
-}
-
-function BookingForm({ setToast }: { setToast: (value: string) => void }) {
-  async function submit(formData: FormData) {
-    const body = Object.fromEntries(formData.entries());
-    const res = await fetch("/api/bookings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    setToast(res.ok ? "Booking inquiry sent." : "Booking inquiry failed.");
-  }
-
-  return (
-    <form className="panel form" action={submit}>
-      <p className="eyebrow">Booking</p>
-      <h2>Book George Grissom.</h2>
-      <input name="name" placeholder="Your name" required />
-      <input name="email" type="email" placeholder="Email" />
-      <input name="phone" placeholder="Phone" />
-      <input name="date" placeholder="Event date" />
-      <input name="venue" placeholder="Venue / event" />
-      <textarea name="message" placeholder="Tell us about the gig" />
-      <button className="button">Send booking inquiry</button>
-    </form>
-  );
+function formatTime(seconds: number) {
+  if (!Number.isFinite(seconds)) return "0:00";
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.floor(seconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${rest}`;
 }
