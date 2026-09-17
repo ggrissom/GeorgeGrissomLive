@@ -185,7 +185,7 @@ export default function SiteShell({
             <h1>George<br />Grissom</h1>
             <p className={styles.lead}>Three chapters. One catalog. Music built for loud rooms, close rooms, and everything between.</p>
             <div className={styles.actions}>
-              <button onClick={togglePlay} className={styles.primary}>{playing ? "Pause" : "Listen now"}</button>
+              <a href="#music" className={styles.primary}>Listen Now</a>
               <a href="#shows" className={styles.secondary}>Shows</a>
               <a href="#booking" className={styles.secondary}>Book George</a>
             </div>
