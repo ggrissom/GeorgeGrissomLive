@@ -14,10 +14,13 @@ type EventRow = {
   notes?: string | null;
 };
 
+type PlayerSeason = "Counterfist Archive" | "From the Setlist" | "A Taste for Crow" | "Unsorted";
+
 type Track = {
-  slug: string;
+  id: string;
+  slug?: string | null;
   title: string;
-  era: "now" | "archive";
+  season: PlayerSeason;
 };
 
 const wave = [34,52,44,72,62,38,58,78,46,66,84,54,42,74,91,66,48,70,55,81,63,44,73,88,51,69,39,76,58,83,47,72,93,60,42,67,79,53,70,86,46,61,77,55,89,64,48,74,58,82,45,68,90,57,41,73,85,52,62,76,49,71,87,56];
@@ -32,7 +35,7 @@ export default function SiteShell({
   const [activeTrack, setActiveTrack] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "now" | "archive">("all");
+  const [filter, setFilter] = useState<"all" | "Counterfist Archive" | "From the Setlist" | "A Taste for Crow">("all");
   const [progress, setProgress] = useState(0);
   const [elapsed, setElapsed] = useState("0:00");
   const [duration, setDuration] = useState("0:00");
@@ -43,7 +46,7 @@ export default function SiteShell({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return tracks.filter(track => {
-      const eraMatch = filter === "all" || track.era === filter;
+      const eraMatch = filter === "all" || track.season === filter;
       const textMatch = !q || track.title.toLowerCase().includes(q);
       return eraMatch && textMatch;
     });
@@ -88,7 +91,7 @@ export default function SiteShell({
   });
 
   function selectTrack(track: Track) {
-    const index = tracks.findIndex(item => item.slug === track.slug);
+    const index = tracks.findIndex(item => item.id === track.id);
     if (index < 0) return;
     setActiveTrack(index);
     setTimeout(() => {
@@ -107,11 +110,13 @@ export default function SiteShell({
   }
 
   function previousTrack() {
+    if (!tracks.length) return;
     setActiveTrack(index => (index - 1 + tracks.length) % tracks.length);
     setTimeout(() => audioRef.current?.play().catch(() => setPlaying(false)), 0);
   }
 
   function nextTrack() {
+    if (!tracks.length) return;
     setActiveTrack(index => (index + 1) % tracks.length);
     setTimeout(() => audioRef.current?.play().catch(() => setPlaying(false)), 0);
   }
@@ -125,7 +130,8 @@ export default function SiteShell({
   async function submitBooking(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBookingStatus("Sending…");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const details = [
       form.get("message"),
       "",
@@ -158,7 +164,7 @@ export default function SiteShell({
 
   return (
     <div className={styles.site}>
-      <audio ref={audioRef} src={current ? `/api/public-audio/${encodeURIComponent(current.slug)}` : undefined} preload="metadata" />
+      <audio ref={audioRef} src={current ? `/api/public-audio/${encodeURIComponent(current.id)}` : undefined} preload="metadata" />
 
       <aside className={styles.rail} aria-label="Site navigation">
         <a className={styles.railMark} href="#home" aria-label="George Grissom home">GG</a>
@@ -212,17 +218,17 @@ export default function SiteShell({
 
             <article className={styles.chapter}>
               <span className={styles.chapterNo}>02</span>
-              <p className={styles.chapterLabel}>SOLO / ACOUSTIC</p>
-              <h3>The room gets closer</h3>
-              <p>Electric history stripped to voice, guitar, rhythm, and the song itself. Built for intimate rooms where the performance has nowhere to hide.</p>
+              <p className={styles.chapterLabel}>FROM THE SETLIST</p>
+              <h3>The bar-room years</h3>
+              <p>Covers George plays out in bars and rooms around the Northwest—songs built to work live, stripped to voice, guitar, rhythm, and the crowd.</p>
               <a className={styles.inlineCta} href="#music">Hear the recordings →</a>
             </article>
 
             <article className={styles.chapter}>
               <span className={styles.chapterNo}>03</span>
-              <p className={styles.chapterLabel}>GEORGE GRISSOM LIVE</p>
-              <h3>What is happening now</h3>
-              <p>Current originals, works in progress, live dates, and the evolving archive. The player below opens the full working catalog currently online.</p>
+              <p className={styles.chapterLabel}>A TASTE FOR CROW</p>
+              <h3>The newest season</h3>
+              <p>Current originals, works in progress, and the songs taking shape as <em>A Taste for Crow</em>. The public player below follows the catalog you choose in admin.</p>
               <a className={styles.inlineCta} href="#shows">See upcoming dates →</a>
             </article>
           </div>
@@ -234,27 +240,29 @@ export default function SiteShell({
               <p className={styles.kicker}>THE RECORDS + THE WORKBENCH</p>
               <h2>Music</h2>
             </div>
-            <p>{tracks.length} playable files from the current master inventory. No paywall here; sales comes next.</p>
+            <p>{tracks.length} songs are live right now. Add, remove, or re-season them from the private admin dashboard.</p>
           </div>
 
           <div className={styles.musicTools}>
             <div className={styles.filters}>
-              <button className={filter === "all" ? styles.activeFilter : ""} onClick={() => setFilter("all")}>All</button>
-              <button className={filter === "now" ? styles.activeFilter : ""} onClick={() => setFilter("now")}>Current / solo</button>
-              <button className={filter === "archive" ? styles.activeFilter : ""} onClick={() => setFilter("archive")}>Counterfist archive</button>
+              <button className={filter === "all" ? styles.activeFilter : ""} onClick={() => setFilter("all")}>ALL</button>
+              <button className={filter === "Counterfist Archive" ? styles.activeFilter : ""} onClick={() => setFilter("Counterfist Archive")}>Counterfist Archive</button>
+              <button className={filter === "From the Setlist" ? styles.activeFilter : ""} onClick={() => setFilter("From the Setlist")}>From the Setlist</button>
+              <button className={filter === "A Taste for Crow" ? styles.activeFilter : ""} onClick={() => setFilter("A Taste for Crow")}>A Taste for Crow</button>
             </div>
             <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tracks" aria-label="Search tracks" />
           </div>
 
           <div className={styles.trackGrid}>
             {filtered.map(track => {
-              const index = tracks.findIndex(item => item.slug === track.slug);
+              const index = tracks.findIndex(item => item.id === track.id);
               const selected = index === activeTrack;
+              const tag = track.season === "Counterfist Archive" ? "ARCHIVE" : track.season === "From the Setlist" ? "SETLIST" : "CROW";
               return (
-                <button key={track.slug} className={selected ? styles.trackActive : styles.track} onClick={() => selectTrack(track)}>
+                <button key={track.id} className={selected ? styles.trackActive : styles.track} onClick={() => selectTrack(track)}>
                   <span className={styles.trackIndex}>{String(index + 1).padStart(2, "0")}</span>
                   <span className={styles.trackTitle}>{track.title}</span>
-                  <span className={styles.trackEra}>{track.era === "archive" ? "ARCHIVE" : "PLAY"}</span>
+                  <span className={styles.trackEra}>{tag}</span>
                 </button>
               );
             })}
@@ -342,6 +350,7 @@ export default function SiteShell({
             <a href="#music">Music</a>
             <a href="#shows">Shows</a>
             <a href="#booking">Booking</a>
+            <a href="/admin/login">Admin</a>
           </div>
           <small>© {new Date().getFullYear()} George Grissom</small>
         </footer>
@@ -350,7 +359,7 @@ export default function SiteShell({
       <div className={styles.player} aria-label="Music player">
         <div className={styles.playerIdentity}>
           <span className={styles.playerMark}>GG</span>
-          <div><strong>{current?.title || "Select a track"}</strong><small>{current?.era === "archive" ? "Counterfist archive" : "George Grissom"}</small></div>
+          <div><strong>{current?.title || "Select a track"}</strong><small>{current?.season || "George Grissom"}</small></div>
         </div>
 
         <div className={styles.controls}>
