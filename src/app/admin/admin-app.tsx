@@ -45,8 +45,12 @@ type SetlistRow = {
 
 type SongRow = {
   id: string;
+  slug?: string | null;
   title: string;
   artist?: string | null;
+  album?: string | null;
+  audioUrl?: string | null;
+  isPublic?: boolean;
   genre?: string | null;
   mood?: string | null;
   tempoLabel?: string | null;
@@ -452,8 +456,12 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
     const body = Object.fromEntries(formData.entries()) as any;
     body.requestable = formData.get("requestable") === "on";
     body.publicShortlist = formData.get("publicShortlist") === "on";
-    body.paidCatalog = formData.get("paidCatalog") === "on";
-    body.minTipCents = Math.round(Number(body.minTip || "0.25") * 100);
+    body.paidCatalog = false;
+    body.isPublic = true;
+    body.minTipCents = Math.round(Number(body.minTip || "0") * 100);
+    const fullMp3DriveFileId = String(formData.get("fullMp3DriveFileId") || "").trim();
+    if (fullMp3DriveFileId) body.sourceLinks = { fullMp3DriveFileId };
+    delete body.fullMp3DriveFileId;
     delete body.minTip;
     const res = await fetch("/api/songs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
@@ -484,11 +492,18 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
       <h2>Songs</h2>
       <form className="form" action={submit}>
         <input name="title" placeholder="Song title" required />
-        <input name="artist" placeholder="Artist" />
+        <input name="artist" placeholder="Artist" defaultValue="George Grissom" />
+        <select name="album" defaultValue="A Taste for Crow">
+          <option value="A Taste for Crow">A Taste for Crow</option>
+          <option value="From the Setlist">From the Setlist</option>
+          <option value="Counterfist Archive">Counterfist Archive</option>
+          <option value="Unsorted">Unsorted</option>
+        </select>
         <input name="genre" placeholder="Genre" />
         <input name="songKey" placeholder="Key" />
         <input name="bpm" type="number" placeholder="BPM" />
-        <input name="audioUrl" placeholder="/audio/song.mp3 or external URL" />
+        <input name="fullMp3DriveFileId" placeholder="Google Drive MP3 file ID (preferred)" />
+        <input name="audioUrl" placeholder="Or direct MP3 URL / local audio path" />
         <input name="setlistNames" list="setlist-names" placeholder="Attach to setlists by typing names, comma separated" />
         <datalist id="setlist-names">
           {setlists.map(setlist => <option key={setlist.id} value={setlist.name} />)}
@@ -497,16 +512,15 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
         <textarea name="privateLyricsNotes" placeholder="Private lyric notes; not public" />
         <textarea name="privateChordNotes" placeholder="Private chord notes; not public" />
         <label><input name="requestable" type="checkbox" defaultChecked /> Requestable</label>
-        <label><input name="publicShortlist" type="checkbox" /> Show on public short list</label>
-        <label><input name="paidCatalog" type="checkbox" defaultChecked /> Include in unlocked catalog</label>
-        <input name="minTip" type="number" step="0.25" defaultValue="0.25" placeholder="Minimum request/tip" />
+        <label><input name="publicShortlist" type="checkbox" /> Live on public player</label>
+        <input name="minTip" type="number" step="0.25" defaultValue="0" placeholder="Minimum request/tip" />
         <button className="button">Add song</button>
       </form>
       <table className="table">
         <thead><tr><th>Title</th><th>Private info</th><th>Setlists</th><th>Visibility</th><th>Actions</th></tr></thead>
         <tbody>
           {songs.map(song => (
-            <SongTableRow key={song.id} song={song} setlists={setlists} remove={remove} quickAddToSetlist={quickAddToSetlist} />
+            <SongTableRow key={song.id} song={song} setlists={setlists} remove={remove} quickAddToSetlist={quickAddToSetlist} setToast={setToast} />
           ))}
         </tbody>
       </table>
@@ -518,14 +532,36 @@ function SongTableRow({
   song,
   setlists,
   remove,
-  quickAddToSetlist
+  quickAddToSetlist,
+  setToast
 }: {
   song: SongRow;
   setlists: SetlistRow[];
   remove: (id: string) => Promise<void>;
   quickAddToSetlist: (songId: string, setlistName: string) => Promise<void>;
+  setToast: (s: string) => void;
 }) {
   const [setlistName, setSetlistName] = useState("");
+  const [season, setSeason] = useState(song.album || "Unsorted");
+  const [liveOnPlayer, setLiveOnPlayer] = useState(Boolean(song.publicShortlist));
+
+  async function savePlayerSettings() {
+    if (liveOnPlayer && season === "Unsorted") {
+      setToast("Choose a player season before making this song live.");
+      return;
+    }
+    const res = await fetch("/api/songs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: song.id,
+        album: season,
+        publicShortlist: liveOnPlayer,
+        isPublic: true
+      })
+    });
+    setToast(res.ok ? "Public player updated." : "Player update failed.");
+  }
 
   return (
     <tr>
@@ -544,8 +580,19 @@ function SongTableRow({
           {setlists.map(setlist => <option key={setlist.id} value={setlist.name} />)}
         </datalist>
       </td>
-      <td>{song.publicShortlist && <span className="badge">short list</span>} {song.paidCatalog && <span className="badge">catalog</span>}</td>
-      <td><button className="ghost" onClick={() => remove(song.id)}>Delete</button></td>
+      <td>
+        <div className="form">
+          <select value={season} onChange={event => setSeason(event.target.value)}>
+            <option value="A Taste for Crow">A Taste for Crow</option>
+            <option value="From the Setlist">From the Setlist</option>
+            <option value="Counterfist Archive">Counterfist Archive</option>
+            <option value="Unsorted">Unsorted</option>
+          </select>
+          <label><input type="checkbox" checked={liveOnPlayer} onChange={event => setLiveOnPlayer(event.target.checked)} /> Live on player</label>
+          <button className="ghost" onClick={savePlayerSettings}>Save player settings</button>
+        </div>
+      </td>
+      <td><button className="ghost" onClick={() => remove(song.id)}>Delete song</button></td>
     </tr>
   );
 }
