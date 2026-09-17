@@ -50,7 +50,10 @@ export async function ensurePublicPlayerCatalog() {
       continue;
     }
 
-    const data: Record<string, unknown> = {
+    const needsSourceUpdate = sourceLinks.fullMp3DriveFileId !== seed.fileId;
+    if (alreadyInitialized && !needsSourceUpdate) continue;
+
+    const data: any = {
       sourceLinks: nextSourceLinks
     };
 
