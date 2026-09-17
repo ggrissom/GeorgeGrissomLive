@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { publicTrackForSlug } from "@/lib/public-track-catalog";
-import { readAudioFile } from "@/lib/audio-storage";
+import { isGoogleDriveAudioConfigured, readAudioFile } from "@/lib/audio-storage";
 
 export const runtime = "nodejs";
 
@@ -36,6 +36,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     null;
 
   try {
+    if (driveFileId && !isGoogleDriveAudioConfigured()) {
+      const direct = new URL("https://drive.usercontent.google.com/download");
+      direct.searchParams.set("id", driveFileId);
+      direct.searchParams.set("export", "download");
+      direct.searchParams.set("confirm", "t");
+      return Response.redirect(direct, 307);
+    }
+
     if (driveFileId || song.audioPath) {
       const file = await readAudioFile(
         {
