@@ -72,6 +72,21 @@ type RequestRow = { id: string; requesterName?: string; customSongTitle?: string
 type UploadRow = { id: string; uploaderName?: string; note?: string; storagePath: string; mimeType?: string; fileName?: string; status: string; createdAt: string; event?: EventRow };
 type BookingRow = { id: string; name: string; email?: string; phone?: string; venue?: string; date?: string; message?: string; status: string; createdAt: string; };
 
+const PUBLIC_PLAYER_SEASONS = ["Counterfist Archive", "From the Setlist", "A Taste For Crow"] as const;
+type PublicPlayerSeason = typeof PUBLIC_PLAYER_SEASONS[number];
+
+function configuredPlayerSeasons(song: SongRow): PublicPlayerSeason[] {
+  const raw = song.sourceLinks?.publicPlayerSeasons;
+  if (Array.isArray(raw)) {
+    return raw.filter((value: unknown): value is PublicPlayerSeason =>
+      PUBLIC_PLAYER_SEASONS.includes(String(value) as PublicPlayerSeason)
+    );
+  }
+  return PUBLIC_PLAYER_SEASONS.includes(song.album as PublicPlayerSeason)
+    ? [song.album as PublicPlayerSeason]
+    : [];
+}
+
 export default function AdminApp() {
   const [tab, setTab] = useState<Tab>("live");
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -459,9 +474,26 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
     body.paidCatalog = false;
     body.isPublic = true;
     body.minTipCents = Math.round(Number(body.minTip || "0") * 100);
+    const publicPlayerSeasons: PublicPlayerSeason[] = [
+      formData.get("seasonCounterfist") === "on" ? "Counterfist Archive" : null,
+      formData.get("seasonSetlist") === "on" ? "From the Setlist" : null,
+      formData.get("seasonCrow") === "on" ? "A Taste For Crow" : null
+    ].filter(Boolean) as PublicPlayerSeason[];
+    body.album = publicPlayerSeasons.includes("A Taste For Crow")
+      ? "A Taste For Crow"
+      : publicPlayerSeasons[0] || "Unsorted";
     const fullMp3DriveFileId = String(formData.get("fullMp3DriveFileId") || "").trim();
-    if (fullMp3DriveFileId) body.sourceLinks = { fullMp3DriveFileId };
+    const hostedFileName = String(formData.get("hostedFileName") || "").trim();
+    body.sourceLinks = {
+      ...(fullMp3DriveFileId ? { fullMp3DriveFileId } : {}),
+      ...(hostedFileName ? { hostedFileName } : {}),
+      publicPlayerSeasons
+    };
     delete body.fullMp3DriveFileId;
+    delete body.hostedFileName;
+    delete body.seasonCounterfist;
+    delete body.seasonSetlist;
+    delete body.seasonCrow;
     delete body.minTip;
     const res = await fetch("/api/songs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
@@ -493,17 +525,18 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
       <form className="form" action={submit}>
         <input name="title" placeholder="Song title" required />
         <input name="artist" placeholder="Artist" defaultValue="George Grissom" />
-        <select name="album" defaultValue="A Taste for Crow">
-          <option value="A Taste for Crow">A Taste for Crow</option>
-          <option value="From the Setlist">From the Setlist</option>
-          <option value="Counterfist Archive">Counterfist Archive</option>
-          <option value="Unsorted">Unsorted</option>
-        </select>
+        <fieldset>
+          <legend>Public player playlists</legend>
+          <label><input name="seasonCounterfist" type="checkbox" /> Counterfist Archive</label>
+          <label><input name="seasonSetlist" type="checkbox" /> From the Setlist</label>
+          <label><input name="seasonCrow" type="checkbox" defaultChecked /> A Taste For Crow</label>
+        </fieldset>
         <input name="genre" placeholder="Genre" />
         <input name="songKey" placeholder="Key" />
         <input name="bpm" type="number" placeholder="BPM" />
-        <input name="fullMp3DriveFileId" placeholder="Google Drive MP3 file ID (preferred)" />
-        <input name="audioUrl" placeholder="Or direct MP3 URL / local audio path" />
+        <input name="hostedFileName" placeholder="Namecheap MP3 filename, e.g. 01 - Song.mp3" />
+        <input name="fullMp3DriveFileId" placeholder="Google Drive MP3 file ID (fallback)" />
+        <input name="audioUrl" placeholder="Optional direct MP3 URL" />
         <input name="setlistNames" list="setlist-names" placeholder="Attach to setlists by typing names, comma separated" />
         <datalist id="setlist-names">
           {setlists.map(setlist => <option key={setlist.id} value={setlist.name} />)}
@@ -542,22 +575,36 @@ function SongTableRow({
   setToast: (s: string) => void;
 }) {
   const [setlistName, setSetlistName] = useState("");
-  const [season, setSeason] = useState(song.album || "Unsorted");
+  const [seasons, setSeasons] = useState<PublicPlayerSeason[]>(configuredPlayerSeasons(song));
+  const [hostedFileName, setHostedFileName] = useState(String(song.sourceLinks?.hostedFileName || ""));
   const [liveOnPlayer, setLiveOnPlayer] = useState(Boolean(song.publicShortlist));
 
+  function toggleSeason(season: PublicPlayerSeason, checked: boolean) {
+    setSeasons(current => checked
+      ? Array.from(new Set([...current, season]))
+      : current.filter(item => item !== season)
+    );
+  }
+
   async function savePlayerSettings() {
-    if (liveOnPlayer && season === "Unsorted") {
-      setToast("Choose a player season before making this song live.");
+    if (liveOnPlayer && seasons.length === 0) {
+      setToast("Choose at least one player playlist before making this song live.");
       return;
     }
+    const sourceLinks = {
+      ...(song.sourceLinks && typeof song.sourceLinks === "object" ? song.sourceLinks : {}),
+      hostedFileName: hostedFileName.trim() || null,
+      publicPlayerSeasons: seasons
+    };
     const res = await fetch("/api/songs", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: song.id,
-        album: season,
+        album: seasons.includes("A Taste For Crow") ? "A Taste For Crow" : seasons[0] || "Unsorted",
         publicShortlist: liveOnPlayer,
-        isPublic: true
+        isPublic: true,
+        sourceLinks
       })
     });
     setToast(res.ok ? "Public player updated." : "Player update failed.");
@@ -582,12 +629,20 @@ function SongTableRow({
       </td>
       <td>
         <div className="form">
-          <select value={season} onChange={event => setSeason(event.target.value)}>
-            <option value="A Taste for Crow">A Taste for Crow</option>
-            <option value="From the Setlist">From the Setlist</option>
-            <option value="Counterfist Archive">Counterfist Archive</option>
-            <option value="Unsorted">Unsorted</option>
-          </select>
+          {PUBLIC_PLAYER_SEASONS.map(season => (
+            <label key={season}>
+              <input
+                type="checkbox"
+                checked={seasons.includes(season)}
+                onChange={event => toggleSeason(season, event.target.checked)}
+              /> {season}
+            </label>
+          ))}
+          <input
+            value={hostedFileName}
+            onChange={event => setHostedFileName(event.target.value)}
+            placeholder="Namecheap MP3 filename"
+          />
           <label><input type="checkbox" checked={liveOnPlayer} onChange={event => setLiveOnPlayer(event.target.checked)} /> Live on player</label>
           <button className="ghost" onClick={savePlayerSettings}>Save player settings</button>
         </div>
