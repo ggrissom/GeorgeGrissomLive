@@ -90,9 +90,10 @@ export async function PATCH(request: Request) {
     Object.prototype.hasOwnProperty.call(body, "seasons") ? body.seasons : oldLinks.publicPlayerSeasons,
     seed.seasons
   );
-  const audioUrl = Object.prototype.hasOwnProperty.call(body, "audioUrl")
+  const hasExplicitAudioUrl = Object.prototype.hasOwnProperty.call(body, "audioUrl");
+  const audioUrl = hasExplicitAudioUrl
     ? String(body.audioUrl || "").trim()
-    : (existing?.audioUrl || hostedTrackUrl(seed.hostedFileName) || "");
+    : (existing?.audioUrl || "");
   const visible = Object.prototype.hasOwnProperty.call(body, "publicShortlist")
     ? Boolean(body.publicShortlist)
     : (existing?.publicShortlist ?? seed.defaultPublic);
@@ -119,7 +120,7 @@ export async function PATCH(request: Request) {
       title: seed.title,
       artist: seed.artist || "George Grissom",
       album: primaryAlbum(seasons),
-      audioUrl: audioUrl || null,
+      ...(hasExplicitAudioUrl ? { audioUrl: audioUrl || null } : {}),
       publicShortlist: visible,
       isPublic: true,
       paidCatalog: false,
