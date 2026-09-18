@@ -251,7 +251,6 @@ export default function SiteShell({
             <p className={styles.kicker}>SEATTLE · SONGWRITER · PERFORMER</p>
             <h1>George<br />Grissom</h1>
             <p className={styles.lead}>{siteContent.heroLead}</p>
-            <p className={styles.heroProof}>{siteContent.heroProof}</p>
             <div className={styles.actions}>
               <a href="#music" className={styles.primary}>Listen Now</a>
               <a href="#shows" className={styles.secondary}>Shows</a>
@@ -440,6 +439,7 @@ export default function SiteShell({
               <p className={styles.chapterLabel}>COUNTERFIST</p>
               <h3>{siteContent.counterfistHeading}</h3>
               <p>{siteContent.counterfistBody}</p>
+              <p className={styles.storyContext}>{siteContent.heroProof}</p>
               <div className={styles.textLinks}>
                 <a href="https://music.apple.com/us/artist/counterfist/449060552" target="_blank" rel="noreferrer">Apple Music ↗</a>
                 <a href="https://open.spotify.com/artist/0v55V86JsnB0FjvSlfkHzW" target="_blank" rel="noreferrer">Spotify ↗</a>
