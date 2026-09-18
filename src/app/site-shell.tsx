@@ -48,7 +48,7 @@ export default function SiteShell({
   siteContent: SiteContent;
 }) {
   const [activeTrack, setActiveTrack] = useState(() => {
-    const index = tracks.findIndex(track => track.seasons.includes("From the Setlist"));
+    const index = tracks.findIndex(track => track.slug === "what-a-shame");
     return index >= 0 ? index : 0;
   });
   const [playing, setPlaying] = useState(false);
