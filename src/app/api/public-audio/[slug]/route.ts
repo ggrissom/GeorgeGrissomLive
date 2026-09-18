@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
+import { request as httpsRequest } from "node:https";
+import { Readable } from "node:stream";
 import { prisma } from "@/lib/db";
-import { hostedTrackUrl, publicTrackForSlug } from "@/lib/public-track-catalog";
+import { publicTrackForSlug } from "@/lib/public-track-catalog";
 import { isGoogleDriveAudioConfigured, readAudioFile } from "@/lib/audio-storage";
 
 export const runtime = "nodejs";
+
+const NAMECHEAP_HOST = "georgegrissom.com";
+const NAMECHEAP_ORIGIN_IPS = process.env.NAMECHEAP_AUDIO_ORIGIN_IP
+  ? [process.env.NAMECHEAP_AUDIO_ORIGIN_IP]
+  : ["198.54.116.169", "198.54.114.169"];
 
 function sourceLinksObject(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -11,20 +18,69 @@ function sourceLinksObject(value: unknown) {
     : {};
 }
 
-async function reachableAudioUrl(url: string) {
-  try {
-    const response = await fetch(url, {
-      method: "HEAD",
-      redirect: "follow",
-      cache: "no-store",
-      signal: AbortSignal.timeout(3500)
-    });
-    if (!response.ok) return false;
-    const type = response.headers.get("content-type") || "";
-    return type.startsWith("audio/") || type === "application/octet-stream";
-  } catch {
-    return false;
+function namecheapOriginResponse(
+  ip: string,
+  fileName: string,
+  range: string | null
+): Promise<Response | null> {
+  return new Promise((resolve) => {
+    const path = `/mp3/${encodeURIComponent(fileName)}`;
+
+    const req = httpsRequest(
+      {
+        hostname: ip,
+        port: 443,
+        method: "GET",
+        path,
+        servername: NAMECHEAP_HOST,
+        headers: {
+          Host: NAMECHEAP_HOST,
+          ...(range ? { Range: range } : {})
+        },
+        timeout: 6000
+      },
+      (res) => {
+        const status = res.statusCode || 502;
+
+        if (status !== 200 && status !== 206) {
+          res.resume();
+          resolve(null);
+          return;
+        }
+
+        const headers = new Headers({
+          "Content-Type": String(res.headers["content-type"] || "audio/mpeg"),
+          "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+          "Accept-Ranges": String(res.headers["accept-ranges"] || "bytes"),
+          "X-Content-Type-Options": "nosniff"
+        });
+
+        for (const name of ["content-length", "content-range", "etag", "last-modified"]) {
+          const value = res.headers[name];
+          if (typeof value === "string") headers.set(name, value);
+        }
+
+        resolve(
+          new Response(Readable.toWeb(res) as ReadableStream, {
+            status,
+            headers
+          })
+        );
+      }
+    );
+
+    req.on("timeout", () => req.destroy(new Error("Namecheap audio origin timeout")));
+    req.on("error", () => resolve(null));
+    req.end();
+  });
+}
+
+async function readNamecheapHostedFile(fileName: string, range: string | null) {
+  for (const ip of NAMECHEAP_ORIGIN_IPS) {
+    const response = await namecheapOriginResponse(ip, fileName, range);
+    if (response) return response;
   }
+  return null;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -51,12 +107,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     seeded?.hostedFileName ||
     null;
 
-  const candidateUrl =
-    (song.audioUrl && /^https?:\/\//i.test(song.audioUrl) ? song.audioUrl : null) ||
-    hostedTrackUrl(hostedFileName);
-
-  if (candidateUrl && await reachableAudioUrl(candidateUrl)) {
-    return Response.redirect(candidateUrl, 307);
+  if (hostedFileName) {
+    const hosted = await readNamecheapHostedFile(
+      hostedFileName,
+      request.headers.get("range")
+    );
+    if (hosted) return hosted;
   }
 
   const driveFileId =
