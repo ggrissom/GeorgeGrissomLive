@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { ensurePublicPlayerCatalog } from "@/lib/ensure-public-player-catalog";
 import { normalizePlayerSeasons } from "@/lib/public-track-catalog";
 import { publicEventsFromPerformanceCalendar } from "@/lib/public-events";
+import { PERFORMANCE_CALENDAR_ID, publicPerformanceCalendarIcalUrl } from "@/lib/google-calendar";
 import { getSiteContent } from "@/lib/site-content";
 import SiteShell from "./site-shell";
 
@@ -44,6 +45,10 @@ export default async function Home() {
   const configuredDefault = songs.find(song => sourceLinksObject(song.sourceLinks).publicPlayerDefault === true);
   const fallbackDefault = songs.find(song => song.slug === "what-a-shame") || songs[0] || null;
   const defaultTrackId = configuredDefault?.id || fallbackDefault?.id || null;
+  const calendarIcalUrl = publicPerformanceCalendarIcalUrl();
+  const calendarWebcalUrl = calendarIcalUrl.replace(/^https?:\/\//, "webcal://");
+  const googleCalendarSubscribeUrl =
+    `https://calendar.google.com/calendar/u/0/r?cid=${encodeURIComponent(PERFORMANCE_CALENDAR_ID)}`;
 
   return (
     <SiteShell
@@ -60,6 +65,8 @@ export default async function Home() {
       siteContent={siteContent}
       tracks={tracks}
       defaultTrackId={defaultTrackId}
+      calendarWebcalUrl={calendarWebcalUrl}
+      googleCalendarSubscribeUrl={googleCalendarSubscribeUrl}
     />
   );
 }
