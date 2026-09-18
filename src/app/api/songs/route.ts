@@ -4,6 +4,9 @@ import { isAdminRequest } from "@/lib/auth";
 import { lyricSearchLinks } from "@/lib/metadata";
 import { ensurePublicPlayerCatalog } from "@/lib/ensure-public-player-catalog";
 
+const CATALOG_ENSURE_INTERVAL_MS = 60_000;
+let lastCatalogEnsureAt = 0;
+
 function songPublicShape(song: any, admin: boolean) {
   if (admin) return { ...song, lyricSearchLinks: lyricSearchLinks(song.title, song.artist) };
   return {
@@ -34,7 +37,10 @@ export async function GET(request: Request) {
   // The public MP3 inventory is a durable catalog, but an admin may land here
   // before the public homepage has had a chance to reconcile it into the DB.
   // Seed/reconcile it here so Media Player always shows the available MP3s.
-  if (admin) await ensurePublicPlayerCatalog();
+  if (admin && Date.now() - lastCatalogEnsureAt > CATALOG_ENSURE_INTERVAL_MS) {
+    await ensurePublicPlayerCatalog();
+    lastCatalogEnsureAt = Date.now();
+  }
 
   const where = admin
     ? { NOT: { slug: "__site-content" } }
