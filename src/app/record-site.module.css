@@ -338,17 +338,60 @@
 }
 
 .releaseStrip article {
-  min-height: 190px;
+  min-height: 228px;
   padding: 28px;
   border-right: 1px solid #d7dae0;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .releaseStrip article:last-child { border-right: none; }
 .releaseStrip span { color: var(--accent); font-size: 12px; letter-spacing: .2em; font-weight: 800; }
 .releaseStrip strong { display: block; font-size: 26px; font-weight: 500; margin-top: 30px; }
-.releaseStrip p { color: #6f7784; margin: 7px 0; }
-.releaseStrip a { color: var(--accent) !important; font-size: 13px; position: absolute; bottom: 24px; left: 28px; }
+.releaseStrip p { color: #6f7784; margin: 7px 0 20px; }
+
+.serviceLinks {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.releaseStrip .serviceLink {
+  min-height: 40px;
+  padding: 0 9px;
+  border: 1px solid #cfd3da;
+  background: rgba(255,255,255,.58);
+  color: #101726 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 650;
+  transition: .18s ease;
+}
+
+.releaseStrip .serviceLink:hover {
+  border-color: var(--accent);
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+.serviceLink img {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex: 0 0 16px;
+}
+
+.serviceLink em {
+  font-style: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .showSection {
   position: relative;
@@ -592,7 +635,9 @@
   .musicTools { flex-direction: column; }
   .musicTools input { width: 100%; }
   .releaseStrip { grid-template-columns: 1fr; }
-  .releaseStrip article { border-right: none; border-bottom: 1px solid #d7dae0; }
+  .releaseStrip article { border-right: none; border-bottom: 1px solid #d7dae0; min-height: 210px; }
+  .serviceLinks { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .releaseStrip .serviceLink { min-height: 42px; padding: 0 8px; }
   .events { grid-template-columns: 1fr; }
   .eventCard { grid-template-columns: 58px 1fr; }
   .eventTime { grid-column: 2; }
