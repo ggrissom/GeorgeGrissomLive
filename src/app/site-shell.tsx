@@ -59,6 +59,9 @@ export default function SiteShell({
   const [duration, setDuration] = useState("0:00");
   const [bookingStatus, setBookingStatus] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const musicSectionRef = useRef<HTMLElement | null>(null);
+  const musicTitleRef = useRef<HTMLHeadingElement | null>(null);
+  const musicBackdropRef = useRef<HTMLImageElement | null>(null);
 
   const playableTracks = useMemo(
     () => tracks.filter(track =>
@@ -86,6 +89,62 @@ export default function SiteShell({
       .slice(0, 6),
     [initialEvents]
   );
+
+  useEffect(() => {
+    const section = musicSectionRef.current;
+    const title = musicTitleRef.current;
+    const backdrop = musicBackdropRef.current;
+    if (!section || !title || !backdrop) return;
+
+    // Source image is 1073 × 2324. The heart-cloud centroid is approximately
+    // (571, 836), measured from the original image.
+    const sourceWidth = 1073;
+    const sourceHeight = 2324;
+    const focalX = 571;
+    const focalY = 836;
+
+    const positionBackdrop = () => {
+      const sectionRect = section.getBoundingClientRect();
+      const titleRect = title.getBoundingClientRect();
+
+      // Put the heart in the center of the horizontal space between the
+      // right edge of "Music" and the right edge of the #music section.
+      const targetX = Math.min(
+        sectionRect.width - 1,
+        Math.max(1, ((titleRect.right + sectionRect.right) / 2) - sectionRect.left)
+      );
+      const targetY = sectionRect.height / 2;
+
+      // Solve the minimum proportional scale required so that, after moving
+      // the focal point, every edge of the source image remains outside the
+      // section. Add 3% overscan to prevent a hairline edge during rounding.
+      const scale = Math.max(
+        targetX / focalX,
+        (sectionRect.width - targetX) / (sourceWidth - focalX),
+        targetY / focalY,
+        (sectionRect.height - targetY) / (sourceHeight - focalY)
+      ) * 1.03;
+
+      const renderedWidth = sourceWidth * scale;
+      const renderedHeight = sourceHeight * scale;
+
+      backdrop.style.width = `${renderedWidth}px`;
+      backdrop.style.height = `${renderedHeight}px`;
+      backdrop.style.left = `${targetX - focalX * scale}px`;
+      backdrop.style.top = `${targetY - focalY * scale}px`;
+    };
+
+    positionBackdrop();
+    const observer = new ResizeObserver(positionBackdrop);
+    observer.observe(section);
+    observer.observe(title);
+    window.addEventListener("resize", positionBackdrop);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", positionBackdrop);
+    };
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -262,11 +321,12 @@ export default function SiteShell({
           </div>
         </section>
 
-        <section id="music" className={styles.section}>
+        <section id="music" ref={musicSectionRef} className={`${styles.section} ${styles.musicSection}`}>
+          <img ref={musicBackdropRef} className={styles.musicBackdrop} src="/images/heart-cloud.jpg" alt="" aria-hidden="true" />
           <div className={styles.sectionHeading}>
             <div>
               <p className={styles.kicker}>LISTEN</p>
-              <h2>Music</h2>
+              <h2 ref={musicTitleRef}>Music</h2>
             </div>
             <p>
               {filter === "Counterfist Archive"
