@@ -197,17 +197,20 @@
   isolation: isolate;
 }
 
-.musicBackdrop {
+.musicSection::before {
+  content: "";
   position: absolute;
+  inset: 0;
   z-index: 0;
-  max-width: none;
-  max-height: none;
-  opacity: .25;
   pointer-events: none;
-  user-select: none;
+  background-image: url("/images/binary-star-space.webp");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  opacity: .25;
 }
 
-.musicSection > :not(.musicBackdrop) {
+.musicSection > * {
   position: relative;
   z-index: 1;
 }

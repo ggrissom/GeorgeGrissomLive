@@ -48,7 +48,7 @@ export default function SiteShell({
   siteContent: SiteContent;
 }) {
   const [activeTrack, setActiveTrack] = useState(() => {
-    const index = tracks.findIndex(track => track.slug === "what-a-shame");
+    const index = tracks.findIndex(track => track.seasons.includes("From the Setlist"));
     return index >= 0 ? index : 0;
   });
   const [playing, setPlaying] = useState(false);
@@ -59,9 +59,7 @@ export default function SiteShell({
   const [duration, setDuration] = useState("0:00");
   const [bookingStatus, setBookingStatus] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const musicSectionRef = useRef<HTMLElement | null>(null);
-  const musicTitleRef = useRef<HTMLHeadingElement | null>(null);
-  const musicBackdropRef = useRef<HTMLImageElement | null>(null);
+  const initialAutoPlayAttemptedRef = useRef(false);
 
   const playableTracks = useMemo(
     () => tracks.filter(track =>
@@ -90,59 +88,48 @@ export default function SiteShell({
     [initialEvents]
   );
 
+
   useEffect(() => {
-    const section = musicSectionRef.current;
-    const title = musicTitleRef.current;
-    const backdrop = musicBackdropRef.current;
-    if (!section || !title || !backdrop) return;
+    const audio = audioRef.current;
+    if (!audio || !current || initialAutoPlayAttemptedRef.current) return;
 
-    // Source image is 1073 × 2324. The heart-cloud centroid is approximately
-    // (571, 836), measured from the original image.
-    const sourceWidth = 1073;
-    const sourceHeight = 2324;
-    const focalX = 571;
-    const focalY = 836;
+    initialAutoPlayAttemptedRef.current = true;
 
-    const positionBackdrop = () => {
-      const sectionRect = section.getBoundingClientRect();
-      const titleRect = title.getBoundingClientRect();
-
-      // Put the heart in the center of the horizontal space between the
-      // right edge of "Music" and the right edge of the #music section.
-      const targetX = Math.min(
-        sectionRect.width - 1,
-        Math.max(1, ((titleRect.right + sectionRect.right) / 2) - sectionRect.left)
-      );
-      const targetY = sectionRect.height / 2;
-
-      // Solve the minimum proportional scale required so that, after moving
-      // the focal point, every edge of the source image remains outside the
-      // section. Add 3% overscan to prevent a hairline edge during rounding.
-      const scale = Math.max(
-        targetX / focalX,
-        (sectionRect.width - targetX) / (sourceWidth - focalX),
-        targetY / focalY,
-        (sectionRect.height - targetY) / (sourceHeight - focalY)
-      ) * 1.03;
-
-      const renderedWidth = sourceWidth * scale;
-      const renderedHeight = sourceHeight * scale;
-
-      backdrop.style.width = `${renderedWidth}px`;
-      backdrop.style.height = `${renderedHeight}px`;
-      backdrop.style.left = `${targetX - focalX * scale}px`;
-      backdrop.style.top = `${targetY - focalY * scale}px`;
+    const tryAutoPlay = () => {
+      if (document.hidden) return;
+      audio.play().catch(() => setPlaying(false));
     };
 
-    positionBackdrop();
-    const observer = new ResizeObserver(positionBackdrop);
-    observer.observe(section);
-    observer.observe(title);
-    window.addEventListener("resize", positionBackdrop);
+    if (audio.readyState >= 2) {
+      tryAutoPlay();
+    } else {
+      audio.addEventListener("canplay", tryAutoPlay, { once: true });
+    }
+
+    return () => audio.removeEventListener("canplay", tryAutoPlay);
+  }, [current]);
+
+  useEffect(() => {
+    const pauseForBackground = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (document.hidden || !document.hasFocus()) {
+        audio.pause();
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) pauseForBackground();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", pauseForBackground);
+    window.addEventListener("blur", pauseForBackground);
 
     return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", positionBackdrop);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", pauseForBackground);
+      window.removeEventListener("blur", pauseForBackground);
     };
   }, []);
 
@@ -286,6 +273,8 @@ export default function SiteShell({
     <div className={styles.site}>
       <audio
         ref={audioRef}
+        autoPlay
+        playsInline
         src={current && filter !== "Counterfist Archive"
           ? `/api/public-audio/${encodeURIComponent(current.id)}`
           : undefined}
@@ -321,12 +310,11 @@ export default function SiteShell({
           </div>
         </section>
 
-        <section id="music" ref={musicSectionRef} className={`${styles.section} ${styles.musicSection}`}>
-          <img ref={musicBackdropRef} className={styles.musicBackdrop} src="/images/heart-cloud.jpg" alt="" aria-hidden="true" />
+        <section id="music" className={`${styles.section} ${styles.musicSection}`}>
           <div className={styles.sectionHeading}>
             <div>
               <p className={styles.kicker}>LISTEN</p>
-              <h2 ref={musicTitleRef}>Music</h2>
+              <h2>Music</h2>
             </div>
             <p>
               {filter === "Counterfist Archive"
