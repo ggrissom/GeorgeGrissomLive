@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { PUBLIC_TRACKS } from "@/lib/public-track-catalog";
 
-const CONFIG_VERSION = 1;
+const CONFIG_VERSION = 2;
 
 function normalizeSourceLinks(value: unknown) {
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -9,6 +9,11 @@ function normalizeSourceLinks(value: unknown) {
   }
   if (Array.isArray(value)) return { references: value };
   return {};
+}
+
+function primaryAlbum(seasons: string[]) {
+  if (seasons.includes("A Taste For Crow")) return "A Taste For Crow";
+  return seasons[0] || "Unsorted";
 }
 
 export async function ensurePublicPlayerCatalog() {
@@ -26,10 +31,12 @@ export async function ensurePublicPlayerCatalog() {
 
     const existing = bySlug || byTitle;
     const sourceLinks = normalizeSourceLinks(existing?.sourceLinks);
-    const alreadyInitialized = Number(sourceLinks.publicPlayerConfigVersion || 0) >= CONFIG_VERSION;
+    const configuredVersion = Number(sourceLinks.publicPlayerConfigVersion || 0);
     const nextSourceLinks = {
       ...sourceLinks,
       fullMp3DriveFileId: seed.fileId,
+      hostedFileName: seed.hostedFileName || sourceLinks.hostedFileName || null,
+      publicPlayerSeasons: seed.seasons,
       publicPlayerConfigVersion: CONFIG_VERSION
     };
 
@@ -39,7 +46,7 @@ export async function ensurePublicPlayerCatalog() {
           slug: seed.slug,
           title: seed.title,
           artist: seed.artist || "George Grissom",
-          album: seed.season,
+          album: primaryAlbum(seed.seasons),
           sourceLinks: nextSourceLinks,
           requestable: true,
           publicShortlist: seed.defaultPublic,
@@ -50,8 +57,12 @@ export async function ensurePublicPlayerCatalog() {
       continue;
     }
 
-    const needsSourceUpdate = sourceLinks.fullMp3DriveFileId !== seed.fileId;
-    if (alreadyInitialized && !needsSourceUpdate) continue;
+    const needsSourceUpdate =
+      sourceLinks.fullMp3DriveFileId !== seed.fileId ||
+      sourceLinks.hostedFileName !== (seed.hostedFileName || null) ||
+      JSON.stringify(sourceLinks.publicPlayerSeasons || []) !== JSON.stringify(seed.seasons);
+
+    if (configuredVersion >= CONFIG_VERSION && !needsSourceUpdate) continue;
 
     const data: any = {
       sourceLinks: nextSourceLinks
@@ -59,10 +70,10 @@ export async function ensurePublicPlayerCatalog() {
 
     if (!existing.slug) data.slug = seed.slug;
 
-    if (!alreadyInitialized) {
+    if (configuredVersion < CONFIG_VERSION) {
       data.title = seed.title;
       data.artist = seed.artist || existing.artist || "George Grissom";
-      data.album = seed.season;
+      data.album = primaryAlbum(seed.seasons);
       data.publicShortlist = seed.defaultPublic;
       data.isPublic = true;
       data.paidCatalog = false;
