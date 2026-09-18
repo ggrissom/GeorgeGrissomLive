@@ -245,15 +245,6 @@ export default function SiteShell({
     setBookingStatus("Sending…");
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const details = [
-      form.get("message"),
-      "",
-      "Location: " + (form.get("location") || "Not provided"),
-      "Event type: " + (form.get("eventType") || "Not provided"),
-      "Audience: " + (form.get("audience") || "Not provided"),
-      "Budget / fee range: " + (form.get("budget") || "Not provided")
-    ].join("\n");
-
     const response = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -263,12 +254,19 @@ export default function SiteShell({
         phone: form.get("phone"),
         date: form.get("date"),
         venue: form.get("venue"),
-        message: details
+        location: form.get("location"),
+        eventType: form.get("eventType"),
+        audience: form.get("audience"),
+        budget: form.get("budget"),
+        message: form.get("message")
       })
     });
 
     if (response.ok) {
-      setBookingStatus("Inquiry received.");
+      const result = await response.json().catch(() => ({}));
+      setBookingStatus(result.notificationStatus === "sent"
+        ? "Inquiry received. Email notification sent."
+        : "Inquiry received.");
       formElement.reset();
     } else {
       setBookingStatus("Could not send. Try again in a moment.");
