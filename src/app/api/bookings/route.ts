@@ -12,6 +12,16 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
+
+  const details = [
+    body.message || "",
+    "",
+    `Location: ${body.location || "Not provided"}`,
+    `Event type: ${body.eventType || "Not provided"}`,
+    `Estimated audience: ${body.audience || "Not provided"}`,
+    `Budget / fee range: ${body.budget || "Not provided"}`
+  ].join("\n");
+
   const inquiry = await prisma.bookingInquiry.create({
     data: {
       name: body.name || "Unknown",
@@ -19,10 +29,44 @@ export async function POST(request: Request) {
       phone: body.phone || null,
       date: body.date || null,
       venue: body.venue || null,
-      message: body.message || null
+      message: details
     }
   });
-  return NextResponse.json(inquiry);
+
+  let notificationStatus = "not_sent";
+  try {
+    const recipient = process.env.BOOKING_NOTIFICATION_EMAIL || "georgegrissom@gmail.com";
+    const notify = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(recipient)}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        _subject: "IMPORTANT — New GeorgeGrissom.com Booking Inquiry",
+        _template: "table",
+        _captcha: "false",
+        _replyto: body.email || "",
+        important: "YES",
+        submitted_at: new Date().toISOString(),
+        name: body.name || "Unknown",
+        email: body.email || "Not provided",
+        phone: body.phone || "Not provided",
+        requested_date: body.date || "Not provided",
+        venue_event: body.venue || "Not provided",
+        city_location: body.location || "Not provided",
+        event_type: body.eventType || "Not provided",
+        estimated_audience: body.audience || "Not provided",
+        budget_fee_range: body.budget || "Not provided",
+        message: body.message || "Not provided"
+      })
+    });
+    notificationStatus = notify.ok ? "sent" : `email_service_${notify.status}`;
+  } catch {
+    notificationStatus = "email_service_error";
+  }
+
+  return NextResponse.json({ ...inquiry, notificationStatus });
 }
 
 export async function DELETE(request: Request) {
