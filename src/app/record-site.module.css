@@ -123,6 +123,14 @@
   font-weight: 300;
 }
 
+.heroProof {
+  max-width: 760px;
+  margin: 22px 0 0;
+  color: #9ea8b8;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
 
 .primary, .secondary {
