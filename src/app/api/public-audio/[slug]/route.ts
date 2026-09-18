@@ -102,6 +102,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   const links = sourceLinksObject(song.sourceLinks);
   const seeded = song.slug ? publicTrackForSlug(song.slug) : null;
 
+  // An explicit full MP3 URL configured in Admin is authoritative.
+  if (song.audioUrl) {
+    try {
+      const directUrl = new URL(song.audioUrl, request.url);
+      if (directUrl.protocol === "http:" || directUrl.protocol === "https:") {
+        return Response.redirect(directUrl, 307);
+      }
+    } catch {
+      // Fall through to hosted filename / Drive sources.
+    }
+  }
+
   const hostedFileName =
     (typeof links.hostedFileName === "string" && links.hostedFileName) ||
     seeded?.hostedFileName ||
@@ -150,9 +162,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       });
     }
 
-    if (song.audioUrl) {
-      return Response.redirect(new URL(song.audioUrl, request.url), 307);
-    }
 
     return NextResponse.json({ error: "Audio source not configured" }, { status: 404 });
   } catch (error) {
