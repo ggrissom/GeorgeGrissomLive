@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { publicTrackForSlug } from "@/lib/public-track-catalog";
+import { hostedTrackUrl, publicTrackForSlug } from "@/lib/public-track-catalog";
 import { isGoogleDriveAudioConfigured, readAudioFile } from "@/lib/audio-storage";
 
 export const runtime = "nodejs";
@@ -9,6 +9,22 @@ function sourceLinksObject(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+async function reachableAudioUrl(url: string) {
+  try {
+    const response = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      cache: "no-store",
+      signal: AbortSignal.timeout(3500)
+    });
+    if (!response.ok) return false;
+    const type = response.headers.get("content-type") || "";
+    return type.startsWith("audio/") || type === "application/octet-stream";
+  } catch {
+    return false;
+  }
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -29,6 +45,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
 
   const links = sourceLinksObject(song.sourceLinks);
   const seeded = song.slug ? publicTrackForSlug(song.slug) : null;
+
+  const hostedFileName =
+    (typeof links.hostedFileName === "string" && links.hostedFileName) ||
+    seeded?.hostedFileName ||
+    null;
+
+  const candidateUrl =
+    (song.audioUrl && /^https?:\/\//i.test(song.audioUrl) ? song.audioUrl : null) ||
+    hostedTrackUrl(hostedFileName);
+
+  if (candidateUrl && await reachableAudioUrl(candidateUrl)) {
+    return Response.redirect(candidateUrl, 307);
+  }
+
   const driveFileId =
     (typeof links.fullMp3DriveFileId === "string" && links.fullMp3DriveFileId) ||
     (typeof links.driveFileId === "string" && links.driveFileId) ||
