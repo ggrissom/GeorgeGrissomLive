@@ -70,6 +70,7 @@ export default function SiteShell({
   const [duration, setDuration] = useState("0:00");
   const [bookingStatus, setBookingStatus] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const autoplayAfterTrackChangeRef = useRef(false);
 
   const playableTracks = useMemo(
     () => tracks.filter(track =>
@@ -173,16 +174,37 @@ export default function SiteShell({
     };
   });
 
+  useEffect(() => {
+    if (!autoplayAfterTrackChangeRef.current) return;
+    const audio = audioRef.current;
+    if (!audio || filter === "Counterfist Archive") {
+      autoplayAfterTrackChangeRef.current = false;
+      return;
+    }
+
+    autoplayAfterTrackChangeRef.current = false;
+    audio.load();
+    audio.play().catch(() => setPlaying(false));
+  }, [activeTrack, filter]);
+
+  function activateAndPlay(index: number) {
+    if (index < 0 || index >= tracks.length) return;
+
+    const audio = audioRef.current;
+    if (index === activeTrack) {
+      if (!audio || filter === "Counterfist Archive") return;
+      audio.currentTime = 0;
+      audio.play().catch(() => setPlaying(false));
+      return;
+    }
+
+    autoplayAfterTrackChangeRef.current = true;
+    setActiveTrack(index);
+  }
+
   function selectTrack(track: Track) {
     const index = tracks.findIndex(item => item.id === track.id);
-    if (index < 0) return;
-    setActiveTrack(index);
-    setTimeout(() => {
-      const audio = audioRef.current;
-      if (!audio) return;
-      audio.load();
-      audio.play().catch(() => setPlaying(false));
-    }, 0);
+    activateAndPlay(index);
   }
 
   function togglePlay() {
@@ -201,14 +223,7 @@ export default function SiteShell({
     const nextVisibleIndex = (base + direction + visibleTracks.length) % visibleTracks.length;
     const target = visibleTracks[nextVisibleIndex];
     const globalIndex = tracks.findIndex(track => track.id === target.id);
-    if (globalIndex < 0) return;
-    setActiveTrack(globalIndex);
-    setTimeout(() => {
-      const audio = audioRef.current;
-      if (!audio) return;
-      audio.load();
-      audio.play().catch(() => setPlaying(false));
-    }, 0);
+    activateAndPlay(globalIndex);
   }
 
   function previousTrack() {
@@ -301,6 +316,9 @@ export default function SiteShell({
         </section>
 
         <section id="music" className={`${styles.section} ${styles.musicSection}`}>
+          <div className={styles.musicBackdrop} aria-hidden="true">
+            <img src="/images/binary-star-space.webp" alt="" />
+          </div>
           <div className={styles.sectionHeading}>
             <div>
               <p className={styles.kicker}>LISTEN</p>
@@ -409,20 +427,7 @@ export default function SiteShell({
               <p className={styles.kicker}>LIVE</p>
               <h2>Upcoming shows</h2>
             </div>
-            <div className={styles.showCalendarTools}>
-              <p>Public dates from George&apos;s performance calendar.</p>
-              <div>
-                <a className={styles.calendarSubscribe} href={calendarWebcalUrl}>Subscribe to calendar</a>
-                <a
-                  className={styles.calendarSubscribeSecondary}
-                  href={googleCalendarSubscribeUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Google Calendar ↗
-                </a>
-              </div>
-            </div>
+            <p>Public dates from George&apos;s performance calendar.</p>
           </div>
 
           <div className={styles.events}>
@@ -447,6 +452,20 @@ export default function SiteShell({
                 <span className={styles.eventTime}>{new Date(event.startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
               </article>
             ))}
+          </div>
+
+          <div className={styles.showCalendarTools}>
+            <div>
+              <a className={styles.calendarSubscribe} href={calendarWebcalUrl}>Subscribe to calendar</a>
+              <a
+                className={styles.calendarSubscribeSecondary}
+                href={googleCalendarSubscribeUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Google Calendar ↗
+              </a>
+            </div>
           </div>
         </section>
 
