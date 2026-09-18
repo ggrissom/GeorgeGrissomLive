@@ -28,7 +28,7 @@ export const PUBLIC_TRACKS: PublicTrackSeed[] = [
     fileId: "1r7oOGiQgoWqnAvHnlm2msOInZ78YnyOV",
     seasons: ["From the Setlist", "A Taste For Crow"],
     defaultPublic: true,
-    hostedFileName: "01 - One Question.mp3"
+    hostedFileName: "14 - One Question.mp3"
   },
   {
     slug: "the-seed",
@@ -44,7 +44,7 @@ export const PUBLIC_TRACKS: PublicTrackSeed[] = [
     fileId: "1xZyobHpKTdIx7VuqC1QlJf8EJ-FPygM9",
     seasons: ["From the Setlist", "A Taste For Crow"],
     defaultPublic: true,
-    hostedFileName: "03 - White House Road.mp3"
+    hostedFileName: "13 - White House Road.mp3"
   },
   {
     slug: "what-a-shame",
@@ -85,7 +85,7 @@ export const PUBLIC_TRACKS: PublicTrackSeed[] = [
     fileId: "1-5YSK37jjkcJNt4qWfPD-Gn5FQfvu9VX",
     seasons: ["From the Setlist", "A Taste For Crow"],
     defaultPublic: true,
-    hostedFileName: "08 - Old MacDonald.mp3"
+    hostedFileName: "11 - Old MacDonald.mp3"
   },
 
   {
