@@ -16,6 +16,18 @@ function primaryAlbum(seasons: string[]) {
   return seasons[0] || "Unsorted";
 }
 
+async function hideLegacyDuplicateRows(seed: (typeof PUBLIC_TRACKS)[number], keepId: string) {
+  await prisma.song.updateMany({
+    where: {
+      id: { not: keepId },
+      slug: null,
+      title: { in: [seed.title, ...(seed.aliases || [])] },
+      publicShortlist: true
+    },
+    data: { publicShortlist: false }
+  });
+}
+
 export async function ensurePublicPlayerCatalog() {
   for (const seed of PUBLIC_TRACKS) {
     const bySlug = await prisma.song.findUnique({ where: { slug: seed.slug } });
@@ -41,7 +53,7 @@ export async function ensurePublicPlayerCatalog() {
     };
 
     if (!existing) {
-      await prisma.song.create({
+      const created = await prisma.song.create({
         data: {
           slug: seed.slug,
           title: seed.title,
@@ -54,6 +66,7 @@ export async function ensurePublicPlayerCatalog() {
           isPublic: true
         }
       });
+      await hideLegacyDuplicateRows(seed, created.id);
       continue;
     }
 
@@ -62,7 +75,10 @@ export async function ensurePublicPlayerCatalog() {
       sourceLinks.hostedFileName !== (seed.hostedFileName || null) ||
       JSON.stringify(sourceLinks.publicPlayerSeasons || []) !== JSON.stringify(seed.seasons);
 
-    if (configuredVersion >= CONFIG_VERSION && !needsSourceUpdate) continue;
+    if (configuredVersion >= CONFIG_VERSION && !needsSourceUpdate) {
+      await hideLegacyDuplicateRows(seed, existing.id);
+      continue;
+    }
 
     const data: any = {
       sourceLinks: nextSourceLinks
@@ -83,5 +99,6 @@ export async function ensurePublicPlayerCatalog() {
       where: { id: existing.id },
       data
     });
+    await hideLegacyDuplicateRows(seed, existing.id);
   }
 }
