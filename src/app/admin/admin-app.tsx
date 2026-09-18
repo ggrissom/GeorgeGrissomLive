@@ -886,7 +886,7 @@ function PlayerSongEditor({
         {audioUrl ? (
           <><code>{audioUrl}</code><br /><span className="muted">Full MP3 URL — preferred source</span></>
         ) : hostedFileName ? (
-          <><code>{`https://assets.georgegrissom.com/mp3/${encodeURIComponent(hostedFileName)}`}</code><br /><span className="muted">Hosted MP3 path</span></>
+          <><code>{hostedFileName}</code><br /><span className="muted">Legacy hosted filename fallback — paste the full URL below to override it</span></>
         ) : driveFileId ? (
           <><code>{driveFileId}</code><br /><span className="muted">Google Drive MP3 fallback</span></>
         ) : (
