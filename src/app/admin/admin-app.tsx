@@ -682,31 +682,49 @@ function PlayerManager({
   refresh: () => Promise<void>;
   setToast: (s: string) => void;
 }) {
+  const [catalogSongs, setCatalogSongs] = useState<SongRow[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState("");
+
+  async function loadCatalog() {
+    setCatalogLoading(true);
+    const res = await fetch("/api/player-catalog?admin=1", { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && Array.isArray(data)) {
+      setCatalogSongs(data);
+      setCatalogError("");
+    } else {
+      setCatalogError(data.error || "Could not load the hosted MP3 catalog.");
+    }
+    setCatalogLoading(false);
+  }
+
+  useEffect(() => {
+    void loadCatalog();
+  }, []);
+
   async function addSong(formData: FormData) {
     const seasons: PublicPlayerSeason[] = [
       formData.get("seasonSetlist") === "on" ? "From the Setlist" : null,
       formData.get("seasonCrow") === "on" ? "A Taste For Crow" : null
     ].filter(Boolean) as PublicPlayerSeason[];
 
-    const hostedFileName = String(formData.get("hostedFileName") || "").trim();
     const audioUrl = String(formData.get("audioUrl") || "").trim();
-
-    if (!audioUrl && !hostedFileName) {
-      setToast("Enter the full MP3 URL or the hosted MP3 filename.");
+    if (!audioUrl) {
+      setToast("Enter the full MP3 URL.");
       return;
     }
 
     const body = {
       title: String(formData.get("title") || "").trim(),
       artist: String(formData.get("artist") || "George Grissom").trim(),
-      audioUrl: audioUrl || null,
+      audioUrl,
       album: seasons.includes("A Taste For Crow") ? "A Taste For Crow" : seasons[0] || "Unsorted",
       isPublic: true,
       publicShortlist: formData.get("liveOnPlayer") === "on",
       paidCatalog: false,
       requestable: false,
       sourceLinks: {
-        hostedFileName: hostedFileName || null,
         publicPlayerSeasons: seasons,
         publicPlayerDefault: false
       }
@@ -720,19 +738,27 @@ function PlayerManager({
     const data = await res.json().catch(() => ({}));
     setToast(res.ok ? "Song added to the media library." : data.error || "Could not add song.");
     await refresh();
+    await loadCatalog();
   }
 
-  const playerSongs = songs.filter(song => {
-    const seasons = configuredPlayerSeasons(song);
-    const links = song.sourceLinks && typeof song.sourceLinks === "object" ? song.sourceLinks : {};
-    const hasMp3Source = Boolean(
-      links.hostedFileName ||
-      links.fullMp3DriveFileId ||
-      song.audioUrl ||
-      seasons.length
-    );
-    return song.artist !== "Counterfist" && hasMp3Source;
-  });
+  const playerSongs = useMemo(() => {
+    const merged = new Map<string, SongRow>();
+
+    for (const song of catalogSongs) {
+      merged.set(song.slug || song.id, song);
+    }
+
+    for (const song of songs) {
+      if (song.artist === "Counterfist") continue;
+      const seasons = configuredPlayerSeasons(song);
+      const hasMp3Source = Boolean(song.audioUrl || song.sourceLinks?.hostedFileName || song.sourceLinks?.fullMp3DriveFileId || seasons.length);
+      if (!hasMp3Source) continue;
+      const key = song.slug || song.id;
+      if (!merged.has(key)) merged.set(key, song);
+    }
+
+    return Array.from(merged.values());
+  }, [catalogSongs, songs]);
 
   const defaultSongId =
     playerSongs.find(song => song.sourceLinks?.publicPlayerDefault === true)?.id ||
@@ -751,27 +777,39 @@ function PlayerManager({
     }
 
     try {
-      const rowsToUpdate = playerSongs.filter(song =>
-        Boolean(song.sourceLinks?.publicPlayerDefault) !== (song.id === songId)
-      );
-
-      for (const row of rowsToUpdate) {
-        const sourceLinks = {
-          ...(row.sourceLinks && typeof row.sourceLinks === "object" ? row.sourceLinks : {}),
-          publicPlayerDefault: row.id === songId
-        };
-        const res = await fetch("/api/songs", {
+      if (target.sourceLinks?.catalogSeed && target.slug) {
+        const res = await fetch("/api/player-catalog", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: row.id, sourceLinks })
+          body: JSON.stringify({ slug: target.slug, isDefault: true })
         });
-        if (!res.ok) throw new Error("Could not save default song.");
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Could not save default song.");
+      } else {
+        const rowsToUpdate = playerSongs.filter(song =>
+          !song.sourceLinks?.catalogSeed &&
+          Boolean(song.sourceLinks?.publicPlayerDefault) !== (song.id === songId)
+        );
+
+        for (const row of rowsToUpdate) {
+          const sourceLinks = {
+            ...(row.sourceLinks && typeof row.sourceLinks === "object" ? row.sourceLinks : {}),
+            publicPlayerDefault: row.id === songId
+          };
+          const res = await fetch("/api/songs", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: row.id, sourceLinks })
+          });
+          if (!res.ok) throw new Error("Could not save default song.");
+        }
       }
 
       setToast(`${target.title} is now the default song when Play is first pressed.`);
       await refresh();
-    } catch {
-      setToast("Could not save the default song.");
+      await loadCatalog();
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Could not save the default song.");
     }
   }
 
@@ -780,17 +818,15 @@ function PlayerManager({
       <p className="eyebrow">Public site</p>
       <h2>Media Player</h2>
       <p className="muted">
-        This is the public-player control center. MP3s in the known audio catalog are listed here even when hidden.
-        Choose what is visible, which playlist each song belongs to, and the default song queued when a visitor first presses Play.
-        Counterfist albums remain separate external album links.
+        Hosted MP3s are listed below by their full URL. Choose what is visible, which playlist each song belongs to,
+        and the default song queued when a visitor first presses Play. Counterfist albums remain separate external album links.
       </p>
 
       <form className="form" action={addSong}>
         <h3>Add a player song</h3>
         <input name="title" placeholder="Song title" required />
         <input name="artist" placeholder="Artist" defaultValue="George Grissom" />
-        <input name="audioUrl" type="url" placeholder="Full MP3 URL — recommended" />
-        <input name="hostedFileName" placeholder="Or MP3 filename in /mp3" />
+        <input name="audioUrl" type="url" placeholder="Full MP3 URL" required />
         <fieldset>
           <legend>Playlist</legend>
           <label><input name="seasonSetlist" type="checkbox" defaultChecked /> From the Setlist</label>
@@ -800,21 +836,25 @@ function PlayerManager({
         <button className="button">Add to media library</button>
       </form>
 
+      {catalogLoading && <p className="muted">Loading hosted MP3 catalog…</p>}
+      {catalogError && <p className="muted">{catalogError}</p>}
+
       <table className="table">
-        <thead><tr><th>Song</th><th>MP3 source</th><th>Playlist / visibility / default</th></tr></thead>
+        <thead><tr><th>Song</th><th>Full MP3 URL</th><th>Playlist / visibility / default</th></tr></thead>
         <tbody>
           {playerSongs.map(song => (
             <PlayerSongEditor
-              key={song.id}
+              key={song.slug || song.id}
               song={song}
               isDefault={song.id === defaultSongId}
               setDefaultSong={setDefaultSong}
               refresh={refresh}
+              reloadCatalog={loadCatalog}
               setToast={setToast}
             />
           ))}
-          {playerSongs.length === 0 && (
-            <tr><td colSpan={3} className="muted">No MP3-backed songs were found.</td></tr>
+          {!catalogLoading && playerSongs.length === 0 && (
+            <tr><td colSpan={3} className="muted">No hosted MP3s were found.</td></tr>
           )}
         </tbody>
       </table>
@@ -827,18 +867,25 @@ function PlayerSongEditor({
   isDefault,
   setDefaultSong,
   refresh,
+  reloadCatalog,
   setToast
 }: {
   song: SongRow;
   isDefault: boolean;
   setDefaultSong: (songId: string) => Promise<void>;
   refresh: () => Promise<void>;
+  reloadCatalog: () => Promise<void>;
   setToast: (s: string) => void;
 }) {
   const [seasons, setSeasons] = useState<PublicPlayerSeason[]>(configuredPlayerSeasons(song));
-  const [hostedFileName, setHostedFileName] = useState(String(song.sourceLinks?.hostedFileName || ""));
+  const [audioUrl, setAudioUrl] = useState(String(song.audioUrl || ""));
   const [liveOnPlayer, setLiveOnPlayer] = useState(Boolean(song.publicShortlist));
-  const driveFileId = String(song.sourceLinks?.fullMp3DriveFileId || song.sourceLinks?.driveFileId || "");
+
+  useEffect(() => {
+    setSeasons(configuredPlayerSeasons(song));
+    setAudioUrl(String(song.audioUrl || ""));
+    setLiveOnPlayer(Boolean(song.publicShortlist));
+  }, [song]);
 
   function toggleSeason(season: PublicPlayerSeason, checked: boolean) {
     setSeasons(current => checked
@@ -848,32 +895,53 @@ function PlayerSongEditor({
   }
 
   async function save() {
+    if (!audioUrl.trim()) {
+      setToast("This song needs a full MP3 URL.");
+      return;
+    }
     if (liveOnPlayer && seasons.length === 0) {
       setToast("Choose From the Setlist and/or A Taste For Crow before making the song visible.");
       return;
     }
 
-    const sourceLinks = {
-      ...(song.sourceLinks && typeof song.sourceLinks === "object" ? song.sourceLinks : {}),
-      hostedFileName: hostedFileName.trim() || null,
-      publicPlayerSeasons: seasons,
-      publicPlayerDefault: liveOnPlayer ? Boolean(song.sourceLinks?.publicPlayerDefault) : false
-    };
+    let res: Response;
+    if (song.sourceLinks?.catalogSeed && song.slug) {
+      res = await fetch("/api/player-catalog", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: song.slug,
+          audioUrl: audioUrl.trim(),
+          seasons,
+          publicShortlist: liveOnPlayer,
+          isDefault: liveOnPlayer ? isDefault : false
+        })
+      });
+    } else {
+      const sourceLinks = {
+        ...(song.sourceLinks && typeof song.sourceLinks === "object" ? song.sourceLinks : {}),
+        publicPlayerSeasons: seasons,
+        publicPlayerDefault: liveOnPlayer ? isDefault : false
+      };
 
-    const res = await fetch("/api/songs", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: song.id,
-        album: seasons.includes("A Taste For Crow") ? "A Taste For Crow" : seasons[0] || "Unsorted",
-        publicShortlist: liveOnPlayer,
-        isPublic: true,
-        sourceLinks
-      })
-    });
+      res = await fetch("/api/songs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: song.id,
+          audioUrl: audioUrl.trim(),
+          album: seasons.includes("A Taste For Crow") ? "A Taste For Crow" : seasons[0] || "Unsorted",
+          publicShortlist: liveOnPlayer,
+          isPublic: true,
+          sourceLinks
+        })
+      });
+    }
 
-    setToast(res.ok ? "Media player updated." : "Could not update media player.");
+    const data = await res.json().catch(() => ({}));
+    setToast(res.ok ? "Media player updated." : data.error || "Could not update media player.");
     await refresh();
+    await reloadCatalog();
   }
 
   return (
@@ -883,17 +951,14 @@ function PlayerSongEditor({
         <span className="muted">{song.artist || "George Grissom"}</span>
       </td>
       <td>
-        {audioUrl ? (
-          <><code>{audioUrl}</code><br /><span className="muted">Full MP3 URL — preferred source</span></>
-        ) : hostedFileName ? (
-          <><code>{hostedFileName}</code><br /><span className="muted">Legacy hosted filename fallback — paste the full URL below to override it</span></>
-        ) : driveFileId ? (
-          <><code>{driveFileId}</code><br /><span className="muted">Google Drive MP3 fallback</span></>
-        ) : (
-          <span className="muted">No MP3 source assigned</span>
-        )}
-        {liveOnPlayer && (
-          <><br /><a className="ghost" href={`/api/public-audio/${encodeURIComponent(song.id)}`} target="_blank" rel="noreferrer">Test MP3</a></>
+        <input
+          type="url"
+          value={audioUrl}
+          onChange={event => setAudioUrl(event.target.value)}
+          placeholder="https://…/song.mp3"
+        />
+        {audioUrl && (
+          <><br /><a className="ghost" href={audioUrl} target="_blank" rel="noreferrer">Test MP3</a></>
         )}
       </td>
       <td>
@@ -912,17 +977,6 @@ function PlayerSongEditor({
               onChange={event => toggleSeason("A Taste For Crow", event.target.checked)}
             /> A Taste For Crow
           </label>
-          <input
-            type="url"
-            value={audioUrl}
-            onChange={event => setAudioUrl(event.target.value)}
-            placeholder="Full MP3 URL — overrides filename / Drive"
-          />
-          <input
-            value={hostedFileName}
-            onChange={event => setHostedFileName(event.target.value)}
-            placeholder="MP3 filename fallback"
-          />
           <label>
             <input
               type="checkbox"
