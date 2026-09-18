@@ -42,12 +42,16 @@ export default function SiteShell({
   initialEvents,
   tracks,
   siteContent,
-  defaultTrackId
+  defaultTrackId,
+  calendarWebcalUrl,
+  googleCalendarSubscribeUrl
 }: {
   initialEvents: EventRow[];
   tracks: Track[];
   siteContent: SiteContent;
   defaultTrackId?: string | null;
+  calendarWebcalUrl: string;
+  googleCalendarSubscribeUrl: string;
 }) {
   const [activeTrack, setActiveTrack] = useState(() => {
     const configuredIndex = defaultTrackId
@@ -405,7 +409,20 @@ export default function SiteShell({
               <p className={styles.kicker}>LIVE</p>
               <h2>Upcoming shows</h2>
             </div>
-            <p>Public dates from George's performance calendar.</p>
+            <div className={styles.showCalendarTools}>
+              <p>Public dates from George&apos;s performance calendar.</p>
+              <div>
+                <a className={styles.calendarSubscribe} href={calendarWebcalUrl}>Subscribe to calendar</a>
+                <a
+                  className={styles.calendarSubscribeSecondary}
+                  href={googleCalendarSubscribeUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Google Calendar ↗
+                </a>
+              </div>
+            </div>
           </div>
 
           <div className={styles.events}>
