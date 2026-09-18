@@ -28,7 +28,9 @@ function songPublicShape(song: any, admin: boolean) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const admin = searchParams.get("admin") === "1" && await isAdminRequest();
-  const where = admin ? undefined : { isPublic: true };
+  const where = admin
+    ? { NOT: { slug: "__site-content" } }
+    : { isPublic: true };
   const songs = await prisma.song.findMany({
     where,
     orderBy: [{ title: "asc" }],
