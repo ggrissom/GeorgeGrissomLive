@@ -685,6 +685,7 @@ function PlayerManager({
   const [catalogSongs, setCatalogSongs] = useState<SongRow[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
+  const [selectedDefaultKey, setSelectedDefaultKey] = useState("");
 
   async function loadCatalog() {
     setCatalogLoading(true);
@@ -760,52 +761,75 @@ function PlayerManager({
     return Array.from(merged.values());
   }, [catalogSongs, songs]);
 
-  const defaultSongId =
-    playerSongs.find(song => song.sourceLinks?.publicPlayerDefault === true)?.id ||
-    playerSongs.find(song => song.slug === "what-a-shame" && song.publicShortlist)?.id ||
-    playerSongs.find(song => song.publicShortlist)?.id ||
-    "";
+  const defaultSong =
+    playerSongs.find(song => song.sourceLinks?.publicPlayerDefault === true) ||
+    playerSongs.find(song => song.slug === "what-a-shame" && song.publicShortlist) ||
+    playerSongs.find(song => song.publicShortlist) ||
+    null;
 
-  async function setDefaultSong(songId: string) {
-    const target = playerSongs.find(song => song.id === songId);
-    if (!target) return;
+  const defaultSongKey = defaultSong ? (defaultSong.slug || defaultSong.id) : "";
 
-    const targetSeasons = configuredPlayerSeasons(target);
-    if (!target.publicShortlist || targetSeasons.length === 0) {
-      setToast("The default song must be assigned to a playlist and visible on the public player. Save those settings first.");
+  useEffect(() => {
+    if (!selectedDefaultKey || !playerSongs.some(song => (song.slug || song.id) === selectedDefaultKey)) {
+      setSelectedDefaultKey(defaultSongKey);
+    }
+  }, [defaultSongKey, playerSongs, selectedDefaultKey]);
+
+  async function setDefaultSong(songKey: string) {
+    const target = playerSongs.find(song => (song.slug || song.id) === songKey);
+    if (!target) {
+      setToast("Choose a song first.");
       return;
     }
+
+    const currentSeasons = configuredPlayerSeasons(target);
+    const seasons: PublicPlayerSeason[] = currentSeasons.length
+      ? currentSeasons
+      : ["From the Setlist"];
 
     try {
       if (target.sourceLinks?.catalogSeed && target.slug) {
         const res = await fetch("/api/player-catalog", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slug: target.slug, isDefault: true })
+          body: JSON.stringify({
+            slug: target.slug,
+            isDefault: true,
+            publicShortlist: true,
+            seasons
+          })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "Could not save default song.");
       } else {
-        const rowsToUpdate = playerSongs.filter(song =>
-          !song.sourceLinks?.catalogSeed &&
-          Boolean(song.sourceLinks?.publicPlayerDefault) !== (song.id === songId)
-        );
-
-        for (const row of rowsToUpdate) {
+        for (const row of playerSongs) {
+          const isTarget = row.id === target.id;
           const sourceLinks = {
             ...(row.sourceLinks && typeof row.sourceLinks === "object" ? row.sourceLinks : {}),
-            publicPlayerDefault: row.id === songId
+            publicPlayerSeasons: isTarget
+              ? seasons
+              : configuredPlayerSeasons(row),
+            publicPlayerDefault: isTarget
           };
+
           const res = await fetch("/api/songs", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: row.id, sourceLinks })
+            body: JSON.stringify({
+              id: row.id,
+              ...(isTarget ? {
+                album: seasons.includes("A Taste For Crow") ? "A Taste For Crow" : seasons[0] || "Unsorted",
+                publicShortlist: true,
+                isPublic: true
+              } : {}),
+              sourceLinks
+            })
           });
           if (!res.ok) throw new Error("Could not save default song.");
         }
       }
 
-      setToast(`${target.title} is now the default song when Play is first pressed.`);
+      setToast(`${target.title} is now the default song.`);
       await refresh();
       await loadCatalog();
     } catch (error) {
@@ -821,6 +845,31 @@ function PlayerManager({
         Hosted MP3s are listed below by their full URL. Choose what is visible, which playlist each song belongs to,
         and the default song queued when a visitor first presses Play. Counterfist albums remain separate external album links.
       </p>
+
+      <div className="form">
+        <h3>Default song</h3>
+        <p className="muted">This is the song queued when a visitor first presses Play.</p>
+        <select
+          value={selectedDefaultKey}
+          onChange={event => setSelectedDefaultKey(event.target.value)}
+        >
+          <option value="">Choose default song</option>
+          {playerSongs.map(song => (
+            <option key={song.slug || song.id} value={song.slug || song.id}>
+              {song.title}
+            </option>
+          ))}
+        </select>
+        <button
+          className="button"
+          type="button"
+          disabled={!selectedDefaultKey}
+          onClick={() => void setDefaultSong(selectedDefaultKey)}
+        >
+          Set default song
+        </button>
+        {defaultSong && <p className="muted">Current default: <strong>{defaultSong.title}</strong></p>}
+      </div>
 
       <form className="form" action={addSong}>
         <h3>Add a player song</h3>
@@ -846,8 +895,7 @@ function PlayerManager({
             <PlayerSongEditor
               key={song.slug || song.id}
               song={song}
-              isDefault={song.id === defaultSongId}
-              setDefaultSong={setDefaultSong}
+              isDefault={(song.slug || song.id) === defaultSongKey}
               refresh={refresh}
               reloadCatalog={loadCatalog}
               setToast={setToast}
@@ -865,14 +913,12 @@ function PlayerManager({
 function PlayerSongEditor({
   song,
   isDefault,
-  setDefaultSong,
   refresh,
   reloadCatalog,
   setToast
 }: {
   song: SongRow;
   isDefault: boolean;
-  setDefaultSong: (songId: string) => Promise<void>;
   refresh: () => Promise<void>;
   reloadCatalog: () => Promise<void>;
   setToast: (s: string) => void;
@@ -984,15 +1030,7 @@ function PlayerSongEditor({
               onChange={event => setLiveOnPlayer(event.target.checked)}
             /> Visible on public player
           </label>
-          <label>
-            <input
-              type="radio"
-              name="default-player-song"
-              checked={isDefault}
-              disabled={!liveOnPlayer || seasons.length === 0}
-              onChange={() => void setDefaultSong(song.id)}
-            /> Default song when Play is first pressed
-          </label>
+          {isDefault && <span className="badge">CURRENT DEFAULT</span>}
           <button className="ghost" onClick={save}>Save</button>
         </div>
       </td>
