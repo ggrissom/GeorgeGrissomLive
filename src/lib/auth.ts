@@ -26,7 +26,7 @@ export function verifyAdminToken(token?: string | null) {
   try {
     const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { email: string; ts: number };
     const maxAgeMs = 1000 * 60 * 60 * 24 * 7;
-    return decoded.email === (process.env.ADMIN_EMAIL || "admin@georgegrissom.com") && Date.now() - decoded.ts < maxAgeMs;
+    return decoded.email === "admin@georgegrissom.com" && Date.now() - decoded.ts < maxAgeMs;
   } catch {
     return false;
   }
