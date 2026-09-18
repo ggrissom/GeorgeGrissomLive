@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type Tab = "live" | "events" | "setlists" | "songs" | "import" | "search" | "record" | "uploads" | "bookings";
+type Tab = "player" | "content" | "live" | "events" | "setlists" | "songs" | "import" | "search" | "record" | "uploads" | "bookings";
 
 type EventRow = {
   id: string;
@@ -72,7 +72,20 @@ type RequestRow = { id: string; requesterName?: string; customSongTitle?: string
 type UploadRow = { id: string; uploaderName?: string; note?: string; storagePath: string; mimeType?: string; fileName?: string; status: string; createdAt: string; event?: EventRow };
 type BookingRow = { id: string; name: string; email?: string; phone?: string; venue?: string; date?: string; message?: string; createdAt: string; };
 
-const PUBLIC_PLAYER_SEASONS = ["Counterfist Archive", "From the Setlist", "A Taste For Crow"] as const;
+type SiteContent = {
+  heroLead: string;
+  heroProof: string;
+  bookingIntro: string;
+  storyIntro: string;
+  counterfistHeading: string;
+  counterfistBody: string;
+  setlistHeading: string;
+  setlistBody: string;
+  crowHeading: string;
+  crowBody: string;
+};
+
+const PUBLIC_PLAYER_SEASONS = ["From the Setlist", "A Taste For Crow"] as const;
 type PublicPlayerSeason = typeof PUBLIC_PLAYER_SEASONS[number];
 
 function configuredPlayerSeasons(song: SongRow): PublicPlayerSeason[] {
@@ -88,13 +101,14 @@ function configuredPlayerSeasons(song: SongRow): PublicPlayerSeason[] {
 }
 
 export default function AdminApp() {
-  const [tab, setTab] = useState<Tab>("live");
+  const [tab, setTab] = useState<Tab>("player");
   const [events, setEvents] = useState<EventRow[]>([]);
   const [songs, setSongs] = useState<SongRow[]>([]);
   const [setlists, setSetlists] = useState<SetlistRow[]>([]);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [uploads, setUploads] = useState<UploadRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [siteContent, setSiteContent] = useState<SiteContent | null>(null);
   const [toast, setToast] = useState("");
 
   async function refresh() {
@@ -116,6 +130,9 @@ export default function AdminApp() {
 
   useEffect(() => {
     refresh();
+    fetch("/api/site-content").then(r => r.json()).then(data => {
+      if (data && !data.error) setSiteContent(data);
+    });
     const interval = window.setInterval(refresh, 5000);
     return () => window.clearInterval(interval);
   }, []);
@@ -126,15 +143,17 @@ export default function AdminApp() {
   }
 
   const tabs: [Tab, string][] = [
-    ["live", "Live Queue"],
+    ["player", "Media Player"],
+    ["content", "Site Content"],
+    ["bookings", "Booking"],
     ["events", "Calendar"],
+    ["songs", "Songs / Advanced"],
     ["setlists", "Setlists"],
-    ["songs", "Songs"],
+    ["live", "Live Queue"],
     ["import", "Import"],
     ["search", "Song Search"],
     ["record", "Record"],
-    ["uploads", "Uploads"],
-    ["bookings", "Booking"]
+    ["uploads", "Uploads"]
   ];
 
   return (
@@ -154,6 +173,9 @@ export default function AdminApp() {
             {tabs.map(([key, label]) => <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{label}</button>)}
           </aside>
           <section className="panel">
+            {tab === "player" && <PlayerManager songs={songs} refresh={refresh} setToast={setToast} />}
+            {tab === "content" && siteContent && <SiteContentEditor content={siteContent} setContent={setSiteContent} setToast={setToast} />}
+            {tab === "content" && !siteContent && <p className="muted">Loading site content…</p>}
             {tab === "live" && <LiveQueue requests={requests} refresh={refresh} />}
             {tab === "events" && <Events events={events} refresh={refresh} setToast={setToast} />}
             {tab === "setlists" && <Setlists setlists={setlists} events={events} songs={songs} refresh={refresh} setToast={setToast} />}
@@ -475,7 +497,6 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
     body.isPublic = true;
     body.minTipCents = Math.round(Number(body.minTip || "0") * 100);
     const publicPlayerSeasons: PublicPlayerSeason[] = [
-      formData.get("seasonCounterfist") === "on" ? "Counterfist Archive" : null,
       formData.get("seasonSetlist") === "on" ? "From the Setlist" : null,
       formData.get("seasonCrow") === "on" ? "A Taste For Crow" : null
     ].filter(Boolean) as PublicPlayerSeason[];
@@ -491,7 +512,6 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
     };
     delete body.fullMp3DriveFileId;
     delete body.hostedFileName;
-    delete body.seasonCounterfist;
     delete body.seasonSetlist;
     delete body.seasonCrow;
     delete body.minTip;
@@ -527,7 +547,6 @@ function Songs({ songs, setlists, refresh, setToast }: { songs: SongRow[]; setli
         <input name="artist" placeholder="Artist" defaultValue="George Grissom" />
         <fieldset>
           <legend>Public player playlists</legend>
-          <label><input name="seasonCounterfist" type="checkbox" /> Counterfist Archive</label>
           <label><input name="seasonSetlist" type="checkbox" /> From the Setlist</label>
           <label><input name="seasonCrow" type="checkbox" defaultChecked /> A Taste For Crow</label>
         </fieldset>
@@ -649,6 +668,235 @@ function SongTableRow({
       </td>
       <td><button className="ghost" onClick={() => remove(song.id)}>Delete song</button></td>
     </tr>
+  );
+}
+
+function PlayerManager({
+  songs,
+  refresh,
+  setToast
+}: {
+  songs: SongRow[];
+  refresh: () => Promise<void>;
+  setToast: (s: string) => void;
+}) {
+  async function addSong(formData: FormData) {
+    const seasons: PublicPlayerSeason[] = [
+      formData.get("seasonSetlist") === "on" ? "From the Setlist" : null,
+      formData.get("seasonCrow") === "on" ? "A Taste For Crow" : null
+    ].filter(Boolean) as PublicPlayerSeason[];
+
+    const hostedFileName = String(formData.get("hostedFileName") || "").trim();
+    const body = {
+      title: String(formData.get("title") || "").trim(),
+      artist: String(formData.get("artist") || "George Grissom").trim(),
+      album: seasons.includes("A Taste For Crow") ? "A Taste For Crow" : seasons[0] || "Unsorted",
+      isPublic: true,
+      publicShortlist: formData.get("liveOnPlayer") === "on",
+      paidCatalog: false,
+      requestable: false,
+      sourceLinks: {
+        hostedFileName: hostedFileName || null,
+        publicPlayerSeasons: seasons
+      }
+    };
+
+    const res = await fetch("/api/songs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    setToast(res.ok ? "Song added to the media library." : data.error || "Could not add song.");
+    await refresh();
+  }
+
+  const playerSongs = songs.filter(song => {
+    const seasons = configuredPlayerSeasons(song);
+    return song.artist !== "Counterfist" || seasons.length > 0;
+  });
+
+  return (
+    <>
+      <p className="eyebrow">Public site</p>
+      <h2>Media Player</h2>
+      <p className="muted">Choose exactly which songs appear publicly and which playlist each song belongs to. Counterfist albums are handled separately as external album links.</p>
+
+      <form className="form" action={addSong}>
+        <h3>Add a player song</h3>
+        <input name="title" placeholder="Song title" required />
+        <input name="artist" placeholder="Artist" defaultValue="George Grissom" />
+        <input name="hostedFileName" placeholder="MP3 filename in /public_html/mp3" required />
+        <fieldset>
+          <legend>Playlist</legend>
+          <label><input name="seasonSetlist" type="checkbox" defaultChecked /> From the Setlist</label>
+          <label><input name="seasonCrow" type="checkbox" /> A Taste For Crow</label>
+        </fieldset>
+        <label><input name="liveOnPlayer" type="checkbox" defaultChecked /> Visible on public player</label>
+        <button className="button">Add to media library</button>
+      </form>
+
+      <table className="table">
+        <thead><tr><th>Song</th><th>Playlist / visibility</th></tr></thead>
+        <tbody>
+          {playerSongs.map(song => (
+            <PlayerSongEditor key={song.id} song={song} refresh={refresh} setToast={setToast} />
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
+function PlayerSongEditor({
+  song,
+  refresh,
+  setToast
+}: {
+  song: SongRow;
+  refresh: () => Promise<void>;
+  setToast: (s: string) => void;
+}) {
+  const [seasons, setSeasons] = useState<PublicPlayerSeason[]>(configuredPlayerSeasons(song));
+  const [hostedFileName, setHostedFileName] = useState(String(song.sourceLinks?.hostedFileName || ""));
+  const [liveOnPlayer, setLiveOnPlayer] = useState(Boolean(song.publicShortlist));
+
+  function toggleSeason(season: PublicPlayerSeason, checked: boolean) {
+    setSeasons(current => checked
+      ? Array.from(new Set([...current, season]))
+      : current.filter(item => item !== season)
+    );
+  }
+
+  async function save() {
+    if (liveOnPlayer && seasons.length === 0) {
+      setToast("Choose From the Setlist and/or A Taste For Crow before making the song visible.");
+      return;
+    }
+
+    const sourceLinks = {
+      ...(song.sourceLinks && typeof song.sourceLinks === "object" ? song.sourceLinks : {}),
+      hostedFileName: hostedFileName.trim() || null,
+      publicPlayerSeasons: seasons
+    };
+
+    const res = await fetch("/api/songs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: song.id,
+        album: seasons.includes("A Taste For Crow") ? "A Taste For Crow" : seasons[0] || "Unsorted",
+        publicShortlist: liveOnPlayer,
+        isPublic: true,
+        sourceLinks
+      })
+    });
+
+    setToast(res.ok ? "Media player updated." : "Could not update media player.");
+    await refresh();
+  }
+
+  return (
+    <tr>
+      <td>
+        <strong>{song.title}</strong><br />
+        <span className="muted">{song.artist || "George Grissom"}</span>
+      </td>
+      <td>
+        <div className="form">
+          <label>
+            <input
+              type="checkbox"
+              checked={seasons.includes("From the Setlist")}
+              onChange={event => toggleSeason("From the Setlist", event.target.checked)}
+            /> From the Setlist
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={seasons.includes("A Taste For Crow")}
+              onChange={event => toggleSeason("A Taste For Crow", event.target.checked)}
+            /> A Taste For Crow
+          </label>
+          <input
+            value={hostedFileName}
+            onChange={event => setHostedFileName(event.target.value)}
+            placeholder="MP3 filename"
+          />
+          <label>
+            <input
+              type="checkbox"
+              checked={liveOnPlayer}
+              onChange={event => setLiveOnPlayer(event.target.checked)}
+            /> Visible on public player
+          </label>
+          <button className="ghost" onClick={save}>Save</button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function SiteContentEditor({
+  content,
+  setContent,
+  setToast
+}: {
+  content: SiteContent;
+  setContent: (content: SiteContent) => void;
+  setToast: (s: string) => void;
+}) {
+  const [draft, setDraft] = useState<SiteContent>(content);
+
+  useEffect(() => setDraft(content), [content]);
+
+  function field(key: keyof SiteContent, label: string, rows = 4) {
+    return (
+      <label>
+        {label}
+        <textarea
+          rows={rows}
+          value={draft[key]}
+          onChange={event => setDraft(current => ({ ...current, [key]: event.target.value }))}
+        />
+      </label>
+    );
+  }
+
+  async function save() {
+    const res = await fetch("/api/site-content", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(draft)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setContent(data);
+      setToast("Site text updated.");
+    } else {
+      setToast(data.error || "Could not update site text.");
+    }
+  }
+
+  return (
+    <>
+      <p className="eyebrow">Public site</p>
+      <h2>Site Content</h2>
+      <p className="muted">Edit the main public-facing copy here. Changes appear on the site after you save and refresh the public page.</p>
+      <div className="form">
+        {field("heroLead", "Home — primary booking pitch", 3)}
+        {field("heroProof", "Home — voice / performance promotion", 5)}
+        {field("bookingIntro", "Booking section intro", 4)}
+        {field("storyIntro", "Story section intro", 4)}
+        {field("counterfistHeading", "Counterfist heading", 2)}
+        {field("counterfistBody", "Counterfist story", 5)}
+        {field("setlistHeading", "From the Setlist heading", 2)}
+        {field("setlistBody", "From the Setlist story", 5)}
+        {field("crowHeading", "A Taste For Crow heading", 2)}
+        {field("crowBody", "A Taste For Crow story", 6)}
+        <button className="button" onClick={save}>Save site text</button>
+      </div>
+    </>
   );
 }
 
