@@ -18,8 +18,7 @@ export type PublicTrackSeed = {
   aliases?: string[];
 };
 
-export const NAMECHEAP_AUDIO_BASE_URL =
-  process.env.AUDIO_BASE_URL || "https://assets.georgegrissom.com/mp3";
+export const NAMECHEAP_AUDIO_BASE_URL = "https://georgegrissom.com/mp3";
 
 export const PUBLIC_TRACKS: PublicTrackSeed[] = [
   {
