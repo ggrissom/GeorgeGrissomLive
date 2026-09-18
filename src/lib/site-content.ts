@@ -67,10 +67,10 @@ export async function saveSiteContent(input: unknown): Promise<SiteContent> {
       publicShortlist: false,
       paidCatalog: false,
       requestable: false,
-      sourceLinks: content
+      sourceLinks: content as any
     },
     update: {
-      sourceLinks: content,
+      sourceLinks: content as any,
       isPublic: false,
       publicShortlist: false,
       requestable: false
