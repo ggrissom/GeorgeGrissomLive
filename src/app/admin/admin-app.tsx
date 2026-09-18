@@ -70,7 +70,7 @@ type SongRow = {
 };
 type RequestRow = { id: string; requesterName?: string; customSongTitle?: string; message?: string; tipAmountCents: number; paymentStatus: string; status: string; priorityScore: number; song?: SongRow; event?: EventRow; createdAt: string; };
 type UploadRow = { id: string; uploaderName?: string; note?: string; storagePath: string; mimeType?: string; fileName?: string; status: string; createdAt: string; event?: EventRow };
-type BookingRow = { id: string; name: string; email?: string; phone?: string; venue?: string; date?: string; message?: string; status: string; createdAt: string; };
+type BookingRow = { id: string; name: string; email?: string; phone?: string; venue?: string; date?: string; message?: string; createdAt: string; };
 
 const PUBLIC_PLAYER_SEASONS = ["Counterfist Archive", "From the Setlist", "A Taste For Crow"] as const;
 type PublicPlayerSeason = typeof PUBLIC_PLAYER_SEASONS[number];
@@ -860,8 +860,9 @@ function Uploads({ uploads, refresh }: { uploads: UploadRow[]; refresh: () => Pr
 }
 
 function Bookings({ bookings, refresh }: { bookings: BookingRow[]; refresh: () => Promise<void> }) {
-  async function setStatus(id: string, status: string) {
-    await fetch("/api/bookings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) });
+  async function remove(id: string) {
+    if (!confirm("Delete this booking inquiry?")) return;
+    await fetch(`/api/bookings?id=${encodeURIComponent(id)}`, { method: "DELETE" });
     await refresh();
   }
 
@@ -869,8 +870,18 @@ function Bookings({ bookings, refresh }: { bookings: BookingRow[]; refresh: () =
     <>
       <p className="eyebrow">Booking</p>
       <h2>Inquiries</h2>
+      <p className="muted">New booking inquiries from the public site appear here immediately.</p>
       <table className="table">
-        <tbody>{bookings.map(booking => <tr key={booking.id}><td><strong>{booking.name}</strong><br />{booking.email} {booking.phone}<br /><span className="muted">{booking.date} · {booking.venue}</span><p>{booking.message}</p></td><td><span className="badge">{booking.status}</span></td><td><button className="ghost" onClick={() => setStatus(booking.id, "handled")}>Mark handled</button></td></tr>)}</tbody>
+        <tbody>{bookings.map(booking => <tr key={booking.id}>
+          <td>
+            <strong>{booking.name}</strong><br />
+            {booking.email} {booking.phone}<br />
+            <span className="muted">{booking.date} · {booking.venue}</span>
+            <p>{booking.message}</p>
+            <span className="muted">Received {new Date(booking.createdAt).toLocaleString()}</span>
+          </td>
+          <td><button className="ghost" onClick={() => remove(booking.id)}>Delete</button></td>
+        </tr>)}</tbody>
       </table>
     </>
   );
