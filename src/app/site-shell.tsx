@@ -59,7 +59,6 @@ export default function SiteShell({
   const [duration, setDuration] = useState("0:00");
   const [bookingStatus, setBookingStatus] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const initialAutoPlayAttemptedRef = useRef(false);
 
   const playableTracks = useMemo(
     () => tracks.filter(track =>
@@ -89,25 +88,6 @@ export default function SiteShell({
   );
 
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !current || initialAutoPlayAttemptedRef.current) return;
-
-    initialAutoPlayAttemptedRef.current = true;
-
-    const tryAutoPlay = () => {
-      if (document.hidden) return;
-      audio.play().catch(() => setPlaying(false));
-    };
-
-    if (audio.readyState >= 2) {
-      tryAutoPlay();
-    } else {
-      audio.addEventListener("canplay", tryAutoPlay, { once: true });
-    }
-
-    return () => audio.removeEventListener("canplay", tryAutoPlay);
-  }, [current]);
 
   useEffect(() => {
     const pauseForBackground = () => {
@@ -273,7 +253,6 @@ export default function SiteShell({
     <div className={styles.site}>
       <audio
         ref={audioRef}
-        autoPlay
         playsInline
         src={current && filter !== "Counterfist Archive"
           ? `/api/public-audio/${encodeURIComponent(current.id)}`
@@ -534,7 +513,7 @@ export default function SiteShell({
 
           <div className={styles.controls}>
             <button onClick={previousTrack} aria-label="Previous visible track">‹</button>
-            <button className={styles.playButton} onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>{playing ? "Ⅱ" : "▶"}</button>
+            <button className={`${styles.playButton} ${!playing ? styles.playPrompt : ""}`} onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>{playing ? "Ⅱ" : "▶"}</button>
             <button onClick={nextTrack} aria-label="Next visible track">›</button>
           </div>
 
