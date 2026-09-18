@@ -183,7 +183,7 @@ export default function SiteShell({
           <div className={styles.heroContent}>
             <p className={styles.kicker}>SEATTLE · SONGWRITER · PERFORMER</p>
             <h1>George<br />Grissom</h1>
-            <p className={styles.lead}>Three chapters. One catalog. Music built for loud rooms, close rooms, and everything between.</p>
+            <p className={styles.lead}>Three simultaneous seasons: the force of Counterfist, the adaptable live set, and A Taste for Crow—the songs finding their way back.</p>
             <div className={styles.actions}>
               <a href="#music" className={styles.primary}>Listen Now</a>
               <a href="#shows" className={styles.secondary}>Shows</a>
@@ -199,17 +199,17 @@ export default function SiteShell({
           <div className={styles.sectionHeading}>
             <div>
               <p className={styles.kicker}>THE LONG VERSION, CUT SHORT</p>
-              <h2>Three seasons</h2>
+              <h2>Three simultaneous seasons</h2>
             </div>
-            <p>Not a reinvention. A through-line—from Seattle stages, to stripped-down rooms, to the recordings and performances happening now.</p>
+            <p>They overlap, feed each other, and never fit neatly into a timeline. Different rooms, different volume, same instinct to follow the song wherever it goes.</p>
           </div>
 
           <div className={styles.chapterGrid}>
             <article className={styles.chapter}>
               <span className={styles.chapterNo}>01</span>
               <p className={styles.chapterLabel}>COUNTERFIST</p>
-              <h3>The band years</h3>
-              <p>George fronted Seattle progressive/alternative rock band Counterfist. The catalog includes <em>Chiral</em>, <em>Vertical Mile</em>, and the <em>Give Up the Ghost</em> EP, with documented Seattle shows at The Showbox, Neumos, and El Corazón.</p>
+              <h3>1999–2012, roughly</h3>
+              <p>Counterfist was the most explosive version of it: loud, physical, progressive/alternative rock built for clubs, volume, and a full band moving at once. George fronted the band through <em>Chiral</em>, <em>Vertical Mile</em>, and the <em>Give Up the Ghost</em> EP, with Seattle shows including The Showbox, Neumos, and El Corazón.</p>
               <div className={styles.textLinks}>
                 <a href="https://music.apple.com/us/artist/counterfist/449060552" target="_blank" rel="noreferrer">Apple Music ↗</a>
                 <a href="https://open.spotify.com/artist/0v55V86JsnB0FjvSlfkHzW" target="_blank" rel="noreferrer">Spotify ↗</a>
@@ -219,16 +219,16 @@ export default function SiteShell({
             <article className={styles.chapter}>
               <span className={styles.chapterNo}>02</span>
               <p className={styles.chapterLabel}>FROM THE SETLIST</p>
-              <h3>The bar-room years</h3>
-              <p>Covers George plays out in bars and rooms around the Northwest—songs built to work live, stripped to voice, guitar, rhythm, and the crowd.</p>
+              <h3>2000–present</h3>
+              <p>Running alongside the band years and continuing today: bars, wineries, wedding receptions, corporate rooms, and private events. Acoustic guitar, looping, and drum machines let one performer build the weight and movement of a full band without losing the intimacy of a solo set.</p>
               <a className={styles.inlineCta} href="#music">Hear the recordings →</a>
             </article>
 
             <article className={styles.chapter}>
               <span className={styles.chapterNo}>03</span>
               <p className={styles.chapterLabel}>A TASTE FOR CROW</p>
-              <h3>The newest season</h3>
-              <p>Current originals, works in progress, and the songs taking shape as <em>A Taste For Crow</em>. The public player below follows the catalog you choose in admin.</p>
+              <h3>The words came back</h3>
+              <p><em>A Taste For Crow</em> began with one lonely songwriting session just after George got married, then went quiet lyrically for more than eleven years. After the marriage ended, the pain opened something again. Old instrumentals started finding new words and new lives. For George, writing is discovery more than assignment: the feeling arrives, the words follow, and once it starts there is very little choice but to let the song come through.</p>
               <a className={styles.inlineCta} href="#shows">See upcoming dates →</a>
             </article>
           </div>
@@ -324,7 +324,7 @@ export default function SiteShell({
           <div className={styles.bookingIntro}>
             <p className={styles.kicker}>BOOKING</p>
             <h2>Put a date on the calendar.</h2>
-            <p>Venue, private event, winery, bar, listening room, or something that does not fit neatly into a category.</p>
+            <p>Bars, wineries, weddings, corporate events, private parties, listening rooms, or something that does not fit neatly into a category. Solo acoustic can stay stripped down or expand with looping and drum machines for a fuller-band feel.</p>
           </div>
 
           <form className={styles.bookingForm} onSubmit={submitBooking}>
