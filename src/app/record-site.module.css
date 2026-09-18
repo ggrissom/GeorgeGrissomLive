@@ -197,22 +197,28 @@
   isolation: isolate;
 }
 
-.musicSection::before {
-  content: "";
+.musicBackdrop {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("/images/binary-star-space.webp");
-  background-size: 100% auto;
-  background-position: center center;
-  background-repeat: no-repeat;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.musicBackdrop img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
   opacity: .35;
   transform: scaleX(-1);
   transform-origin: center center;
 }
 
-.musicSection > * {
+.musicSection > *:not(.musicBackdrop) {
   position: relative;
   z-index: 1;
 }
@@ -462,7 +468,8 @@
 }
 
 .showSection > .sectionHeading,
-.showSection > .events {
+.showSection > .events,
+.showSection > .showCalendarTools {
   position: relative;
   z-index: 2;
 }
@@ -485,6 +492,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 14px;
+  margin-top: 22px;
 }
 
 .showCalendarTools > p {
