@@ -25,12 +25,11 @@ export async function POST(request: Request) {
   return NextResponse.json(inquiry);
 }
 
-export async function PATCH(request: Request) {
+export async function DELETE(request: Request) {
   if (!(await isAdminRequest())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = await request.json();
-  const inquiry = await prisma.bookingInquiry.update({
-    where: { id: body.id },
-    data: { status: body.status }
-  });
-  return NextResponse.json(inquiry);
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  await prisma.bookingInquiry.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 }
