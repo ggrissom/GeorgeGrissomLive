@@ -697,7 +697,8 @@ function PlayerManager({
       requestable: false,
       sourceLinks: {
         hostedFileName: hostedFileName || null,
-        publicPlayerSeasons: seasons
+        publicPlayerSeasons: seasons,
+        publicPlayerDefault: false
       }
     };
 
@@ -713,14 +714,66 @@ function PlayerManager({
 
   const playerSongs = songs.filter(song => {
     const seasons = configuredPlayerSeasons(song);
-    return song.artist !== "Counterfist" || seasons.length > 0;
+    const links = song.sourceLinks && typeof song.sourceLinks === "object" ? song.sourceLinks : {};
+    const hasMp3Source = Boolean(
+      links.hostedFileName ||
+      links.fullMp3DriveFileId ||
+      song.audioUrl ||
+      seasons.length
+    );
+    return song.artist !== "Counterfist" && hasMp3Source;
   });
+
+  const defaultSongId =
+    playerSongs.find(song => song.sourceLinks?.publicPlayerDefault === true)?.id ||
+    playerSongs.find(song => song.slug === "what-a-shame" && song.publicShortlist)?.id ||
+    playerSongs.find(song => song.publicShortlist)?.id ||
+    "";
+
+  async function setDefaultSong(songId: string) {
+    const target = playerSongs.find(song => song.id === songId);
+    if (!target) return;
+
+    const targetSeasons = configuredPlayerSeasons(target);
+    if (!target.publicShortlist || targetSeasons.length === 0) {
+      setToast("The default song must be assigned to a playlist and visible on the public player. Save those settings first.");
+      return;
+    }
+
+    try {
+      const rowsToUpdate = playerSongs.filter(song =>
+        Boolean(song.sourceLinks?.publicPlayerDefault) !== (song.id === songId)
+      );
+
+      for (const row of rowsToUpdate) {
+        const sourceLinks = {
+          ...(row.sourceLinks && typeof row.sourceLinks === "object" ? row.sourceLinks : {}),
+          publicPlayerDefault: row.id === songId
+        };
+        const res = await fetch("/api/songs", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: row.id, sourceLinks })
+        });
+        if (!res.ok) throw new Error("Could not save default song.");
+      }
+
+      setToast(`${target.title} is now the default song when Play is first pressed.`);
+      await refresh();
+    } catch {
+      setToast("Could not save the default song.");
+    }
+  }
 
   return (
     <>
       <p className="eyebrow">Public site</p>
       <h2>Media Player</h2>
-      <p className="muted">Choose exactly which songs appear publicly and which playlist each song belongs to. Counterfist albums are handled separately as external album links.</p>
+      <p className="muted">
+        This is the public-player control center. MP3s in the known audio catalog are listed here even when hidden.
+        Choose what is visible, which playlist each song belongs to, and the default song queued when a visitor first presses Play.
+        Counterfist albums remain separate external album links.
+      </p>
 
       <form className="form" action={addSong}>
         <h3>Add a player song</h3>
@@ -737,11 +790,21 @@ function PlayerManager({
       </form>
 
       <table className="table">
-        <thead><tr><th>Song</th><th>Playlist / visibility</th></tr></thead>
+        <thead><tr><th>Song</th><th>MP3 source</th><th>Playlist / visibility / default</th></tr></thead>
         <tbody>
           {playerSongs.map(song => (
-            <PlayerSongEditor key={song.id} song={song} refresh={refresh} setToast={setToast} />
+            <PlayerSongEditor
+              key={song.id}
+              song={song}
+              isDefault={song.id === defaultSongId}
+              setDefaultSong={setDefaultSong}
+              refresh={refresh}
+              setToast={setToast}
+            />
           ))}
+          {playerSongs.length === 0 && (
+            <tr><td colSpan={3} className="muted">No MP3-backed songs were found.</td></tr>
+          )}
         </tbody>
       </table>
     </>
@@ -750,16 +813,21 @@ function PlayerManager({
 
 function PlayerSongEditor({
   song,
+  isDefault,
+  setDefaultSong,
   refresh,
   setToast
 }: {
   song: SongRow;
+  isDefault: boolean;
+  setDefaultSong: (songId: string) => Promise<void>;
   refresh: () => Promise<void>;
   setToast: (s: string) => void;
 }) {
   const [seasons, setSeasons] = useState<PublicPlayerSeason[]>(configuredPlayerSeasons(song));
   const [hostedFileName, setHostedFileName] = useState(String(song.sourceLinks?.hostedFileName || ""));
   const [liveOnPlayer, setLiveOnPlayer] = useState(Boolean(song.publicShortlist));
+  const driveFileId = String(song.sourceLinks?.fullMp3DriveFileId || song.sourceLinks?.driveFileId || "");
 
   function toggleSeason(season: PublicPlayerSeason, checked: boolean) {
     setSeasons(current => checked
@@ -803,6 +871,20 @@ function PlayerSongEditor({
         <span className="muted">{song.artist || "George Grissom"}</span>
       </td>
       <td>
+        {hostedFileName ? (
+          <><code>{hostedFileName}</code><br /><span className="muted">Namecheap /mp3</span></>
+        ) : driveFileId ? (
+          <><code>{driveFileId}</code><br /><span className="muted">Google Drive MP3 fallback</span></>
+        ) : song.audioUrl ? (
+          <><code>{song.audioUrl}</code><br /><span className="muted">Direct audio URL</span></>
+        ) : (
+          <span className="muted">No MP3 source assigned</span>
+        )}
+        {liveOnPlayer && (
+          <><br /><a className="ghost" href={`/api/public-audio/${encodeURIComponent(song.id)}`} target="_blank" rel="noreferrer">Test MP3</a></>
+        )}
+      </td>
+      <td>
         <div className="form">
           <label>
             <input
@@ -829,6 +911,15 @@ function PlayerSongEditor({
               checked={liveOnPlayer}
               onChange={event => setLiveOnPlayer(event.target.checked)}
             /> Visible on public player
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="default-player-song"
+              checked={isDefault}
+              disabled={!liveOnPlayer || seasons.length === 0}
+              onChange={() => void setDefaultSong(song.id)}
+            /> Default song when Play is first pressed
           </label>
           <button className="ghost" onClick={save}>Save</button>
         </div>
