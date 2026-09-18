@@ -316,7 +316,6 @@ export default function SiteShell({
         </section>
 
         <section id="music" className={`${styles.section} ${styles.musicSection}`}>
-          <div className={styles.musicBackdrop} aria-hidden="true" />
           <div className={styles.sectionHeading}>
             <div>
               <p className={styles.kicker}>LISTEN</p>
