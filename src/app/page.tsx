@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { ensurePublicPlayerCatalog } from "@/lib/ensure-public-player-catalog";
 import { normalizePlayerSeasons } from "@/lib/public-track-catalog";
 import { publicEventsFromPerformanceCalendar } from "@/lib/public-events";
+import { getSiteContent } from "@/lib/site-content";
 import SiteShell from "./site-shell";
 
 function sourceLinksObject(value: unknown) {
@@ -15,7 +16,7 @@ function sourceLinksObject(value: unknown) {
 export default async function Home() {
   await ensurePublicPlayerCatalog();
 
-  const [events, songs] = await Promise.all([
+  const [events, songs, siteContent] = await Promise.all([
     publicEventsFromPerformanceCalendar(50),
     prisma.song.findMany({
       where: {
@@ -26,7 +27,8 @@ export default async function Home() {
         { album: "asc" },
         { title: "asc" }
       ]
-    })
+    }),
+    getSiteContent()
   ]);
 
   return (
@@ -41,6 +43,7 @@ export default async function Home() {
         state: event.state,
         notes: event.notes
       }))}
+      siteContent={siteContent}
       tracks={songs.map(song => {
         const links = sourceLinksObject(song.sourceLinks);
         return {
