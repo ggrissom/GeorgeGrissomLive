@@ -141,9 +141,7 @@ export async function PATCH(request: Request) {
 
   if (visible && defaultRequested) {
     const others = await prisma.song.findMany({
-      where: {
-        slug: { in: catalogSeeds().map(item => item.slug), not: slug }
-      },
+      where: { id: { not: saved.id } },
       select: { id: true, sourceLinks: true }
     });
 
