@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isAdminRequest } from "@/lib/auth";
 import { lyricSearchLinks } from "@/lib/metadata";
+import { ensurePublicPlayerCatalog } from "@/lib/ensure-public-player-catalog";
 
 function songPublicShape(song: any, admin: boolean) {
   if (admin) return { ...song, lyricSearchLinks: lyricSearchLinks(song.title, song.artist) };
@@ -27,7 +28,14 @@ function songPublicShape(song: any, admin: boolean) {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const admin = searchParams.get("admin") === "1" && await isAdminRequest();
+  const wantsAdmin = searchParams.get("admin") === "1";
+  const admin = wantsAdmin && await isAdminRequest();
+
+  // The public MP3 inventory is a durable catalog, but an admin may land here
+  // before the public homepage has had a chance to reconcile it into the DB.
+  // Seed/reconcile it here so Media Player always shows the available MP3s.
+  if (admin) await ensurePublicPlayerCatalog();
+
   const where = admin
     ? { NOT: { slug: "__site-content" } }
     : { isPublic: true };
