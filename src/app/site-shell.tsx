@@ -41,15 +41,22 @@ const wave = [34,52,44,72,62,38,58,78,46,66,84,54,42,74,91,66,48,70,55,81,63,44,
 export default function SiteShell({
   initialEvents,
   tracks,
-  siteContent
+  siteContent,
+  defaultTrackId
 }: {
   initialEvents: EventRow[];
   tracks: Track[];
   siteContent: SiteContent;
+  defaultTrackId?: string | null;
 }) {
   const [activeTrack, setActiveTrack] = useState(() => {
-    const index = tracks.findIndex(track => track.slug === "what-a-shame");
-    return index >= 0 ? index : 0;
+    const configuredIndex = defaultTrackId
+      ? tracks.findIndex(track => track.id === defaultTrackId)
+      : -1;
+    if (configuredIndex >= 0) return configuredIndex;
+
+    const fallbackIndex = tracks.findIndex(track => track.slug === "what-a-shame");
+    return fallbackIndex >= 0 ? fallbackIndex : 0;
   });
   const [playing, setPlaying] = useState(false);
   const [query, setQuery] = useState("");
