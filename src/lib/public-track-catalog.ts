@@ -136,7 +136,7 @@ export const PUBLIC_TRACKS: PublicTrackSeed[] = [
     fileId: "1d6PuYw4EnFQSz8PT5plQlnWN9SQkAlwm",
     seasons: ["A Taste For Crow"],
     defaultPublic: true,
-    hostedFileName: "06 - This song is about you..mp3",
+    hostedFileName: "06 - This song is about you.mp3",
     aliases: ["This Song Is About You", "This song is about you"]
   },
   {
