@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { request as httpsRequest } from "node:https";
 import { Readable } from "node:stream";
 import { prisma } from "@/lib/db";
-import { publicTrackForSlug } from "@/lib/public-track-catalog";
+import { hostedTrackUrl, publicTrackForSlug } from "@/lib/public-track-catalog";
 import { isGoogleDriveAudioConfigured, readAudioFile } from "@/lib/audio-storage";
 
 export const runtime = "nodejs";
@@ -102,22 +102,36 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   const links = sourceLinksObject(song.sourceLinks);
   const seeded = song.slug ? publicTrackForSlug(song.slug) : null;
 
-  // An explicit full MP3 URL configured in Admin is authoritative.
+  const hostedFileName =
+    (typeof links.hostedFileName === "string" && links.hostedFileName) ||
+    seeded?.hostedFileName ||
+    null;
+
+  // The admin catalog displays a full hosted URL for convenience. That derived
+  // URL must not bypass the working server-side MP3 proxy. Only truly custom
+  // direct URLs should redirect away from this route.
   if (song.audioUrl) {
     try {
       const directUrl = new URL(song.audioUrl, request.url);
-      if (directUrl.protocol === "http:" || directUrl.protocol === "https:") {
+      const derivedHostedUrl = hostedFileName ? hostedTrackUrl(hostedFileName) : null;
+      const isDerivedHostedUrl = derivedHostedUrl
+        ? directUrl.toString() === new URL(derivedHostedUrl, request.url).toString()
+        : false;
+      const isKnownHostedAudio =
+        directUrl.hostname === "assets.georgegrissom.com" ||
+        (directUrl.hostname === "georgegrissom.com" && directUrl.pathname.startsWith("/mp3/"));
+
+      if (
+        (directUrl.protocol === "http:" || directUrl.protocol === "https:") &&
+        !isDerivedHostedUrl &&
+        !isKnownHostedAudio
+      ) {
         return Response.redirect(directUrl, 307);
       }
     } catch {
       // Fall through to hosted filename / Drive sources.
     }
   }
-
-  const hostedFileName =
-    (typeof links.hostedFileName === "string" && links.hostedFileName) ||
-    seeded?.hostedFileName ||
-    null;
 
   if (hostedFileName) {
     const hosted = await readNamecheapHostedFile(
