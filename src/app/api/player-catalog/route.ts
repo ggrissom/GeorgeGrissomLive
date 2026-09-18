@@ -46,7 +46,11 @@ export async function GET() {
     const row = bySlug.get(seed.slug);
     const sourceLinks = sourceLinksObject(row?.sourceLinks);
     const seasons = normalizeSeasons(sourceLinks.publicPlayerSeasons, seed.seasons);
-    const fullUrl = row?.audioUrl || hostedTrackUrl(seed.hostedFileName) || "";
+    const storedUrl = row?.audioUrl || "";
+    const staleHostedUrl = /^https?:\/\/assets\.georgegrissom\.com\/mp3\//i.test(storedUrl);
+    const fullUrl = staleHostedUrl
+      ? (hostedTrackUrl(seed.hostedFileName) || "")
+      : (storedUrl || hostedTrackUrl(seed.hostedFileName) || "");
 
     return {
       id: row?.id || `catalog:${seed.slug}`,
@@ -91,9 +95,13 @@ export async function PATCH(request: Request) {
     seed.seasons
   );
   const hasExplicitAudioUrl = Object.prototype.hasOwnProperty.call(body, "audioUrl");
+  const existingAudioUrl = existing?.audioUrl || "";
+  const staleExistingHostedUrl = /^https?:\/\/assets\.georgegrissom\.com\/mp3\//i.test(existingAudioUrl);
   const audioUrl = hasExplicitAudioUrl
     ? String(body.audioUrl || "").trim()
-    : (existing?.audioUrl || "");
+    : (staleExistingHostedUrl
+        ? (hostedTrackUrl(seed.hostedFileName) || "")
+        : existingAudioUrl);
   const visible = Object.prototype.hasOwnProperty.call(body, "publicShortlist")
     ? Boolean(body.publicShortlist)
     : (existing?.publicShortlist ?? seed.defaultPublic);
@@ -120,7 +128,7 @@ export async function PATCH(request: Request) {
       title: seed.title,
       artist: seed.artist || "George Grissom",
       album: primaryAlbum(seasons),
-      ...(hasExplicitAudioUrl ? { audioUrl: audioUrl || null } : {}),
+      ...((hasExplicitAudioUrl || staleExistingHostedUrl) ? { audioUrl: audioUrl || null } : {}),
       publicShortlist: visible,
       isPublic: true,
       paidCatalog: false,
