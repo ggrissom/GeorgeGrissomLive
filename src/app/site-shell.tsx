@@ -14,13 +14,13 @@ type EventRow = {
   notes?: string | null;
 };
 
-type PlayerSeason = "Counterfist Archive" | "From the Setlist" | "A Taste for Crow" | "Unsorted";
+type PlayerSeason = "Counterfist Archive" | "From the Setlist" | "A Taste For Crow";
 
 type Track = {
   id: string;
   slug?: string | null;
   title: string;
-  season: PlayerSeason;
+  seasons: PlayerSeason[];
 };
 
 const wave = [34,52,44,72,62,38,58,78,46,66,84,54,42,74,91,66,48,70,55,81,63,44,73,88,51,69,39,76,58,83,47,72,93,60,42,67,79,53,70,86,46,61,77,55,89,64,48,74,58,82,45,68,90,57,41,73,85,52,62,76,49,71,87,56];
@@ -35,7 +35,7 @@ export default function SiteShell({
   const [activeTrack, setActiveTrack] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "Counterfist Archive" | "From the Setlist" | "A Taste for Crow">("all");
+  const [filter, setFilter] = useState<"all" | PlayerSeason>("all");
   const [progress, setProgress] = useState(0);
   const [elapsed, setElapsed] = useState("0:00");
   const [duration, setDuration] = useState("0:00");
@@ -46,7 +46,7 @@ export default function SiteShell({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return tracks.filter(track => {
-      const eraMatch = filter === "all" || track.season === filter;
+      const eraMatch = filter === "all" || track.seasons.includes(filter);
       const textMatch = !q || track.title.toLowerCase().includes(q);
       return eraMatch && textMatch;
     });
@@ -228,7 +228,7 @@ export default function SiteShell({
               <span className={styles.chapterNo}>03</span>
               <p className={styles.chapterLabel}>A TASTE FOR CROW</p>
               <h3>The newest season</h3>
-              <p>Current originals, works in progress, and the songs taking shape as <em>A Taste for Crow</em>. The public player below follows the catalog you choose in admin.</p>
+              <p>Current originals, works in progress, and the songs taking shape as <em>A Taste For Crow</em>. The public player below follows the catalog you choose in admin.</p>
               <a className={styles.inlineCta} href="#shows">See upcoming dates →</a>
             </article>
           </div>
@@ -248,7 +248,7 @@ export default function SiteShell({
               <button className={filter === "all" ? styles.activeFilter : ""} onClick={() => setFilter("all")}>ALL</button>
               <button className={filter === "Counterfist Archive" ? styles.activeFilter : ""} onClick={() => setFilter("Counterfist Archive")}>Counterfist Archive</button>
               <button className={filter === "From the Setlist" ? styles.activeFilter : ""} onClick={() => setFilter("From the Setlist")}>From the Setlist</button>
-              <button className={filter === "A Taste for Crow" ? styles.activeFilter : ""} onClick={() => setFilter("A Taste for Crow")}>A Taste for Crow</button>
+              <button className={filter === "A Taste For Crow" ? styles.activeFilter : ""} onClick={() => setFilter("A Taste For Crow")}>A Taste For Crow</button>
             </div>
             <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tracks" aria-label="Search tracks" />
           </div>
@@ -257,7 +257,9 @@ export default function SiteShell({
             {filtered.map(track => {
               const index = tracks.findIndex(item => item.id === track.id);
               const selected = index === activeTrack;
-              const tag = track.season === "Counterfist Archive" ? "ARCHIVE" : track.season === "From the Setlist" ? "SETLIST" : "CROW";
+              const tag = filter !== "all"
+                ? (filter === "Counterfist Archive" ? "ARCHIVE" : filter === "From the Setlist" ? "SETLIST" : "CROW")
+                : track.seasons.map(season => season === "Counterfist Archive" ? "ARCHIVE" : season === "From the Setlist" ? "SETLIST" : "CROW").join(" / ");
               return (
                 <button key={track.id} className={selected ? styles.trackActive : styles.track} onClick={() => selectTrack(track)}>
                   <span className={styles.trackIndex}>{String(index + 1).padStart(2, "0")}</span>
@@ -359,7 +361,7 @@ export default function SiteShell({
       <div className={styles.player} aria-label="Music player">
         <div className={styles.playerIdentity}>
           <span className={styles.playerMark}>GG</span>
-          <div><strong>{current?.title || "Select a track"}</strong><small>{current?.season || "George Grissom"}</small></div>
+          <div><strong>{current?.title || "Select a track"}</strong><small>{current?.seasons.join(" · ") || "George Grissom"}</small></div>
         </div>
 
         <div className={styles.controls}>
