@@ -44,11 +44,18 @@ export async function ensurePublicPlayerCatalog() {
     const existing = bySlug || byTitle;
     const sourceLinks = normalizeSourceLinks(existing?.sourceLinks);
     const configuredVersion = Number(sourceLinks.publicPlayerConfigVersion || 0);
+    const hasHostedFileName = Object.prototype.hasOwnProperty.call(sourceLinks, "hostedFileName");
+    const hasPlayerSeasons = Array.isArray(sourceLinks.publicPlayerSeasons);
     const nextSourceLinks = {
       ...sourceLinks,
-      fullMp3DriveFileId: seed.fileId,
-      hostedFileName: seed.hostedFileName || sourceLinks.hostedFileName || null,
-      publicPlayerSeasons: seed.seasons,
+      // Seed missing delivery data, but never overwrite choices made in Admin.
+      fullMp3DriveFileId: sourceLinks.fullMp3DriveFileId || seed.fileId,
+      hostedFileName: hasHostedFileName
+        ? sourceLinks.hostedFileName
+        : (seed.hostedFileName || null),
+      publicPlayerSeasons: hasPlayerSeasons
+        ? sourceLinks.publicPlayerSeasons
+        : seed.seasons,
       publicPlayerConfigVersion: CONFIG_VERSION
     };
 
@@ -71,9 +78,10 @@ export async function ensurePublicPlayerCatalog() {
     }
 
     const needsSourceUpdate =
-      sourceLinks.fullMp3DriveFileId !== seed.fileId ||
-      sourceLinks.hostedFileName !== (seed.hostedFileName || null) ||
-      JSON.stringify(sourceLinks.publicPlayerSeasons || []) !== JSON.stringify(seed.seasons);
+      sourceLinks.fullMp3DriveFileId !== nextSourceLinks.fullMp3DriveFileId ||
+      sourceLinks.hostedFileName !== nextSourceLinks.hostedFileName ||
+      JSON.stringify(sourceLinks.publicPlayerSeasons) !== JSON.stringify(nextSourceLinks.publicPlayerSeasons) ||
+      configuredVersion < CONFIG_VERSION;
 
     if (configuredVersion >= CONFIG_VERSION && !needsSourceUpdate) {
       await hideLegacyDuplicateRows(seed, existing.id);
