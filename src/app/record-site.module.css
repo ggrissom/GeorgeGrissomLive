@@ -811,3 +811,16 @@
 @media (prefers-reduced-motion: reduce) {
   .site * { scroll-behavior: auto !important; transition: none !important; }
 }
+
+/* MIRRORED DYING-STAR MUSIC BACKGROUND */
+.musicSection {
+  background-color: var(--ink-2);
+  background-image: url("/images/binary-star-space-mirrored.svg") !important;
+  background-size: 100% auto !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+.musicBackdrop {
+  display: none !important;
+}
