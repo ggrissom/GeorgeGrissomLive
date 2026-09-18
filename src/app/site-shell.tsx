@@ -64,7 +64,14 @@ export default function SiteShell({
   });
   const [playing, setPlaying] = useState(false);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | PlayerSeason>("From the Setlist");
+  const [filter, setFilter] = useState<"all" | PlayerSeason>(() => {
+    const configured = defaultTrackId
+      ? tracks.find(track => track.id === defaultTrackId)
+      : null;
+    if (configured?.seasons.includes("From the Setlist")) return "From the Setlist";
+    if (configured?.seasons.includes("A Taste For Crow")) return "A Taste For Crow";
+    return "From the Setlist";
+  });
   const [progress, setProgress] = useState(0);
   const [elapsed, setElapsed] = useState("0:00");
   const [duration, setDuration] = useState("0:00");
