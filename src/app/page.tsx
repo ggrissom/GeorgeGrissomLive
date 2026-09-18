@@ -31,6 +31,20 @@ export default async function Home() {
     getSiteContent()
   ]);
 
+  const tracks = songs.map(song => {
+    const links = sourceLinksObject(song.sourceLinks);
+    return {
+      id: song.id,
+      slug: song.slug,
+      title: song.title,
+      seasons: normalizePlayerSeasons(links.publicPlayerSeasons, song.album)
+    };
+  });
+
+  const configuredDefault = songs.find(song => sourceLinksObject(song.sourceLinks).publicPlayerDefault === true);
+  const fallbackDefault = songs.find(song => song.slug === "what-a-shame") || songs[0] || null;
+  const defaultTrackId = configuredDefault?.id || fallbackDefault?.id || null;
+
   return (
     <SiteShell
       initialEvents={events.map(event => ({
@@ -44,15 +58,8 @@ export default async function Home() {
         notes: event.notes
       }))}
       siteContent={siteContent}
-      tracks={songs.map(song => {
-        const links = sourceLinksObject(song.sourceLinks);
-        return {
-          id: song.id,
-          slug: song.slug,
-          title: song.title,
-          seasons: normalizePlayerSeasons(links.publicPlayerSeasons, song.album)
-        };
-      })}
+      tracks={tracks}
+      defaultTrackId={defaultTrackId}
     />
   );
 }
