@@ -845,7 +845,8 @@ function PlayerSongEditor({
     const sourceLinks = {
       ...(song.sourceLinks && typeof song.sourceLinks === "object" ? song.sourceLinks : {}),
       hostedFileName: hostedFileName.trim() || null,
-      publicPlayerSeasons: seasons
+      publicPlayerSeasons: seasons,
+      publicPlayerDefault: liveOnPlayer ? Boolean(song.sourceLinks?.publicPlayerDefault) : false
     };
 
     const res = await fetch("/api/songs", {
