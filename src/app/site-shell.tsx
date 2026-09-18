@@ -23,14 +23,29 @@ type Track = {
   seasons: PlayerSeason[];
 };
 
+type SiteContent = {
+  heroLead: string;
+  heroProof: string;
+  bookingIntro: string;
+  storyIntro: string;
+  counterfistHeading: string;
+  counterfistBody: string;
+  setlistHeading: string;
+  setlistBody: string;
+  crowHeading: string;
+  crowBody: string;
+};
+
 const wave = [34,52,44,72,62,38,58,78,46,66,84,54,42,74,91,66,48,70,55,81,63,44,73,88,51,69,39,76,58,83,47,72,93,60,42,67,79,53,70,86,46,61,77,55,89,64,48,74,58,82,45,68,90,57,41,73,85,52,62,76,49,71,87,56];
 
 export default function SiteShell({
   initialEvents,
-  tracks
+  tracks,
+  siteContent
 }: {
   initialEvents: EventRow[];
   tracks: Track[];
+  siteContent: SiteContent;
 }) {
   const [activeTrack, setActiveTrack] = useState(() => {
     const index = tracks.findIndex(track => track.slug === "what-a-shame");
@@ -45,15 +60,24 @@ export default function SiteShell({
   const [bookingStatus, setBookingStatus] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const playableTracks = useMemo(
+    () => tracks.filter(track =>
+      track.seasons.includes("From the Setlist") || track.seasons.includes("A Taste For Crow")
+    ),
+    [tracks]
+  );
+
   const current = tracks[activeTrack];
-  const filtered = useMemo(() => {
+
+  const visibleTracks = useMemo(() => {
+    if (filter === "Counterfist Archive") return [];
     const q = query.trim().toLowerCase();
-    return tracks.filter(track => {
-      const eraMatch = filter === "all" || track.seasons.includes(filter);
+    return playableTracks.filter(track => {
+      const playlistMatch = filter === "all" || track.seasons.includes(filter);
       const textMatch = !q || track.title.toLowerCase().includes(q);
-      return eraMatch && textMatch;
+      return playlistMatch && textMatch;
     });
-  }, [tracks, query, filter]);
+  }, [playableTracks, query, filter]);
 
   const upcoming = useMemo(
     () => initialEvents
@@ -62,6 +86,25 @@ export default function SiteShell({
       .slice(0, 6),
     [initialEvents]
   );
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (filter === "Counterfist Archive") {
+      audio.pause();
+      setPlaying(false);
+      return;
+    }
+
+    if (visibleTracks.length && (!current || !visibleTracks.some(track => track.id === current.id))) {
+      audio.pause();
+      setPlaying(false);
+      const next = visibleTracks[0];
+      const index = tracks.findIndex(track => track.id === next.id);
+      if (index >= 0) setActiveTrack(index);
+    }
+  }, [filter, query, visibleTracks, current, tracks]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -107,21 +150,36 @@ export default function SiteShell({
 
   function togglePlay() {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || filter === "Counterfist Archive" || !current) return;
     if (audio.paused) audio.play().catch(() => setPlaying(false));
     else audio.pause();
   }
 
+  function moveInVisibleQueue(direction: 1 | -1) {
+    if (!visibleTracks.length) return;
+    const currentVisibleIndex = current
+      ? visibleTracks.findIndex(track => track.id === current.id)
+      : -1;
+    const base = currentVisibleIndex >= 0 ? currentVisibleIndex : 0;
+    const nextVisibleIndex = (base + direction + visibleTracks.length) % visibleTracks.length;
+    const target = visibleTracks[nextVisibleIndex];
+    const globalIndex = tracks.findIndex(track => track.id === target.id);
+    if (globalIndex < 0) return;
+    setActiveTrack(globalIndex);
+    setTimeout(() => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.load();
+      audio.play().catch(() => setPlaying(false));
+    }, 0);
+  }
+
   function previousTrack() {
-    if (!tracks.length) return;
-    setActiveTrack(index => (index - 1 + tracks.length) % tracks.length);
-    setTimeout(() => audioRef.current?.play().catch(() => setPlaying(false)), 0);
+    moveInVisibleQueue(-1);
   }
 
   function nextTrack() {
-    if (!tracks.length) return;
-    setActiveTrack(index => (index + 1) % tracks.length);
-    setTimeout(() => audioRef.current?.play().catch(() => setPlaying(false)), 0);
+    moveInVisibleQueue(1);
   }
 
   function seek(percent: number) {
@@ -167,7 +225,13 @@ export default function SiteShell({
 
   return (
     <div className={styles.site}>
-      <audio ref={audioRef} src={current ? `/api/public-audio/${encodeURIComponent(current.id)}` : undefined} preload="metadata" />
+      <audio
+        ref={audioRef}
+        src={current && filter !== "Counterfist Archive"
+          ? `/api/public-audio/${encodeURIComponent(current.id)}`
+          : undefined}
+        preload="metadata"
+      />
 
       <aside className={styles.rail} aria-label="Site navigation">
         <a className={styles.railMark} href="#home" aria-label="George Grissom home">GG</a>
@@ -186,8 +250,8 @@ export default function SiteShell({
           <div className={styles.heroContent}>
             <p className={styles.kicker}>SEATTLE · SONGWRITER · PERFORMER</p>
             <h1>George<br />Grissom</h1>
-            <p className={styles.lead}>One voice, one guitar, loops and rhythm underfoot—an acoustic performance that can stay intimate or grow until it feels like a full band in the room.</p>
-            <p className={styles.heroProof}>Early Counterfist histories called George the “perfect choice” to front the band. Listeners have singled out the voice and the dark, forceful energy around it. Two decades later, that same voice can fill a winery patio, a bar room, a wedding, or a late happy hour without losing the closeness of a solo performance.</p>
+            <p className={styles.lead}>{siteContent.heroLead}</p>
+            <p className={styles.heroProof}>{siteContent.heroProof}</p>
             <div className={styles.actions}>
               <a href="#music" className={styles.primary}>Listen Now</a>
               <a href="#shows" className={styles.secondary}>Shows</a>
@@ -202,52 +266,64 @@ export default function SiteShell({
         <section id="music" className={styles.section}>
           <div className={styles.sectionHeading}>
             <div>
-              <p className={styles.kicker}>THE RECORDS + THE WORKBENCH</p>
+              <p className={styles.kicker}>LISTEN</p>
               <h2>Music</h2>
             </div>
-            <p>{tracks.length} songs are live right now. Add, remove, or re-season them from the private admin dashboard.</p>
+            <p>
+              {filter === "Counterfist Archive"
+                ? "Counterfist releases are linked out for listening."
+                : `${visibleTracks.length} songs in this view. The player stays inside the playlist you select.`}
+            </p>
           </div>
 
           <div className={styles.musicTools}>
             <div className={styles.filters}>
-              <button className={filter === "all" ? styles.activeFilter : ""} onClick={() => setFilter("all")}>ALL</button>
-              <button className={filter === "Counterfist Archive" ? styles.activeFilter : ""} onClick={() => setFilter("Counterfist Archive")}>Counterfist Archive</button>
               <button className={filter === "From the Setlist" ? styles.activeFilter : ""} onClick={() => setFilter("From the Setlist")}>From the Setlist</button>
               <button className={filter === "A Taste For Crow" ? styles.activeFilter : ""} onClick={() => setFilter("A Taste For Crow")}>A Taste For Crow</button>
+              <button className={filter === "Counterfist Archive" ? styles.activeFilter : ""} onClick={() => setFilter("Counterfist Archive")}>Counterfist Archive</button>
+              <button className={filter === "all" ? styles.activeFilter : ""} onClick={() => setFilter("all")}>ALL</button>
             </div>
-            <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search tracks" aria-label="Search tracks" />
+            {filter !== "Counterfist Archive" && (
+              <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search visible tracks" aria-label="Search visible tracks" />
+            )}
           </div>
 
-          <div className={styles.trackGrid}>
-            {filtered.map(track => {
-              const index = tracks.findIndex(item => item.id === track.id);
-              const selected = index === activeTrack;
-              const tag = filter !== "all"
-                ? (filter === "Counterfist Archive" ? "ARCHIVE" : filter === "From the Setlist" ? "SETLIST" : "CROW")
-                : track.seasons.map(season => season === "Counterfist Archive" ? "ARCHIVE" : season === "From the Setlist" ? "SETLIST" : "CROW").join(" / ");
-              return (
-                <button key={track.id} className={selected ? styles.trackActive : styles.track} onClick={() => selectTrack(track)}>
-                  <span className={styles.trackIndex}>{String(index + 1).padStart(2, "0")}</span>
-                  <span className={styles.trackTitle}>{track.title}</span>
-                  <span className={styles.trackEra}>{tag}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className={styles.releaseStrip}>
-            <article>
-              <span>2001</span><strong>Chiral</strong><p>Counterfist</p>
-            </article>
-            <article>
-              <span>2008</span><strong>Vertical Mile</strong><p>Counterfist</p>
-              <a href="https://open.spotify.com/album/4NtQ8p7GN8aZH0JjkFqh4f" target="_blank" rel="noreferrer">Listen ↗</a>
-            </article>
-            <article>
-              <span>2011</span><strong>Give Up the Ghost</strong><p>Counterfist EP</p>
-              <a href="https://music.apple.com/us/album/give-up-the-ghost-ep/1063852643" target="_blank" rel="noreferrer">Listen ↗</a>
-            </article>
-          </div>
+          {filter === "Counterfist Archive" ? (
+            <div className={styles.releaseStrip}>
+              <article>
+                <span>2001</span><strong>Chiral</strong><p>Counterfist</p>
+                <a href="https://music.apple.com/us/artist/counterfist/449060552" target="_blank" rel="noreferrer">Listen ↗</a>
+              </article>
+              <article>
+                <span>2008</span><strong>Vertical Mile</strong><p>Counterfist</p>
+                <a href="https://open.spotify.com/album/4NtQ8p7GN8aZH0JjkFqh4f" target="_blank" rel="noreferrer">Listen ↗</a>
+              </article>
+              <article>
+                <span>2011</span><strong>Give Up the Ghost</strong><p>Counterfist EP</p>
+                <a href="https://music.apple.com/us/album/give-up-the-ghost-ep/1063852643" target="_blank" rel="noreferrer">Listen ↗</a>
+              </article>
+            </div>
+          ) : (
+            <div className={styles.trackGrid}>
+              {visibleTracks.map((track, visibleIndex) => {
+                const index = tracks.findIndex(item => item.id === track.id);
+                const selected = index === activeTrack;
+                const tag = filter !== "all"
+                  ? (filter === "From the Setlist" ? "SETLIST" : "CROW")
+                  : track.seasons
+                      .filter(season => season !== "Counterfist Archive")
+                      .map(season => season === "From the Setlist" ? "SETLIST" : "CROW")
+                      .join(" / ");
+                return (
+                  <button key={track.id} className={selected ? styles.trackActive : styles.track} onClick={() => selectTrack(track)}>
+                    <span className={styles.trackIndex}>{String(visibleIndex + 1).padStart(2, "0")}</span>
+                    <span className={styles.trackTitle}>{track.title}</span>
+                    <span className={styles.trackEra}>{tag}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         <section id="shows" className={styles.showSection}>
@@ -289,7 +365,7 @@ export default function SiteShell({
           <div className={styles.bookingIntro}>
             <p className={styles.kicker}>BOOKING</p>
             <h2>Put a date on the calendar.</h2>
-            <p>Bars, wineries, weddings, corporate events, private parties, listening rooms, or something that does not fit neatly into a category. Solo acoustic can stay stripped down or expand with looping and drum machines for a fuller-band feel.</p>
+            <p>{siteContent.bookingIntro}</p>
           </div>
 
           <form className={styles.bookingForm} onSubmit={submitBooking}>
@@ -316,15 +392,15 @@ export default function SiteShell({
               <p className={styles.kicker}>THE STORY SO FAR</p>
               <h2>Three currents, still moving</h2>
             </div>
-            <p>Counterfist, the acoustic set, and A Taste For Crow have never behaved like tidy chapters. They overlap, disappear, return, and keep feeding the same instinct: follow the song wherever it wants to go.</p>
+            <p>{siteContent.storyIntro}</p>
           </div>
 
           <div className={styles.chapterGrid}>
             <article className={styles.chapter}>
               <span className={styles.chapterNo}>01</span>
               <p className={styles.chapterLabel}>COUNTERFIST</p>
-              <h3>1999–2012, roughly</h3>
-              <p>Counterfist was the most explosive version of it: loud, physical, progressive/alternative rock built for clubs, volume, and a full band moving at once. George fronted the band through <em>Chiral</em>, <em>Vertical Mile</em>, and the <em>Give Up the Ghost</em> EP, with Seattle shows including The Showbox, Neumos, and El Corazón.</p>
+              <h3>{siteContent.counterfistHeading}</h3>
+              <p>{siteContent.counterfistBody}</p>
               <div className={styles.textLinks}>
                 <a href="https://music.apple.com/us/artist/counterfist/449060552" target="_blank" rel="noreferrer">Apple Music ↗</a>
                 <a href="https://open.spotify.com/artist/0v55V86JsnB0FjvSlfkHzW" target="_blank" rel="noreferrer">Spotify ↗</a>
@@ -334,16 +410,16 @@ export default function SiteShell({
             <article className={styles.chapter}>
               <span className={styles.chapterNo}>02</span>
               <p className={styles.chapterLabel}>FROM THE SETLIST</p>
-              <h3>2000–present</h3>
-              <p>Running alongside the band years and continuing today: bars, wineries, wedding receptions, corporate rooms, and private events. Acoustic guitar, looping, and drum machines let one performer build the weight and movement of a full band without losing the intimacy of a solo set.</p>
+              <h3>{siteContent.setlistHeading}</h3>
+              <p>{siteContent.setlistBody}</p>
               <a className={styles.inlineCta} href="#music">Hear the recordings →</a>
             </article>
 
             <article className={styles.chapter}>
               <span className={styles.chapterNo}>03</span>
               <p className={styles.chapterLabel}>A TASTE FOR CROW</p>
-              <h3>The words came back</h3>
-              <p><em>A Taste For Crow</em> began with one lonely songwriting session just after George got married, then went quiet lyrically for more than eleven years. After the marriage ended, the pain opened something again. Old instrumentals started finding new words and new lives. For George, writing is discovery more than assignment: the feeling arrives, the words follow, and once it starts there is very little choice but to let the song come through.</p>
+              <h3>{siteContent.crowHeading}</h3>
+              <p>{siteContent.crowBody}</p>
               <a className={styles.inlineCta} href="#shows">See upcoming dates →</a>
             </article>
           </div>
@@ -362,29 +438,31 @@ export default function SiteShell({
         </footer>
       </main>
 
-      <div className={styles.player} aria-label="Music player">
-        <div className={styles.playerIdentity}>
-          <span className={styles.playerMark}>GG</span>
-          <div><strong>{current?.title || "Select a track"}</strong><small>{current?.seasons.join(" · ") || "George Grissom"}</small></div>
-        </div>
+      {filter !== "Counterfist Archive" && current && visibleTracks.length > 0 && (
+        <div className={styles.player} aria-label="Music player">
+          <div className={styles.playerIdentity}>
+            <span className={styles.playerMark}>GG</span>
+            <div><strong>{current.title}</strong><small>{filter === "all" ? current.seasons.filter(season => season !== "Counterfist Archive").join(" · ") : filter}</small></div>
+          </div>
 
-        <div className={styles.controls}>
-          <button onClick={previousTrack} aria-label="Previous track">‹</button>
-          <button className={styles.playButton} onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>{playing ? "Ⅱ" : "▶"}</button>
-          <button onClick={nextTrack} aria-label="Next track">›</button>
-        </div>
+          <div className={styles.controls}>
+            <button onClick={previousTrack} aria-label="Previous visible track">‹</button>
+            <button className={styles.playButton} onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>{playing ? "Ⅱ" : "▶"}</button>
+            <button onClick={nextTrack} aria-label="Next visible track">›</button>
+          </div>
 
-        <div className={styles.wave} onClick={event => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          seek(((event.clientX - rect.left) / rect.width) * 100);
-        }}>
-          {wave.map((height, index) => (
-            <i key={index} style={{ height: `${height}%` }} className={(index / wave.length) * 100 <= progress ? styles.wavePlayed : ""} />
-          ))}
-        </div>
+          <div className={styles.wave} onClick={event => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            seek(((event.clientX - rect.left) / rect.width) * 100);
+          }}>
+            {wave.map((height, index) => (
+              <i key={index} style={{ height: `${height}%` }} className={(index / wave.length) * 100 <= progress ? styles.wavePlayed : ""} />
+            ))}
+          </div>
 
-        <div className={styles.time}><span>{elapsed}</span><b>/</b><span>{duration}</span></div>
-      </div>
+          <div className={styles.time}><span>{elapsed}</span><b>/</b><span>{duration}</span></div>
+        </div>
+      )}
     </div>
   );
 }
