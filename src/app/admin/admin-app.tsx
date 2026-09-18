@@ -595,6 +595,7 @@ function SongTableRow({
 }) {
   const [setlistName, setSetlistName] = useState("");
   const [seasons, setSeasons] = useState<PublicPlayerSeason[]>(configuredPlayerSeasons(song));
+  const [audioUrl, setAudioUrl] = useState(String(song.audioUrl || ""));
   const [hostedFileName, setHostedFileName] = useState(String(song.sourceLinks?.hostedFileName || ""));
   const [liveOnPlayer, setLiveOnPlayer] = useState(Boolean(song.publicShortlist));
 
@@ -620,6 +621,7 @@ function SongTableRow({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: song.id,
+        audioUrl: audioUrl.trim() || null,
         album: seasons.includes("A Taste For Crow") ? "A Taste For Crow" : seasons[0] || "Unsorted",
         publicShortlist: liveOnPlayer,
         isPublic: true,
@@ -687,9 +689,17 @@ function PlayerManager({
     ].filter(Boolean) as PublicPlayerSeason[];
 
     const hostedFileName = String(formData.get("hostedFileName") || "").trim();
+    const audioUrl = String(formData.get("audioUrl") || "").trim();
+
+    if (!audioUrl && !hostedFileName) {
+      setToast("Enter the full MP3 URL or the hosted MP3 filename.");
+      return;
+    }
+
     const body = {
       title: String(formData.get("title") || "").trim(),
       artist: String(formData.get("artist") || "George Grissom").trim(),
+      audioUrl: audioUrl || null,
       album: seasons.includes("A Taste For Crow") ? "A Taste For Crow" : seasons[0] || "Unsorted",
       isPublic: true,
       publicShortlist: formData.get("liveOnPlayer") === "on",
@@ -779,7 +789,8 @@ function PlayerManager({
         <h3>Add a player song</h3>
         <input name="title" placeholder="Song title" required />
         <input name="artist" placeholder="Artist" defaultValue="George Grissom" />
-        <input name="hostedFileName" placeholder="MP3 filename in /public_html/mp3" required />
+        <input name="audioUrl" type="url" placeholder="Full MP3 URL — recommended" />
+        <input name="hostedFileName" placeholder="Or MP3 filename in /mp3" />
         <fieldset>
           <legend>Playlist</legend>
           <label><input name="seasonSetlist" type="checkbox" defaultChecked /> From the Setlist</label>
@@ -872,12 +883,12 @@ function PlayerSongEditor({
         <span className="muted">{song.artist || "George Grissom"}</span>
       </td>
       <td>
-        {hostedFileName ? (
-          <><code>{hostedFileName}</code><br /><span className="muted">Namecheap /mp3</span></>
+        {audioUrl ? (
+          <><code>{audioUrl}</code><br /><span className="muted">Full MP3 URL — preferred source</span></>
+        ) : hostedFileName ? (
+          <><code>{`https://assets.georgegrissom.com/mp3/${encodeURIComponent(hostedFileName)}`}</code><br /><span className="muted">Hosted MP3 path</span></>
         ) : driveFileId ? (
           <><code>{driveFileId}</code><br /><span className="muted">Google Drive MP3 fallback</span></>
-        ) : song.audioUrl ? (
-          <><code>{song.audioUrl}</code><br /><span className="muted">Direct audio URL</span></>
         ) : (
           <span className="muted">No MP3 source assigned</span>
         )}
@@ -902,9 +913,15 @@ function PlayerSongEditor({
             /> A Taste For Crow
           </label>
           <input
+            type="url"
+            value={audioUrl}
+            onChange={event => setAudioUrl(event.target.value)}
+            placeholder="Full MP3 URL — overrides filename / Drive"
+          />
+          <input
             value={hostedFileName}
             onChange={event => setHostedFileName(event.target.value)}
-            placeholder="MP3 filename"
+            placeholder="MP3 filename fallback"
           />
           <label>
             <input
