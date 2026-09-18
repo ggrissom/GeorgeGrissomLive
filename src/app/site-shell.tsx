@@ -292,15 +292,54 @@ export default function SiteShell({
             <div className={styles.releaseStrip}>
               <article>
                 <span>2001</span><strong>Chiral</strong><p>Counterfist</p>
-                <a href="https://music.apple.com/us/artist/counterfist/449060552" target="_blank" rel="noreferrer">Listen ↗</a>
+                <div className={styles.serviceLinks} aria-label="Listen to Chiral">
+                  <a className={styles.serviceLink} href="https://music.apple.com/us/album/chiral/156372683" target="_blank" rel="noreferrer" aria-label="Chiral on Apple Music">
+                    <img src="https://cdn.simpleicons.org/applemusic/101726" alt="" aria-hidden="true" />
+                    <em>Apple Music</em>
+                  </a>
+                  <a className={styles.serviceLink} href="https://music.amazon.com/albums/B0014MZOOA" target="_blank" rel="noreferrer" aria-label="Chiral on Amazon Music">
+                    <img src="https://cdn.simpleicons.org/amazonmusic/101726" alt="" aria-hidden="true" />
+                    <em>Amazon Music</em>
+                  </a>
+                  <a className={styles.serviceLink} href="https://open.spotify.com/album/0uIyAu42KZ8s4tAOd3tJTw" target="_blank" rel="noreferrer" aria-label="Chiral on Spotify">
+                    <img src="https://cdn.simpleicons.org/spotify/101726" alt="" aria-hidden="true" />
+                    <em>Spotify</em>
+                  </a>
+                </div>
               </article>
               <article>
                 <span>2008</span><strong>Vertical Mile</strong><p>Counterfist</p>
-                <a href="https://open.spotify.com/album/4NtQ8p7GN8aZH0JjkFqh4f" target="_blank" rel="noreferrer">Listen ↗</a>
+                <div className={styles.serviceLinks} aria-label="Listen to Vertical Mile">
+                  <a className={styles.serviceLink} href="https://music.apple.com/us/album/vertical-mile/281859479" target="_blank" rel="noreferrer" aria-label="Vertical Mile on Apple Music">
+                    <img src="https://cdn.simpleicons.org/applemusic/101726" alt="" aria-hidden="true" />
+                    <em>Apple Music</em>
+                  </a>
+                  <a className={styles.serviceLink} href="https://music.amazon.com/albums/B001B85JV0" target="_blank" rel="noreferrer" aria-label="Vertical Mile on Amazon Music">
+                    <img src="https://cdn.simpleicons.org/amazonmusic/101726" alt="" aria-hidden="true" />
+                    <em>Amazon Music</em>
+                  </a>
+                  <a className={styles.serviceLink} href="https://open.spotify.com/album/4NtQ8p7GN8aZH0JjkFqh4f" target="_blank" rel="noreferrer" aria-label="Vertical Mile on Spotify">
+                    <img src="https://cdn.simpleicons.org/spotify/101726" alt="" aria-hidden="true" />
+                    <em>Spotify</em>
+                  </a>
+                </div>
               </article>
               <article>
                 <span>2011</span><strong>Give Up the Ghost</strong><p>Counterfist EP</p>
-                <a href="https://music.apple.com/us/album/give-up-the-ghost-ep/1063852643" target="_blank" rel="noreferrer">Listen ↗</a>
+                <div className={styles.serviceLinks} aria-label="Listen to Give Up the Ghost">
+                  <a className={styles.serviceLink} href="https://music.apple.com/us/album/give-up-the-ghost-ep/1063852643" target="_blank" rel="noreferrer" aria-label="Give Up the Ghost on Apple Music">
+                    <img src="https://cdn.simpleicons.org/applemusic/101726" alt="" aria-hidden="true" />
+                    <em>Apple Music</em>
+                  </a>
+                  <a className={styles.serviceLink} href="https://music.amazon.com/albums/B018UFQR58" target="_blank" rel="noreferrer" aria-label="Give Up the Ghost on Amazon Music">
+                    <img src="https://cdn.simpleicons.org/amazonmusic/101726" alt="" aria-hidden="true" />
+                    <em>Amazon Music</em>
+                  </a>
+                  <a className={styles.serviceLink} href="https://open.spotify.com/album/7fIv8iii2eePrvHd3ANECb" target="_blank" rel="noreferrer" aria-label="Give Up the Ghost on Spotify">
+                    <img src="https://cdn.simpleicons.org/spotify/101726" alt="" aria-hidden="true" />
+                    <em>Spotify</em>
+                  </a>
+                </div>
               </article>
             </div>
           ) : (
