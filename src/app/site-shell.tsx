@@ -32,10 +32,13 @@ export default function SiteShell({
   initialEvents: EventRow[];
   tracks: Track[];
 }) {
-  const [activeTrack, setActiveTrack] = useState(0);
+  const [activeTrack, setActiveTrack] = useState(() => {
+    const index = tracks.findIndex(track => track.slug === "what-a-shame");
+    return index >= 0 ? index : 0;
+  });
   const [playing, setPlaying] = useState(false);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | PlayerSeason>("all");
+  const [filter, setFilter] = useState<"all" | PlayerSeason>("From the Setlist");
   const [progress, setProgress] = useState(0);
   const [elapsed, setElapsed] = useState("0:00");
   const [duration, setDuration] = useState("0:00");
@@ -170,10 +173,10 @@ export default function SiteShell({
         <a className={styles.railMark} href="#home" aria-label="George Grissom home">GG</a>
         <nav>
           <a href="#home" title="Home">⌂</a>
-          <a href="#chapters" title="Story">◇</a>
           <a href="#music" title="Music">▤</a>
           <a href="#shows" title="Shows">▦</a>
           <a href="#booking" title="Booking">＋</a>
+          <a href="#story" title="Story">◇</a>
         </nav>
       </aside>
 
@@ -183,7 +186,8 @@ export default function SiteShell({
           <div className={styles.heroContent}>
             <p className={styles.kicker}>SEATTLE · SONGWRITER · PERFORMER</p>
             <h1>George<br />Grissom</h1>
-            <p className={styles.lead}>Three simultaneous seasons: the force of Counterfist, the adaptable live set, and A Taste for Crow—the songs finding their way back.</p>
+            <p className={styles.lead}>One voice, one guitar, loops and rhythm underfoot—an acoustic performance that can stay intimate or grow until it feels like a full band in the room.</p>
+            <p className={styles.heroProof}>Early Counterfist histories called George the “perfect choice” to front the band. Listeners have singled out the voice and the dark, forceful energy around it. Two decades later, that same voice can fill a winery patio, a bar room, a wedding, or a late happy hour without losing the closeness of a solo performance.</p>
             <div className={styles.actions}>
               <a href="#music" className={styles.primary}>Listen Now</a>
               <a href="#shows" className={styles.secondary}>Shows</a>
@@ -192,45 +196,6 @@ export default function SiteShell({
           </div>
           <div className={styles.heroMonogram} aria-hidden="true">
             <span>G</span><span>G</span>
-          </div>
-        </section>
-
-        <section id="chapters" className={styles.section}>
-          <div className={styles.sectionHeading}>
-            <div>
-              <p className={styles.kicker}>THE LONG VERSION, CUT SHORT</p>
-              <h2>Three simultaneous seasons</h2>
-            </div>
-            <p>They overlap, feed each other, and never fit neatly into a timeline. Different rooms, different volume, same instinct to follow the song wherever it goes.</p>
-          </div>
-
-          <div className={styles.chapterGrid}>
-            <article className={styles.chapter}>
-              <span className={styles.chapterNo}>01</span>
-              <p className={styles.chapterLabel}>COUNTERFIST</p>
-              <h3>1999–2012, roughly</h3>
-              <p>Counterfist was the most explosive version of it: loud, physical, progressive/alternative rock built for clubs, volume, and a full band moving at once. George fronted the band through <em>Chiral</em>, <em>Vertical Mile</em>, and the <em>Give Up the Ghost</em> EP, with Seattle shows including The Showbox, Neumos, and El Corazón.</p>
-              <div className={styles.textLinks}>
-                <a href="https://music.apple.com/us/artist/counterfist/449060552" target="_blank" rel="noreferrer">Apple Music ↗</a>
-                <a href="https://open.spotify.com/artist/0v55V86JsnB0FjvSlfkHzW" target="_blank" rel="noreferrer">Spotify ↗</a>
-              </div>
-            </article>
-
-            <article className={styles.chapter}>
-              <span className={styles.chapterNo}>02</span>
-              <p className={styles.chapterLabel}>FROM THE SETLIST</p>
-              <h3>2000–present</h3>
-              <p>Running alongside the band years and continuing today: bars, wineries, wedding receptions, corporate rooms, and private events. Acoustic guitar, looping, and drum machines let one performer build the weight and movement of a full band without losing the intimacy of a solo set.</p>
-              <a className={styles.inlineCta} href="#music">Hear the recordings →</a>
-            </article>
-
-            <article className={styles.chapter}>
-              <span className={styles.chapterNo}>03</span>
-              <p className={styles.chapterLabel}>A TASTE FOR CROW</p>
-              <h3>The words came back</h3>
-              <p><em>A Taste For Crow</em> began with one lonely songwriting session just after George got married, then went quiet lyrically for more than eleven years. After the marriage ended, the pain opened something again. Old instrumentals started finding new words and new lives. For George, writing is discovery more than assignment: the feeling arrives, the words follow, and once it starts there is very little choice but to let the song come through.</p>
-              <a className={styles.inlineCta} href="#shows">See upcoming dates →</a>
-            </article>
           </div>
         </section>
 
@@ -343,6 +308,45 @@ export default function SiteShell({
               <span>{bookingStatus}</span>
             </div>
           </form>
+        </section>
+
+        <section id="story" className={styles.section}>
+          <div className={styles.sectionHeading}>
+            <div>
+              <p className={styles.kicker}>THE STORY SO FAR</p>
+              <h2>Three currents, still moving</h2>
+            </div>
+            <p>Counterfist, the acoustic set, and A Taste For Crow have never behaved like tidy chapters. They overlap, disappear, return, and keep feeding the same instinct: follow the song wherever it wants to go.</p>
+          </div>
+
+          <div className={styles.chapterGrid}>
+            <article className={styles.chapter}>
+              <span className={styles.chapterNo}>01</span>
+              <p className={styles.chapterLabel}>COUNTERFIST</p>
+              <h3>1999–2012, roughly</h3>
+              <p>Counterfist was the most explosive version of it: loud, physical, progressive/alternative rock built for clubs, volume, and a full band moving at once. George fronted the band through <em>Chiral</em>, <em>Vertical Mile</em>, and the <em>Give Up the Ghost</em> EP, with Seattle shows including The Showbox, Neumos, and El Corazón.</p>
+              <div className={styles.textLinks}>
+                <a href="https://music.apple.com/us/artist/counterfist/449060552" target="_blank" rel="noreferrer">Apple Music ↗</a>
+                <a href="https://open.spotify.com/artist/0v55V86JsnB0FjvSlfkHzW" target="_blank" rel="noreferrer">Spotify ↗</a>
+              </div>
+            </article>
+
+            <article className={styles.chapter}>
+              <span className={styles.chapterNo}>02</span>
+              <p className={styles.chapterLabel}>FROM THE SETLIST</p>
+              <h3>2000–present</h3>
+              <p>Running alongside the band years and continuing today: bars, wineries, wedding receptions, corporate rooms, and private events. Acoustic guitar, looping, and drum machines let one performer build the weight and movement of a full band without losing the intimacy of a solo set.</p>
+              <a className={styles.inlineCta} href="#music">Hear the recordings →</a>
+            </article>
+
+            <article className={styles.chapter}>
+              <span className={styles.chapterNo}>03</span>
+              <p className={styles.chapterLabel}>A TASTE FOR CROW</p>
+              <h3>The words came back</h3>
+              <p><em>A Taste For Crow</em> began with one lonely songwriting session just after George got married, then went quiet lyrically for more than eleven years. After the marriage ended, the pain opened something again. Old instrumentals started finding new words and new lives. For George, writing is discovery more than assignment: the feeling arrives, the words follow, and once it starts there is very little choice but to let the song come through.</p>
+              <a className={styles.inlineCta} href="#shows">See upcoming dates →</a>
+            </article>
+          </div>
         </section>
 
         <footer className={styles.footer}>
