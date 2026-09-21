@@ -826,7 +826,7 @@
   pointer-events: none;
   background-image: url("/images/music-background-2400.jpg");
   background-size: cover;
-  background-position: center center;
+  background-position: left center;
   background-repeat: no-repeat;
   opacity: .35;
 }
