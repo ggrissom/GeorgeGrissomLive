@@ -91,8 +91,8 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("data:image/webp;base64,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");
-  background-size: auto 100%;
+  background-image: url("/images/home-background-2400.jpg");
+  background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
   opacity: .35;
@@ -812,17 +812,26 @@
   .site * { scroll-behavior: auto !important; transition: none !important; }
 }
 
-/* MIRRORED DYING-STAR MUSIC BACKGROUND */
+/* RESPONSIVE 2400PX MUSIC BACKGROUND */
 .musicSection {
   background-color: var(--ink-2);
-  background-image: url("/images/dying-star-mirrored-35.webp") !important;
-  /* Keep the dying-star image centered left-to-right while its top and bottom
-     stay locked to the Music section as the section grows with its content. */
-  background-size: auto 100% !important;
-  background-position: center center !important;
-  background-repeat: no-repeat !important;
+  background-image: none !important;
 }
 
-.musicBackdrop {
-  display: none !important;
+.musicSection::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("/images/music-background-2400.jpg");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  opacity: .35;
+}
+
+.musicSection > * {
+  position: relative;
+  z-index: 1;
 }
