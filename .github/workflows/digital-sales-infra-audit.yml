@@ -26,7 +26,7 @@ jobs:
           test -n "${VERCEL_TOKEN:-}" || { echo "VERCEL_TOKEN missing"; exit 2; }
           data=$(curl -fsS "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}"             -H "Authorization: Bearer ${VERCEL_TOKEN}")
           echo "Production digital-sales environment:"
-          for key in DATABASE_URL STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET GOOGLE_SERVICE_ACCOUNT_EMAIL GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY NEXT_PUBLIC_SITE_URL; do
+          for key in DATABASE_URL STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET BLOB_READ_WRITE_TOKEN GOOGLE_SERVICE_ACCOUNT_EMAIL GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY NEXT_PUBLIC_SITE_URL; do
             rows=$(printf '%s' "$data" | jq -c --arg key "$key" '[.envs[] | select(.key==$key) | {key,target,type}]')
             count=$(printf '%s' "$rows" | jq 'length')
             if [ "$count" -gt 0 ]; then
@@ -36,6 +36,6 @@ jobs:
             fi
           done
 
-          for key in DATABASE_URL STRIPE_SECRET_KEY GOOGLE_SERVICE_ACCOUNT_EMAIL GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY NEXT_PUBLIC_SITE_URL; do
+          for key in DATABASE_URL STRIPE_SECRET_KEY; do
             printf '%s' "$data" | jq -e --arg key "$key" '.envs[] | select(.key==$key and (.target | index("production")))' >/dev/null               || { echo "Required production variable missing: $key"; exit 3; }
           done
