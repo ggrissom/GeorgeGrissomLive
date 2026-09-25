@@ -16,4 +16,4 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx tsx --test src/lib/digital-products.test.ts src/lib/digital-checkout.test.ts src/lib/stripe-fulfillment-policy.test.ts
+      - run: npx tsx --test src/lib/digital-products.test.ts src/lib/digital-checkout.test.ts src/lib/stripe-fulfillment-policy.test.ts src/lib/wav-download-policy.test.ts
