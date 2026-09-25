@@ -172,3 +172,42 @@ export async function readAudioFile(source: AudioFileSource, range?: string | nu
   if (source.localPath) return readLocalAudio(source.localPath, range);
   throw new Error("Audio file source is unavailable.");
 }
+
+
+/**
+ * Streams a private Drive file without buffering it in the Vercel Function.
+ * Unlike readAudioFile(), this deliberately has no public-Drive or local-file
+ * fallback: purchased WAV masters must require service-account authorization.
+ */
+export async function streamPrivateDriveAudio(fileId: string, range?: string | null) {
+  if (!isGoogleDriveAudioConfigured()) {
+    throw new Error("Private WAV delivery is not configured.");
+  }
+
+  const { google } = await import("googleapis");
+  const auth = new google.auth.JWT({
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: serviceAccountKey(),
+    scopes: [DRIVE_SCOPE]
+  });
+  const credentials = await auth.authorize();
+  const accessToken = credentials.access_token;
+  if (!accessToken) throw new Error("Google Drive service account did not return an access token.");
+
+  const url = new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`);
+  url.searchParams.set("alt", "media");
+
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(range ? { Range: range } : {})
+    }
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(`Private Google Drive WAV unavailable (${response.status}).`);
+  }
+
+  return response;
+}
