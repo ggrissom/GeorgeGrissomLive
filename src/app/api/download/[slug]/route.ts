@@ -1,19 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getVisitorId } from "@/lib/jukebox-access";
-import { audioAssetForSlug } from "@/lib/audio-catalog";
-import { readAudioFile } from "@/lib/audio-storage";
+import { streamPrivateDriveAudio } from "@/lib/audio-storage";
+import { purchasableTrackForSlug } from "@/lib/digital-products";
+import { wavDownloadHeaders } from "@/lib/wav-download-policy";
 
 export const runtime = "nodejs";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const visitorId = await getVisitorId();
   if (!visitorId) return NextResponse.json({ error: "Purchase required" }, { status: 401 });
 
   const song = await prisma.song.findUnique({ where: { slug } });
-  const asset = audioAssetForSlug(slug);
-  if (!song || !asset) return NextResponse.json({ error: "Song unavailable" }, { status: 404 });
+  const product = purchasableTrackForSlug(slug);
+  if (!song || !product) return NextResponse.json({ error: "Song unavailable" }, { status: 404 });
 
   const purchase = await prisma.songPurchase.findUnique({
     where: { visitorId_songId: { visitorId, songId: song.id } }
@@ -21,22 +22,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   if (!purchase) return NextResponse.json({ error: "Purchase required" }, { status: 403 });
 
   try {
-    const file = await readAudioFile({
-      driveFileId: asset.fullDriveFileId,
-      localPath: asset.fullPath
-    });
+    const upstream = await streamPrivateDriveAudio(
+      product.wavDriveFileId,
+      request.headers.get("range")
+    );
 
-    return new Response(file.body, {
-      headers: {
-        "Content-Type": "audio/mpeg",
-        "Content-Length": String(file.body.length),
-        "Content-Disposition": `attachment; filename="${asset.slug}.mp3"`,
-        "Cache-Control": "private, no-store",
-        "X-Content-Type-Options": "nosniff"
-      }
+    const sourceHeaders = Object.fromEntries(upstream.headers.entries());
+    return new Response(upstream.body, {
+      status: upstream.status === 206 ? 206 : 200,
+      headers: wavDownloadHeaders(product.wavFileName, sourceHeaders)
     });
   } catch (error) {
-    console.error("Purchased MP3 download failed", { slug, error });
+    console.error("Purchased WAV download failed", { slug, error });
     return NextResponse.json({ error: "Download temporarily unavailable" }, { status: 503 });
   }
 }
