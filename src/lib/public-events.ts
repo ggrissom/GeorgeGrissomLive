@@ -22,6 +22,7 @@ export async function localPublicEvents(limit = 50): Promise<PublicCalendarEvent
     startsAt: event.startsAt.toISOString(),
     endsAt: event.endsAt?.toISOString() || null,
     venueName: event.venueName,
+    location: [event.venueName, event.city, event.state].filter(Boolean).join(", "),
     city: event.city,
     state: event.state,
     notes: event.notes,
