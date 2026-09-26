@@ -483,7 +483,7 @@ export default function SiteShell({
                   <span>{new Date(event.startsAt).toLocaleDateString("en-US", { month: "short" }).toUpperCase()}</span>
                 </time>
                 <div className={styles.eventDetails}>
-                  <h3 className={styles.eventTitle}>GEORGE LIVE @</h3>
+                  <h3 className={styles.eventTitle}>{event.title}</h3>
                   <div className={styles.eventVenueBlock}>
                     <strong>{venueFromTitle(event)}</strong>
                     <span>{eventStreetAddress(event)}</span>
