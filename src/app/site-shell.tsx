@@ -327,7 +327,11 @@ export default function SiteShell({
         <a className={styles.railMark} href="#home" aria-label="George Grissom home">GG</a>
         <nav>
           <a href="#home" title="Home">⌂</a>
-          <a href="#music" title="Music">▤</a>
+          <a href="#music" title="Music" aria-label="Music">
+            <svg width="28" height="26" viewBox="0 0 28 26" fill="none" aria-hidden="true" focusable="false">
+              <path d="M2 13C3 13 3 8 5 8S7 18 9 18 11 4 13 4 15 22 17 22 19 8 21 8 23 18 25 18 25 13 26 13" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
           <a href="#shows" title="Shows">▦</a>
           <a href="#booking" title="Booking">＋</a>
           <a href="#story" title="Story">◇</a>
