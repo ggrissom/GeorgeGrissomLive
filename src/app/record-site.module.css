@@ -559,34 +559,9 @@
 
 .eventCard time strong { font-size: 34px; font-weight: 300; }
 .eventCard time span { color: #7f899a; font-size: 11px; letter-spacing: .15em; }
-.eventDetails { min-width: 0; }
-.eventTitle {
-  color: #fff;
-  margin: 0 0 12px;
-  font-weight: 500;
-  font-size: clamp(19px, 2vw, 24px);
-  line-height: 1.18;
-}
-.eventVenueBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  color: var(--accent);
-  font-size: 12px;
-  line-height: 1.35;
-}
-.eventVenueBlock strong {
-  font-size: 11px;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-}
-.eventVenueBlock span { color: var(--accent); }
-.eventMapLink {
-  align-self: flex-start;
-  color: var(--accent) !important;
-  font-size: 12px;
-}
-.eventMapLink:hover { color: #ff7088 !important; text-decoration: underline; }
+.eventCard p { color: var(--accent); margin: 0 0 7px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.eventCard h3 { margin: 0 0 6px; font-weight: 500; font-size: 20px; }
+.eventCard div > span { color: #828da0; font-size: 13px; }
 .eventTime { color: #9aa4b4; font-size: 12px; white-space: nowrap; }
 .emptyEvent { grid-column: 1 / -1; padding: 46px; }
 .emptyEvent span { color: var(--accent); letter-spacing: .2em; font-size: 11px; }

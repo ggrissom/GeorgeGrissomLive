@@ -9,7 +9,6 @@ type EventRow = {
   startsAt: string;
   endsAt?: string | null;
   venueName: string;
-  location?: string | null;
   city?: string | null;
   state?: string | null;
   notes?: string | null;
@@ -38,37 +37,6 @@ type SiteContent = {
 };
 
 const wave = [34,52,44,72,62,38,58,78,46,66,84,54,42,74,91,66,48,70,55,81,63,44,73,88,51,69,39,76,58,83,47,72,93,60,42,67,79,53,70,86,46,61,77,55,89,64,48,74,58,82,45,68,90,57,41,73,85,52,62,76,49,71,87,56];
-
-function venueFromTitle(event: EventRow) {
-  const match = event.title.match(/\s[—–-]\s(.+)$/);
-  return match?.[1]?.trim() || event.venueName;
-}
-
-function eventAddress(event: EventRow) {
-  return event.location?.trim() || [event.venueName, event.city, event.state].filter(Boolean).join(", ");
-}
-
-function eventStreetAddress(event: EventRow) {
-  const parts = eventAddress(event).split(",").map(part => part.trim()).filter(Boolean);
-  return parts.length >= 3 ? parts.slice(0, -2).join(", ") : eventAddress(event);
-}
-
-function eventCityState(event: EventRow) {
-  if (event.city || event.state) return [event.city, event.state].filter(Boolean).join(", ");
-  const parts = eventAddress(event).split(",").map(part => part.trim()).filter(Boolean);
-  return parts.length >= 2 ? parts.slice(-2).join(", ") : "Open map";
-}
-
-function googleMapsUrl(event: EventRow) {
-  const query = [venueFromTitle(event), eventAddress(event)].filter(Boolean).join(", ");
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-}
-
-function openInDeviceMaps(event: EventRow, link: HTMLAnchorElement) {
-  if (!/iPad|iPhone|iPod|Macintosh/i.test(navigator.userAgent)) return;
-  const query = [venueFromTitle(event), eventAddress(event)].filter(Boolean).join(", ");
-  link.href = `https://maps.apple.com/?q=${encodeURIComponent(query)}`;
-}
 
 export default function SiteShell({
   initialEvents,
@@ -327,11 +295,7 @@ export default function SiteShell({
         <a className={styles.railMark} href="#home" aria-label="George Grissom home">GG</a>
         <nav>
           <a href="#home" title="Home">⌂</a>
-          <a href="#music" title="Music" aria-label="Music">
-            <svg width="28" height="26" viewBox="0 0 28 26" fill="none" aria-hidden="true" focusable="false">
-              <path d="M2 13C3 13 3 8 5 8S7 18 9 18 11 4 13 4 15 22 17 22 19 8 21 8 23 18 25 18 25 13 26 13" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </a>
+          <a href="#music" title="Music">▤</a>
           <a href="#shows" title="Shows">▦</a>
           <a href="#booking" title="Booking">＋</a>
           <a href="#story" title="Story">◇</a>
@@ -482,22 +446,10 @@ export default function SiteShell({
                   <strong>{new Date(event.startsAt).toLocaleDateString("en-US", { day: "2-digit" })}</strong>
                   <span>{new Date(event.startsAt).toLocaleDateString("en-US", { month: "short" }).toUpperCase()}</span>
                 </time>
-                <div className={styles.eventDetails}>
-                  <h3 className={styles.eventTitle}>{event.title}</h3>
-                  <div className={styles.eventVenueBlock}>
-                    <strong>{venueFromTitle(event)}</strong>
-                    <span>{eventStreetAddress(event)}</span>
-                    <a
-                      className={styles.eventMapLink}
-                      href={googleMapsUrl(event)}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={click => openInDeviceMaps(event, click.currentTarget)}
-                      aria-label={`Open ${venueFromTitle(event)} in maps`}
-                    >
-                      {eventCityState(event)} ↗
-                    </a>
-                  </div>
+                <div>
+                  <p>{event.title}</p>
+                  <h3>{event.venueName}</h3>
+                  <span>{[event.city, event.state].filter(Boolean).join(", ")}</span>
                 </div>
                 <span className={styles.eventTime}>{new Date(event.startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
               </article>
