@@ -1,0 +1,20 @@
+name: Digital sales tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feat/digital-wav-sales]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsx --test src/lib/digital-products.test.ts src/lib/digital-checkout.test.ts src/lib/stripe-fulfillment-policy.test.ts src/lib/wav-download-policy.test.ts
+      - run: npx tsc --noEmit
