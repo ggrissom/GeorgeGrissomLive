@@ -26,6 +26,13 @@ jobs:
           test -n "$value" && test "$value" != "null"
           echo 'LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF1andJa3RVZ1pwN1cvQ1Q5TXhlTwpzbW5WVFVlQUxuK3hCYjRFbG1tT2gxQ1NGZm00Ty9HNDNGS0dFVXd4OHBISkZNaDZJTkxaOC9ieFJ4aVMvclFUCk5EVHo3TVZIU28zdFZnRFNmdnRjTnN2SlZWQnRVRnRtNWVQSXJOSVZQRzRySWZQMVlnRUV0bjlKNE9UdkNZQ2IKZURoRk9xd01xVGpqWEdnQlF1dHAwNjBLb3ZaNXBOOXYxQXQ0RUoxRmd6YlBVY3VNMDU5WWd0V3NMNWJyL3JoRwpVemkwaStKWFF1VC9qTXBBMWFLcmdZU0pWeUtRV1FMOUNmL2xDbHNHVkJNQVo5Q3RUaUFoUWx3K1RsdlJqTlR2Ckt2eEpkNVNzUUJMR1hKV3lPaW9hdU14OUpZWmJkWDkvT0lMdEc0V2hxNHl0YWMvVm5OU1ovWXBTaU5JazhPRGIKYXdJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==' | base64 -d > public.pem
           printf '%s' "$value" > secret.txt
-          cipher=$(openssl pkeyutl -encrypt -pubin -inkey public.pem -in secret.txt -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 | base64 -w0)
-          rm -f secret.txt
-          echo "BLOB_TOKEN_CIPHERTEXT=$cipher"
+          keyhex=$(openssl rand -hex 32)
+          ivhex=$(openssl rand -hex 16)
+          printf '%s' "$keyhex" | xxd -r -p > aes.key
+          openssl enc -aes-256-cbc -K "$keyhex" -iv "$ivhex" -in secret.txt -out secret.enc
+          keycipher=$(openssl pkeyutl -encrypt -pubin -inkey public.pem -in aes.key -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 | base64 -w0)
+          datacipher=$(base64 -w0 secret.enc)
+          rm -f secret.txt aes.key secret.enc
+          echo "BLOB_KEY_CIPHERTEXT=$keycipher"
+          echo "BLOB_IV_HEX=$ivhex"
+          echo "BLOB_DATA_CIPHERTEXT=$datacipher"
