@@ -1,36 +1,72 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { ensureVisitorId, getVisitorId, setVisitorCookie } from "@/lib/jukebox-access";
-import { audioAssetForSlug } from "@/lib/audio-catalog";
+import { DIGITAL_SALES_LIVE, digitalProductForSku, purchasableTrackForSlug } from "@/lib/digital-products";
 
-function stripePriceFromSourceLinks(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const priceId = (value as Record<string, unknown>).stripePriceId;
-  return typeof priceId === "string" && priceId.startsWith("price_") ? priceId : null;
+function digitalCheckoutResponse(
+  product: NonNullable<ReturnType<typeof digitalProductForSku>>,
+  visitorId: string,
+  existingVisitorId: string | null
+) {
+  if (!product.stripePaymentLinkUrl) {
+    return NextResponse.json({ error: "Digital checkout is not configured" }, { status: 503 });
+  }
+
+  const checkoutUrl = new URL(product.stripePaymentLinkUrl);
+  checkoutUrl.searchParams.set("client_reference_id", visitorId);
+  const response = NextResponse.json({ checkoutUrl: checkoutUrl.toString() });
+  if (!existingVisitorId) setVisitorCookie(response, visitorId);
+  return response;
 }
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const type = String(body.type || "tip");
+  const requestedType = String(body.type || "tip");
+  const requestedSku = typeof body.sku === "string" ? body.sku : "";
   const existingVisitorId = await getVisitorId();
   const visitorId = ensureVisitorId(existingVisitorId);
 
-  let amountCents = Math.max(25, Number(body.amountCents || 25));
-  let label = String(body.label || "George Grissom Live");
-  let metadata: Record<string, string> = { type, visitorId };
-  let stripePriceId: string | null = null;
+  if (requestedSku) {
+    if (!DIGITAL_SALES_LIVE) {
+      return NextResponse.json({ error: "Digital sales are being activated" }, { status: 503 });
+    }
+    const product = digitalProductForSku(requestedSku);
+    if (!product) {
+      return NextResponse.json({ error: "Digital product not found" }, { status: 404 });
+    }
+    if (!product.enabled) {
+      return NextResponse.json(
+        { error: product.disabledReason || "Digital product is not available yet" },
+        { status: 409 }
+      );
+    }
+    if (product.kind === "track") {
+      const song = await prisma.song.findUnique({ where: { slug: product.trackSlug } });
+      if (!song) return NextResponse.json({ error: "Song not found" }, { status: 404 });
+    }
+    return digitalCheckoutResponse(product, visitorId, existingVisitorId);
+  }
 
-  if (type === "song_download") {
+  if (requestedType === "song_download") {
+    if (!DIGITAL_SALES_LIVE) {
+      return NextResponse.json({ error: "Digital sales are being activated" }, { status: 503 });
+    }
     const songId = String(body.songId || "");
     const song = await prisma.song.findUnique({ where: { id: songId } });
-    if (!song) return NextResponse.json({ error: "Song not found" }, { status: 404 });
-    const asset = audioAssetForSlug(song.slug);
-    if (!asset) return NextResponse.json({ error: "Song is not in the active MP3 catalog" }, { status: 404 });
-    amountCents = song.downloadPriceCents || 200;
-    label = `${song.title} — MP3 download`;
-    stripePriceId = stripePriceFromSourceLinks(song.sourceLinks) || asset.stripePriceId || null;
-    metadata = { type, visitorId, songId: song.id, songSlug: song.slug || "" };
+    if (!song?.slug) return NextResponse.json({ error: "Song not found" }, { status: 404 });
+
+    const product = purchasableTrackForSlug(song.slug);
+    if (!product) {
+      return NextResponse.json({ error: "This song is not available as a WAV download" }, { status: 409 });
+    }
+    return digitalCheckoutResponse(product, visitorId, existingVisitorId);
   }
+
+  // Existing non-digital payment path (tips/requests) remains intact.
+  const type = requestedType;
+  const amountCents = Math.max(25, Number(body.amountCents || 25));
+  const label = String(body.label || "George Grissom Live");
+  const metadata: Record<string, string> = { type, visitorId };
 
   if (!process.env.STRIPE_SECRET_KEY) {
     const payment = await prisma.payment.create({
@@ -43,24 +79,19 @@ export async function POST(request: Request) {
 
   const Stripe = (await import("stripe")).default;
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const lineItems = stripePriceId
-    ? [{ price: stripePriceId, quantity: 1 }]
-    : [{
-        price_data: {
-          currency: "usd",
-          product_data: { name: label, metadata },
-          unit_amount: amountCents
-        },
-        quantity: 1
-      }];
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://georgegrissom.com";
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
-    line_items: lineItems,
-    success_url: type === "song_download"
-      ? `${site}/purchase-complete?session_id={CHECKOUT_SESSION_ID}`
-      : `${site}/?paid=1&type=${encodeURIComponent(type)}`,
+    line_items: [{
+      price_data: {
+        currency: "usd",
+        product_data: { name: label, metadata },
+        unit_amount: amountCents
+      },
+      quantity: 1
+    }],
+    success_url: `${site}/?paid=1&type=${encodeURIComponent(type)}`,
     cancel_url: `${site}/?canceled=1`,
     metadata
   });

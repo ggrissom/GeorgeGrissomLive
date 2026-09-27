@@ -22,6 +22,17 @@ type Track = {
   slug?: string | null;
   title: string;
   seasons: PlayerSeason[];
+  purchaseSku?: string | null;
+  purchasePriceCents?: number | null;
+  purchased?: boolean;
+};
+
+type AlbumPreorder = {
+  sku: string;
+  title: string;
+  priceCents: number;
+  enabled: boolean;
+  purchased: boolean;
 };
 
 type SiteContent = {
@@ -42,6 +53,7 @@ const wave = [34,52,44,72,62,38,58,78,46,66,84,54,42,74,91,66,48,70,55,81,63,44,
 export default function SiteShell({
   initialEvents,
   tracks,
+  albumPreorder,
   siteContent,
   defaultTrackId,
   calendarWebcalUrl,
@@ -49,6 +61,7 @@ export default function SiteShell({
 }: {
   initialEvents: EventRow[];
   tracks: Track[];
+  albumPreorder: AlbumPreorder | null;
   siteContent: SiteContent;
   defaultTrackId?: string | null;
   calendarWebcalUrl: string;
@@ -77,6 +90,8 @@ export default function SiteShell({
   const [elapsed, setElapsed] = useState("0:00");
   const [duration, setDuration] = useState("0:00");
   const [bookingStatus, setBookingStatus] = useState("");
+  const [purchaseStatus, setPurchaseStatus] = useState("");
+  const [checkoutSku, setCheckoutSku] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoplayAfterTrackChangeRef = useRef(false);
 
@@ -215,6 +230,35 @@ export default function SiteShell({
     activateAndPlay(index);
   }
 
+  async function startCheckout(sku: string) {
+    setCheckoutSku(sku);
+    setPurchaseStatus("");
+
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sku })
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (response.ok && result.checkoutUrl) {
+        window.location.assign(result.checkoutUrl);
+        return;
+      }
+
+      if (result.demoMode) {
+        setPurchaseStatus("Checkout is not configured yet.");
+      } else {
+        setPurchaseStatus(result.error || "Checkout could not be started.");
+      }
+    } catch {
+      setPurchaseStatus("Checkout could not be started.");
+    } finally {
+      setCheckoutSku(null);
+    }
+  }
+
   function togglePlay() {
     const audio = audioRef.current;
     if (!audio || filter === "Counterfist Archive" || !current) return;
@@ -346,6 +390,35 @@ export default function SiteShell({
             )}
           </div>
 
+          {filter !== "Counterfist Archive" && albumPreorder && (
+            <div className={styles.digitalOffer}>
+              <div>
+                <span>DIGITAL PRE-ORDER</span>
+                <strong>{albumPreorder.title}</strong>
+                <p>Pre-order the finished mastered album for ${(albumPreorder.priceCents / 100).toFixed(0)}. Individual approved songs are available below as full-resolution WAV downloads.</p>
+              </div>
+              {albumPreorder.purchased ? (
+                <span className={styles.preorderConfirmed}>Pre-ordered ✓</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => startCheckout(albumPreorder.sku)}
+                  disabled={!albumPreorder.enabled || checkoutSku === albumPreorder.sku}
+                >
+                  {checkoutSku === albumPreorder.sku
+                    ? "Opening checkout…"
+                    : `Pre-order · ${(albumPreorder.priceCents / 100).toFixed(0)}`}
+                </button>
+              )}
+            </div>
+          )}
+          {purchaseStatus && <p className={styles.purchaseStatus}>{purchaseStatus}</p>}
+          {filter !== "Counterfist Archive" && (
+            <p className={styles.purchaseStatus}>
+              Digital purchases are licensed for personal use. <a href="/terms/digital-music">Digital Music License &amp; Purchase Terms →</a>
+            </p>
+          )}
+
           {filter === "Counterfist Archive" ? (
             <div className={styles.releaseStrip}>
               <article>
@@ -412,11 +485,31 @@ export default function SiteShell({
                       .map(season => season === "From the Setlist" ? "SETLIST" : "CROW")
                       .join(" / ");
                 return (
-                  <button key={track.id} className={selected ? styles.trackActive : styles.track} onClick={() => selectTrack(track)}>
-                    <span className={styles.trackIndex}>{String(visibleIndex + 1).padStart(2, "0")}</span>
-                    <span className={styles.trackTitle}>{track.title}</span>
-                    <span className={styles.trackEra}>{tag}</span>
-                  </button>
+                  <div key={track.id} className={styles.trackPurchaseRow}>
+                    <button className={selected ? styles.trackActive : styles.track} onClick={() => selectTrack(track)}>
+                      <span className={styles.trackIndex}>{String(visibleIndex + 1).padStart(2, "0")}</span>
+                      <span className={styles.trackTitle}>{track.title}</span>
+                      <span className={styles.trackEra}>{tag}</span>
+                    </button>
+                    {track.purchaseSku && track.slug && (
+                      track.purchased ? (
+                        <a className={styles.buyWav} href={`/api/download/${encodeURIComponent(track.slug)}`}>
+                          Download WAV
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          className={styles.buyWav}
+                          onClick={() => startCheckout(track.purchaseSku!)}
+                          disabled={checkoutSku === track.purchaseSku}
+                        >
+                          {checkoutSku === track.purchaseSku
+                            ? "Opening…"
+                            : `Buy WAV · ${((track.purchasePriceCents || 200) / 100).toFixed(0)}`}
+                        </button>
+                      )
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -543,6 +636,7 @@ export default function SiteShell({
             <a href="#music">Music</a>
             <a href="#shows">Shows</a>
             <a href="#booking">Booking</a>
+            <a href="/terms/digital-music">Digital License</a>
             <a href="/admin/login">Admin</a>
           </div>
           <small>© {new Date().getFullYear()} George Grissom</small>
