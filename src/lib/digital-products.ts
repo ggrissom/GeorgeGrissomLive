@@ -12,6 +12,7 @@ export type DigitalProduct = {
   deliveryFormat: "wav" | "future";
   trackSlug: string;
   wavDriveFileId: string;
+  wavBlobPathname: string;
   wavFileName: string;
   disabledReason: string;
 };
@@ -29,6 +30,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     deliveryFormat: "wav",
     trackSlug: "one-question",
     wavDriveFileId: "1xkA0JahBpeHgI2OdMM2yOtrP0ZNxoa9G",
+    wavBlobPathname: "paid-audio/one-question.wav",
     wavFileName: "George Grissom - One Question.wav",
     disabledReason: ""
   },
@@ -44,6 +46,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     deliveryFormat: "wav",
     trackSlug: "what-a-shame",
     wavDriveFileId: "1SstUXGr0C78uiavltys6X-c6HdaAHjIi",
+    wavBlobPathname: "paid-audio/what-a-shame.wav",
     wavFileName: "George Grissom - What a Shame.wav",
     disabledReason: ""
   },
@@ -59,6 +62,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     deliveryFormat: "wav",
     trackSlug: "this-song-is-about-you",
     wavDriveFileId: "1vcR2UAbrINKXKx6e_iLDGw5M8V205eAg",
+    wavBlobPathname: "paid-audio/this-song-is-about-you.wav",
     wavFileName: "George Grissom - This Song Is About You.wav",
     disabledReason: ""
   },
@@ -74,6 +78,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     deliveryFormat: "wav",
     trackSlug: "damnit-just-you-hold-on",
     wavDriveFileId: "15agxRsQKtQr34voMnSFcY-NvMxCI1G0c",
+    wavBlobPathname: "paid-audio/damnit-just-you-hold-on.wav",
     wavFileName: "George Grissom - Damnit, Just You Hold On.wav",
     disabledReason: ""
   },
@@ -89,6 +94,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     deliveryFormat: "wav",
     trackSlug: "get-in-loser",
     wavDriveFileId: "1pYUGFF8O5QtQE-yy69BjVRYv-fXnYJdx",
+    wavBlobPathname: "paid-audio/get-in-loser.wav",
     wavFileName: "George Grissom - Get In Loser.wav",
     disabledReason: ""
   },
@@ -104,6 +110,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     deliveryFormat: "wav",
     trackSlug: "and-another-thing-screams",
     wavDriveFileId: "1VoqqTsoTGvb4Jozdj7sU7kjKXe-69qvT",
+    wavBlobPathname: "paid-audio/and-another-thing-screams.wav",
     wavFileName: "George Grissom - And Another Thing.wav",
     disabledReason: ""
   },
@@ -119,6 +126,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     deliveryFormat: "wav",
     trackSlug: "nose-to-the-grindstone",
     wavDriveFileId: "1c4SPN_b9wMeE5PsaMPF7JixefdMRb1oh",
+    wavBlobPathname: "paid-audio/nose-to-the-grindstone.wav",
     wavFileName: "George Grissom - Nose to the Grindstone.wav",
     disabledReason: ""
   }
@@ -138,6 +146,7 @@ export const DIGITAL_PRODUCTS: DigitalProduct[] = [
     deliveryFormat: "future",
     trackSlug: "",
     wavDriveFileId: "",
+    wavBlobPathname: "",
     wavFileName: "",
     disabledReason: ""
   },
@@ -153,6 +162,7 @@ export const DIGITAL_PRODUCTS: DigitalProduct[] = [
     deliveryFormat: "wav",
     trackSlug: "",
     wavDriveFileId: "",
+    wavBlobPathname: "",
     wavFileName: "",
     disabledReason: "Awaiting approved 10-track WAV master list"
   }
