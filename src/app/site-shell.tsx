@@ -413,6 +413,11 @@ export default function SiteShell({
             </div>
           )}
           {purchaseStatus && <p className={styles.purchaseStatus}>{purchaseStatus}</p>}
+          {filter !== "Counterfist Archive" && (
+            <p className={styles.purchaseStatus}>
+              Digital purchases are licensed for personal use. <a href="/terms/digital-music">Digital Music License &amp; Purchase Terms →</a>
+            </p>
+          )}
 
           {filter === "Counterfist Archive" ? (
             <div className={styles.releaseStrip}>
@@ -631,6 +636,7 @@ export default function SiteShell({
             <a href="#music">Music</a>
             <a href="#shows">Shows</a>
             <a href="#booking">Booking</a>
+            <a href="/terms/digital-music">Digital License</a>
             <a href="/admin/login">Admin</a>
           </div>
           <small>© {new Date().getFullYear()} George Grissom</small>
