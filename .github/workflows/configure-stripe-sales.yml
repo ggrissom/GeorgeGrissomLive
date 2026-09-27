@@ -1,0 +1,79 @@
+name: Configure live Stripe fulfillment
+
+on:
+  push:
+    branches: [feat/digital-wav-sales]
+    paths:
+      - ".github/workflows/configure-stripe-sales.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    env:
+      TEAM_ID: team_ANc1kIyqoKsaghBNgpGhMa7D
+      PROJECT_ID: prj_3kCNNEP697PhzwkDybYgsc2v4G72
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      WEBHOOK_URL: https://georgegrissom.com/api/stripe/webhook
+    steps:
+      - name: Configure Stripe webhook and Vercel production environment
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          env_data=$(curl -fsS "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}&decrypt=true" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}")
+          stripe_secret=$(printf '%s' "$env_data" | jq -r '.envs[] | select(.key=="STRIPE_SECRET_KEY") | .value' | head -n1)
+          test -n "$stripe_secret" && test "$stripe_secret" != "null"
+
+          # Remove duplicate webhook endpoints for this exact URL so the new signing
+          # secret is the only one we need to install.
+          hooks=$(curl -fsS "https://api.stripe.com/v1/webhook_endpoints?limit=100" \
+            -u "$stripe_secret:")
+          printf '%s' "$hooks" | jq -r --arg url "$WEBHOOK_URL" '.data[] | select(.url==$url) | .id' | while read -r id; do
+            [ -z "$id" ] || curl -fsS -X DELETE "https://api.stripe.com/v1/webhook_endpoints/$id" \
+              -u "$stripe_secret:" >/dev/null
+          done
+
+          created=$(mktemp)
+          curl -fsS "https://api.stripe.com/v1/webhook_endpoints" \
+            -u "$stripe_secret:" \
+            -d "url=$WEBHOOK_URL" \
+            -d "description=GeorgeGrissom.com digital WAV fulfillment" \
+            -d "enabled_events[]=checkout.session.completed" \
+            -d "enabled_events[]=checkout.session.async_payment_succeeded" > "$created"
+
+          webhook_secret=$(jq -r '.secret' "$created")
+          webhook_id=$(jq -r '.id' "$created")
+          test -n "$webhook_secret" && test "$webhook_secret" != "null"
+
+          current=$(curl -fsS "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}")
+
+          existing_id=$(printf '%s' "$current" | jq -r '.envs[] | select(.key=="STRIPE_WEBHOOK_SECRET") | .id' | head -n1)
+          if [ -n "$existing_id" ] && [ "$existing_id" != "null" ]; then
+            curl -fsS -X DELETE "https://api.vercel.com/v9/projects/${PROJECT_ID}/env/$existing_id?teamId=${TEAM_ID}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" >/dev/null
+          fi
+
+          payload=$(mktemp)
+          jq -nc --arg value "$webhook_secret" \
+            '[{key:"STRIPE_WEBHOOK_SECRET",value:$value,type:"sensitive",target:["production","preview","development"],comment:"Stripe signature secret for digital sales fulfillment"}]' > "$payload"
+          curl -fsS -X POST "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data-binary @"$payload" >/dev/null
+
+          if ! printf '%s' "$current" | jq -e '.envs[] | select(.key=="NEXT_PUBLIC_SITE_URL")' >/dev/null; then
+            jq -nc '[{key:"NEXT_PUBLIC_SITE_URL",value:"https://georgegrissom.com",type:"plain",target:["production","preview","development"],comment:"Canonical public site URL"}]' > "$payload"
+            curl -fsS -X POST "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data-binary @"$payload" >/dev/null
+          fi
+
+          rm -f "$created" "$payload"
+          echo "Stripe fulfillment configured."
+          echo "WEBHOOK_ID=$webhook_id"
