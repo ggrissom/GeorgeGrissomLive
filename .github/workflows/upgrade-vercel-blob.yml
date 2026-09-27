@@ -1,0 +1,36 @@
+name: Upgrade Vercel Blob SDK
+
+on:
+  push:
+    branches: [feat/digital-wav-sales]
+    paths:
+      - ".github/workflows/upgrade-vercel-blob.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/digital-wav-sales
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Upgrade @vercel/blob
+        run: npm install @vercel/blob@latest --save
+      - name: Commit lockfile update
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "Blob SDK already current."
+            exit 0
+          fi
+          git add package.json package-lock.json
+          git commit -m "Upgrade Vercel Blob SDK for private paid audio"
+          git push origin HEAD:feat/digital-wav-sales
