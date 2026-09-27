@@ -6,7 +6,7 @@ import { normalizePlayerSeasons } from "@/lib/public-track-catalog";
 import { publicEventsFromPerformanceCalendar } from "@/lib/public-events";
 import { PERFORMANCE_CALENDAR_ID, publicPerformanceCalendarIcalUrl } from "@/lib/google-calendar";
 import { getSiteContent } from "@/lib/site-content";
-import { digitalProductForSku, purchasableTrackForSlug } from "@/lib/digital-products";
+import { DIGITAL_SALES_LIVE, digitalProductForSku, purchasableTrackForSlug } from "@/lib/digital-products";
 import { getVisitorId } from "@/lib/jukebox-access";
 import SiteShell from "./site-shell";
 
@@ -47,7 +47,7 @@ export default async function Home() {
   const purchasedSongIds = new Set(songPurchases.map(purchase => purchase.songId));
   const tracks = songs.map(song => {
     const links = sourceLinksObject(song.sourceLinks);
-    const product = purchasableTrackForSlug(song.slug);
+    const product = DIGITAL_SALES_LIVE ? purchasableTrackForSlug(song.slug) : null;
     return {
       id: song.id,
       slug: song.slug,
@@ -69,7 +69,7 @@ export default async function Home() {
         sku: albumProduct.sku,
         title: albumProduct.title,
         priceCents: albumProduct.priceCents,
-        enabled: albumProduct.enabled,
+        enabled: DIGITAL_SALES_LIVE && albumProduct.enabled,
         purchased: albumPreorderPurchased
       }
     : null;
