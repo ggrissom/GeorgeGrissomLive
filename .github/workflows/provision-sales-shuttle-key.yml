@@ -1,0 +1,42 @@
+name: Provision sales shuttle key
+
+on:
+  push:
+    branches: [feat/digital-wav-sales]
+    paths:
+      - ".github/workflows/provision-sales-shuttle-key.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    env:
+      TEAM_ID: team_ANc1kIyqoKsaghBNgpGhMa7D
+      PROJECT_ID: prj_3kCNNEP697PhzwkDybYgsc2v4G72
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      ENV_KEY: SALES_SHUTTLE_PRIVATE_KEY_20260927
+    steps:
+      - name: Generate one-time RSA key and store private key in Vercel
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem >/dev/null 2>&1
+          openssl pkey -in private.pem -pubout -out public.pem
+
+          current=$(curl -fsS "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" -H "Authorization: Bearer ${VERCEL_TOKEN}")
+          existing_id=$(printf '%s' "$current" | jq -r --arg key "$ENV_KEY" '.envs[] | select(.key==$key) | .id' | head -n1)
+          if [ -n "$existing_id" ] && [ "$existing_id" != "null" ]; then
+            curl -fsS -X DELETE "https://api.vercel.com/v9/projects/${PROJECT_ID}/env/$existing_id?teamId=${TEAM_ID}" -H "Authorization: Bearer ${VERCEL_TOKEN}" >/dev/null
+          fi
+
+          private_value=$(cat private.pem)
+          payload=$(jq -nc --arg key "$ENV_KEY" --arg value "$private_value" '[{key:$key,value:$value,type:"sensitive",target:["production","preview","development"],comment:"One-time encrypted sales setup shuttle; delete after setup"}]')
+          curl -fsS -X POST "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "$payload" >/dev/null
+
+          echo "SALES_SHUTTLE_PUBLIC_KEY_B64=$(base64 -w0 public.pem)"
+          rm -f private.pem public.pem
