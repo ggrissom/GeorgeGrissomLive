@@ -11,6 +11,7 @@ type CalendarEventInput = {
 };
 
 export type PublicCalendarEvent = {
+  location?: string | null;
   id: string;
   title: string;
   startsAt: string;
@@ -196,6 +197,7 @@ export async function listGooglePerformanceEvents(maxResults = 50): Promise<Publ
         startsAt,
         endsAt,
         venueName: location.venueName,
+        location: item.location || null,
         city: location.city,
         state: location.state,
         notes: item.description || null,
@@ -370,6 +372,7 @@ export async function listPublicIcalPerformanceEvents(maxResults = 50): Promise<
       startsAt,
       endsAt,
       venueName: location.venueName,
+      location: locationText || null,
       city: location.city,
       state: location.state,
       notes: description || null,

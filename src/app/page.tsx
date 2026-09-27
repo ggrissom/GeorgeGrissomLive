@@ -58,9 +58,10 @@ export default async function Home() {
         startsAt: event.startsAt,
         endsAt: event.endsAt || null,
         venueName: event.venueName,
+        location: event.location || null,
         city: event.city,
         state: event.state,
-        notes: event.notes
+        notes: null
       }))}
       siteContent={siteContent}
       tracks={tracks}
