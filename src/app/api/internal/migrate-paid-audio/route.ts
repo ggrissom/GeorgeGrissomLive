@@ -1,8 +1,16 @@
-import { NextResponse } from "next/server";
+import { createHash, timingSafeEqual } from "node:crypto";\nimport { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+const ONE_TIME_TOKEN_HASH = "8611aceb873d7c8d14c02444d8ff5c70c5eada82c901a08d15b63b06e3343d1f";
+
+function authorized(token: string) {
+  const actual = createHash("sha256").update(token).digest();
+  const expected = Buffer.from(ONE_TIME_TOKEN_HASH, "hex");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
 
 function allowedSource(url: URL) {
   return url.protocol === "https:" && (
@@ -14,8 +22,7 @@ function allowedSource(url: URL) {
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const suppliedToken = requestUrl.searchParams.get("token") || "";
-  const expectedToken = process.env.AUDIO_MIGRATION_TOKEN_20260927 || "";
-  if (!expectedToken || suppliedToken !== expectedToken) {
+  if (!authorized(suppliedToken)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
