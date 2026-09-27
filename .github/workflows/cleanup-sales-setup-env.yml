@@ -1,0 +1,33 @@
+name: Cleanup temporary sales setup environment
+
+on:
+  push:
+    branches: [feat/digital-wav-sales]
+    paths:
+      - ".github/workflows/cleanup-sales-setup-env.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    env:
+      TEAM_ID: team_ANc1kIyqoKsaghBNgpGhMa7D
+      PROJECT_ID: prj_3kCNNEP697PhzwkDybYgsc2v4G72
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Remove temporary setup variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          data=$(curl -fsS "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}")
+          for key in AUDIO_MIGRATION_TOKEN_20260927 SALES_SHUTTLE_PRIVATE_KEY_20260927; do
+            printf '%s' "$data" | jq -r --arg key "$key" '.envs[] | select(.key==$key) | .id' | while read -r id; do
+              [ -z "$id" ] || curl -fsS -X DELETE \
+                "https://api.vercel.com/v9/projects/${PROJECT_ID}/env/$id?teamId=${TEAM_ID}" \
+                -H "Authorization: Bearer ${VERCEL_TOKEN}" >/dev/null
+            done
+          done
+          echo "Temporary sales setup variables removed."
