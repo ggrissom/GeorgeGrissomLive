@@ -9,6 +9,7 @@ type EventRow = {
   startsAt: string;
   endsAt?: string | null;
   venueName: string;
+  location?: string | null;
   city?: string | null;
   state?: string | null;
   notes?: string | null;
@@ -115,7 +116,7 @@ export default function SiteShell({
 
   const upcoming = useMemo(
     () => initialEvents
-      .filter(event => new Date(event.startsAt).getTime() >= Date.now() - 86400000)
+      .filter(event => new Date(event.endsAt || event.startsAt).getTime() >= Date.now() && !/^(busy|live show)$/i.test(event.title.trim()))
       .sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt))
       .slice(0, 6),
     [initialEvents]
@@ -339,7 +340,7 @@ export default function SiteShell({
         <a className={styles.railMark} href="#home" aria-label="George Grissom home">GG</a>
         <nav>
           <a href="#home" title="Home">⌂</a>
-          <a href="#music" title="Music">▤</a>
+          <a href="#music" title="Music" aria-label="Music"><svg width="28" height="26" viewBox="0 0 28 26" fill="none" aria-hidden="true"><path d="M2 13C3 13 3 8 5 8S7 18 9 18 11 4 13 4 15 22 17 22 19 8 21 8 23 18 25 18 25 13 26 13" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" /></svg></a>
           <a href="#shows" title="Shows">▦</a>
           <a href="#booking" title="Booking">＋</a>
           <a href="#story" title="Story">◇</a>
@@ -531,15 +532,14 @@ export default function SiteShell({
             {upcoming.map(event => (
               <article className={styles.eventCard} key={event.id}>
                 <time>
-                  <strong>{new Date(event.startsAt).toLocaleDateString("en-US", { day: "2-digit" })}</strong>
-                  <span>{new Date(event.startsAt).toLocaleDateString("en-US", { month: "short" }).toUpperCase()}</span>
+                  <strong>{new Date(event.startsAt).toLocaleDateString("en-US", { day: "2-digit", timeZone: "America/Los_Angeles" })}</strong>
+                  <span>{new Date(event.startsAt).toLocaleDateString("en-US", { month: "short", timeZone: "America/Los_Angeles" }).toUpperCase()}</span>
                 </time>
                 <div>
-                  <p>{event.title}</p>
-                  <h3>{event.venueName}</h3>
-                  <span>{[event.city, event.state].filter(Boolean).join(", ")}</span>
+                  <h3>{event.title}</h3>
+                  <span><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location || [event.venueName, event.city, event.state].filter(Boolean).join(", "))}`} target="_blank" rel="noreferrer">{event.location || [event.venueName, event.city, event.state].filter(Boolean).join(", ")} ↗</a></span>
                 </div>
-                <span className={styles.eventTime}>{new Date(event.startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+                <span className={styles.eventTime}>{new Date(event.startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Los_Angeles" })}{event.endsAt && <> – {new Date(event.endsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Los_Angeles" })}</>} PT</span>
               </article>
             ))}
           </div>
