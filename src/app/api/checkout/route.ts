@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { ensureVisitorId, getVisitorId, setVisitorCookie } from "@/lib/jukebox-access";
-import { digitalProductForSku, purchasableTrackForSlug } from "@/lib/digital-products";
+import { DIGITAL_SALES_LIVE, digitalProductForSku, purchasableTrackForSlug } from "@/lib/digital-products";
 
 function digitalCheckoutResponse(
   product: NonNullable<ReturnType<typeof digitalProductForSku>>,
@@ -27,6 +27,9 @@ export async function POST(request: Request) {
   const visitorId = ensureVisitorId(existingVisitorId);
 
   if (requestedSku) {
+    if (!DIGITAL_SALES_LIVE) {
+      return NextResponse.json({ error: "Digital sales are being activated" }, { status: 503 });
+    }
     const product = digitalProductForSku(requestedSku);
     if (!product) {
       return NextResponse.json({ error: "Digital product not found" }, { status: 404 });
@@ -45,6 +48,9 @@ export async function POST(request: Request) {
   }
 
   if (requestedType === "song_download") {
+    if (!DIGITAL_SALES_LIVE) {
+      return NextResponse.json({ error: "Digital sales are being activated" }, { status: 503 });
+    }
     const songId = String(body.songId || "");
     const song = await prisma.song.findUnique({ where: { id: songId } });
     if (!song?.slug) return NextResponse.json({ error: "Song not found" }, { status: 404 });
