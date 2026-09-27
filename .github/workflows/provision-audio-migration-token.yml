@@ -23,31 +23,16 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${VERCEL_TOKEN:-}" || { echo "VERCEL_TOKEN missing"; exit 2; }
-
           token=$(openssl rand -hex 32)
-          payload=$(jq -nc --arg key "$ENV_KEY" --arg value "$token"             '[{key:$key,value:$value,type:"sensitive",target:["production","preview","development"],comment:"Temporary paid-audio migration credential; remove after migration"}]')
-
+          payload=$(jq -nc --arg key "$ENV_KEY" --arg value "$token" '[{key:$key,value:$value,type:"sensitive",target:["production","preview","development"],comment:"Temporary paid-audio migration credential; remove after migration"}]')
           response=$(mktemp)
-          code=$(curl -sS -o "$response" -w "%{http_code}"             -X POST "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}"             -H "Authorization: Bearer ${VERCEL_TOKEN}"             -H "Content-Type: application/json"             --data "$payload")
-
+          code=$(curl -sS -o "$response" -w "%{http_code}" -X POST "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" -H "Authorization: Bearer ${VERCEL_TOKEN}" -H "Content-Type: application/json" --data "$payload")
           if [ "$code" != "200" ] && [ "$code" != "201" ]; then
             echo "Environment provisioning failed with HTTP $code"
             jq '{error: (.error.code // .error.message // .message // "unknown")}' "$response" || true
             exit 3
           fi
-
-          cat > public.pem <<'PUBKEY'
------BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAk9mX/N8p6YYnU6y80/49
-e9QKqFrcpBr05MggOfCVJ34SbXyNBlYxIJF8v3aMJnlgTvIRuX+F06iAsQ/fSvNU
-oOZp49PFaL8onvlTh+0qIeLYlXIpekSUj95WKCen4nyAkN9KSQ1+TFEwgw7lG4CY
-vuGVXNLQuf0WsCgz+XbB2brPVnqLxpDk/+sggKEk0si5rnDUMWm4RSddPt5/53e5
-f4N+NmY200fK9Hr1LPvldCMLf72rTylBUcS3mMeF8yd8j4F1gp2mXd8YngvVHHDd
-5q43/Ehx7J4HQQhbE2/WRcJwQ1QZl9gJFa17WPSktnHV/F8E7/g7C6p6s23AT494
-QwIDAQAB
------END PUBLIC KEY-----
-PUBKEY
-
-          cipher=$(printf '%s' "$token" | openssl pkeyutl -encrypt -pubin -inkey public.pem             -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 | base64 -w0)
+          echo 'LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFrOW1YL044cDZZWW5VNnk4MC80OQplOVFLcUZyY3BCcjA1TWdnT2ZDVkozNFNiWHlOQmxZeElKRjh2M2FNSm5sZ1R2SVJ1WCtGMDZpQXNRL2ZTdk5VCm9PWnA0OVBGYUw4b252bFRoKzBxSWVMWWxYSXBla1NVajk1V0tDZW40bnlBa045S1NRMStURkV3Z3c3bEc0Q1kKdnVHVlhOTFF1ZjBXc0NneitYYkIyYnJQVm5xTHhwRGsvK3NnZ0tFazBzaTVybkRVTVdtNFJTZGRQdDUvNTNlNQpmNE4rTm1ZMjAwZks5SHIxTFB2bGRDTUxmNzJyVHlsQlVjUzNtTWVGOHlkOGo0RjFncDJtWGQ4WW5ndlZISERkCjVxNDMvRWh4N0o0SFFRaGJFMi9XUmNKd1ExUVpsOWdKRmExN1dQU2t0bkhWL0Y4RTcvZzdDNnA2czIzQVQ0OTQKUXdJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==' | base64 -d > public.pem
+          cipher=$(printf '%s' "$token" | openssl pkeyutl -encrypt -pubin -inkey public.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 | base64 -w0)
           echo "Migration token created in Vercel."
           echo "MIGRATION_TOKEN_CIPHERTEXT=$cipher"
