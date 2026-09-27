@@ -1,0 +1,53 @@
+name: Provision temporary audio migration token
+
+on:
+  push:
+    branches: [feat/digital-wav-sales]
+    paths:
+      - ".github/workflows/provision-audio-migration-token.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  token:
+    runs-on: ubuntu-latest
+    env:
+      TEAM_ID: team_ANc1kIyqoKsaghBNgpGhMa7D
+      PROJECT_ID: prj_3kCNNEP697PhzwkDybYgsc2v4G72
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      ENV_KEY: AUDIO_MIGRATION_TOKEN_20260927
+    steps:
+      - name: Create short-lived migration credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VERCEL_TOKEN:-}" || { echo "VERCEL_TOKEN missing"; exit 2; }
+
+          token=$(openssl rand -hex 32)
+          payload=$(jq -nc --arg key "$ENV_KEY" --arg value "$token"             '[{key:$key,value:$value,type:"sensitive",target:["production","preview","development"],comment:"Temporary paid-audio migration credential; remove after migration"}]')
+
+          response=$(mktemp)
+          code=$(curl -sS -o "$response" -w "%{http_code}"             -X POST "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}"             -H "Authorization: Bearer ${VERCEL_TOKEN}"             -H "Content-Type: application/json"             --data "$payload")
+
+          if [ "$code" != "200" ] && [ "$code" != "201" ]; then
+            echo "Environment provisioning failed with HTTP $code"
+            jq '{error: (.error.code // .error.message // .message // "unknown")}' "$response" || true
+            exit 3
+          fi
+
+          cat > public.pem <<'PUBKEY'
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAk9mX/N8p6YYnU6y80/49
+e9QKqFrcpBr05MggOfCVJ34SbXyNBlYxIJF8v3aMJnlgTvIRuX+F06iAsQ/fSvNU
+oOZp49PFaL8onvlTh+0qIeLYlXIpekSUj95WKCen4nyAkN9KSQ1+TFEwgw7lG4CY
+vuGVXNLQuf0WsCgz+XbB2brPVnqLxpDk/+sggKEk0si5rnDUMWm4RSddPt5/53e5
+f4N+NmY200fK9Hr1LPvldCMLf72rTylBUcS3mMeF8yd8j4F1gp2mXd8YngvVHHDd
+5q43/Ehx7J4HQQhbE2/WRcJwQ1QZl9gJFa17WPSktnHV/F8E7/g7C6p6s23AT494
+QwIDAQAB
+-----END PUBLIC KEY-----
+PUBKEY
+
+          cipher=$(printf '%s' "$token" | openssl pkeyutl -encrypt -pubin -inkey public.pem             -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 | base64 -w0)
+          echo "Migration token created in Vercel."
+          echo "MIGRATION_TOKEN_CIPHERTEXT=$cipher"
