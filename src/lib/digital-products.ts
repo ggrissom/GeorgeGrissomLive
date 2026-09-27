@@ -1,5 +1,7 @@
 export type DigitalProductKind = "track" | "preorder" | "collection";
 
+export const DIGITAL_SALES_LIVE = false;
+
 export type DigitalProduct = {
   sku: string;
   kind: DigitalProductKind;
