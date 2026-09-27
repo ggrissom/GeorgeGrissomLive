@@ -32,7 +32,7 @@ jobs:
           fi
 
           private_value=$(cat private.pem)
-          payload=$(jq -nc --arg key "$ENV_KEY" --arg value "$private_value" '[{key:$key,value:$value,type:"sensitive",target:["production","preview","development"],comment:"One-time encrypted sales setup shuttle; delete after setup"}]')
+          payload=$(jq -nc --arg key "$ENV_KEY" --arg value "$private_value" '[{key:$key,value:$value,type:"encrypted",target:["production","preview","development"],comment:"One-time encrypted sales setup shuttle; delete after setup"}]')
           curl -fsS -X POST "https://api.vercel.com/v10/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}" \
             -H "Authorization: Bearer ${VERCEL_TOKEN}" \
             -H "Content-Type: application/json" \
