@@ -6,7 +6,7 @@ export type DigitalProduct = {
   title: string;
   priceCents: number;
   stripeProductId: string;
-  stripePriceId: string;
+  stripePriceId: string;\n  stripePaymentLinkUrl: string;
   enabled: boolean;
   immediateDownload: boolean;
   deliveryFormat: "wav" | "future";
@@ -24,7 +24,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     title: "One Question",
     priceCents: 200,
     stripeProductId: "prod_VKCUnF7fKbfydP",
-    stripePriceId: "price_1UJY55CxVbwtTLOGCng907OW",
+    stripePriceId: "price_1UJY55CxVbwtTLOGCng907OW",\n    stripePaymentLinkUrl: "https://buy.stripe.com/00wdR8cFscc78HC4Rw5ZC02",
     enabled: true,
     immediateDownload: true,
     deliveryFormat: "wav",
@@ -40,7 +40,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     title: "What a Shame",
     priceCents: 200,
     stripeProductId: "prod_VKCT7GayLlQkNF",
-    stripePriceId: "price_1UJY4vCxVbwtTLOGnsS5NbWx",
+    stripePriceId: "price_1UJY4vCxVbwtTLOGnsS5NbWx",\n    stripePaymentLinkUrl: "https://buy.stripe.com/fZueVc0WKekf2je83I5ZC03",
     enabled: true,
     immediateDownload: true,
     deliveryFormat: "wav",
@@ -56,7 +56,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     title: "This Song Is About You",
     priceCents: 200,
     stripeProductId: "prod_VKCUeBj0RxGrMG",
-    stripePriceId: "price_1UJY57CxVbwtTLOG5Yhbu1XJ",
+    stripePriceId: "price_1UJY57CxVbwtTLOG5Yhbu1XJ",\n    stripePaymentLinkUrl: "https://buy.stripe.com/8x2dR848Wa3Zga46ZE5ZC04",
     enabled: true,
     immediateDownload: true,
     deliveryFormat: "wav",
@@ -72,7 +72,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     title: "Damnit, Just You Hold On",
     priceCents: 200,
     stripeProductId: "prod_VKCU1pO4kplwGC",
-    stripePriceId: "price_1UJY59CxVbwtTLOGsG8RNipa",
+    stripePriceId: "price_1UJY59CxVbwtTLOGsG8RNipa",\n    stripePaymentLinkUrl: "https://buy.stripe.com/eVq14mbBocc7cXS6ZE5ZC05",
     enabled: true,
     immediateDownload: true,
     deliveryFormat: "wav",
@@ -88,7 +88,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     title: "Get In Loser",
     priceCents: 200,
     stripeProductId: "prod_VKCUEpylyIAFva",
-    stripePriceId: "price_1UJY5ACxVbwtTLOGOQekJQfB",
+    stripePriceId: "price_1UJY5ACxVbwtTLOGOQekJQfB",\n    stripePaymentLinkUrl: "https://buy.stripe.com/dRm28qcFs1xt1fa0Bg5ZC06",
     enabled: true,
     immediateDownload: true,
     deliveryFormat: "wav",
@@ -104,7 +104,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     title: "And Another Thing",
     priceCents: 200,
     stripeProductId: "prod_VKCUfQeTnTeHoF",
-    stripePriceId: "price_1UJY5CCxVbwtTLOGCQ4jvIZu",
+    stripePriceId: "price_1UJY5CCxVbwtTLOGCQ4jvIZu",\n    stripePaymentLinkUrl: "https://buy.stripe.com/5kQfZggVIekf4rmabQ5ZC07",
     enabled: true,
     immediateDownload: true,
     deliveryFormat: "wav",
@@ -120,7 +120,7 @@ const TRACK_PRODUCTS: DigitalProduct[] = [
     title: "Nose to the Grindstone",
     priceCents: 200,
     stripeProductId: "prod_VKCUT0LM0vXkuc",
-    stripePriceId: "price_1UJY5ECxVbwtTLOG0Gd54KSu",
+    stripePriceId: "price_1UJY5ECxVbwtTLOG0Gd54KSu",\n    stripePaymentLinkUrl: "https://buy.stripe.com/6oU6oGaxkekf4rm3Ns5ZC08",
     enabled: true,
     immediateDownload: true,
     deliveryFormat: "wav",
@@ -140,7 +140,7 @@ export const DIGITAL_PRODUCTS: DigitalProduct[] = [
     title: "Digital Album Pre-Order",
     priceCents: 1500,
     stripeProductId: "prod_VF7STpJ0JYNOy4",
-    stripePriceId: "price_1UEdDFCxVbwtTLOGxblb7ZtT",
+    stripePriceId: "price_1UEdDFCxVbwtTLOGxblb7ZtT",\n    stripePaymentLinkUrl: "https://buy.stripe.com/00w4gy8pc2Bx8HC83I5ZC09",
     enabled: true,
     immediateDownload: false,
     deliveryFormat: "future",
@@ -156,7 +156,7 @@ export const DIGITAL_PRODUCTS: DigitalProduct[] = [
     title: "Pre-Recording Collection – All 10 Early Tracks",
     priceCents: 1500,
     stripeProductId: "prod_VF7SlLkhhZDDua",
-    stripePriceId: "price_1UEdDACxVbwtTLOG0cKEmceK",
+    stripePriceId: "price_1UEdDACxVbwtTLOG0cKEmceK",\n    stripePaymentLinkUrl: "",
     enabled: false,
     immediateDownload: true,
     deliveryFormat: "wav",
