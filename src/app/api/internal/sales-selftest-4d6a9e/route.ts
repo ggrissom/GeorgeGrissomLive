@@ -1,12 +1,14 @@
+import { head } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/db";
+import { fulfillCheckoutSession } from "@/lib/stripe-fulfillment";
 import { stripeWebhookSigningSecret } from "@/lib/stripe-webhook-secret";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function GET(request: Request) {
+export async function GET() {
   const stamp = Date.now();
   const visitorId = `sales-selftest-${stamp}`;
   const sessionId = `cs_sales_selftest_${stamp}`;
@@ -47,43 +49,26 @@ export async function GET(request: Request) {
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_selftest");
     const signature = stripe.webhooks.generateTestHeaderString({ payload, secret });
-    const origin = new URL(request.url).origin;
-
-    const webhook = await fetch(`${origin}/api/stripe/webhook`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "stripe-signature": signature
-      },
-      body: payload,
-      cache: "no-store"
-    });
-    const webhookText = await webhook.text();
+    const event = stripe.webhooks.constructEvent(payload, signature, secret);
+    const fulfillment = await fulfillCheckoutSession(event.data.object as any);
 
     const entitlement = await prisma.songPurchase.findUnique({
       where: { visitorId_songId: { visitorId, songId: song.id } }
     });
 
-    const download = await fetch(`${origin}/api/download/${slug}`, {
-      headers: { cookie: `gg_visitor=${encodeURIComponent(visitorId)}` },
-      cache: "no-store"
-    });
-    const downloadStatus = download.status;
-    const contentType = download.headers.get("content-type");
-    const contentDisposition = download.headers.get("content-disposition");
-    if (download.body) await download.body.cancel();
+    const blob = await head("paid-audio/one-question.wav");
 
     await prisma.songPurchase.deleteMany({ where: { stripeSessionId: sessionId } });
     await prisma.payment.deleteMany({ where: { stripeSessionId: sessionId } });
 
     return NextResponse.json({
-      ok: webhook.status === 200 && Boolean(entitlement) && downloadStatus === 200,
-      webhookStatus: webhook.status,
-      webhookResponse: webhookText,
+      ok: event.type === "checkout.session.completed" && fulfillment.fulfilled === true && Boolean(entitlement) && blob.contentType === "audio/wav",
+      signatureVerified: event.type === "checkout.session.completed",
+      fulfillment,
       entitlementCreated: Boolean(entitlement),
-      downloadStatus,
-      contentType,
-      contentDisposition,
+      blobPathname: blob.pathname,
+      blobSize: blob.size,
+      contentType: blob.contentType,
       cleanup: true
     });
   } catch (error) {
