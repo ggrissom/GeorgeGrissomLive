@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     const song = await prisma.song.findUnique({ where: { slug } });
     if (!song) return NextResponse.json({ ok: false, error: "Self-test song missing" });
 
-    const secret = stripeWebhookSigningSecret();
+    const secret = await stripeWebhookSigningSecret();
     if (!secret) return NextResponse.json({ ok: false, error: "Webhook secret unavailable" });
 
     const payload = JSON.stringify({
