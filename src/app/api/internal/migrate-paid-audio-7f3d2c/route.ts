@@ -11,23 +11,23 @@ export async function GET(request: Request) {
   const sourceUrl = url.searchParams.get("src") || "";
   const product = purchasableTrackForSlug(slug);
 
-  if (!product || !product.wavBlobPathname || !sourceUrl) {
-    return NextResponse.json({ ok: false, slug, error: "Missing track or source" });
+  if (!product || !product.wavBlobPathname) {
+    return NextResponse.json({ ok: false, slug, error: "Unknown track" });
   }
 
   try {
-    const source = await fetch(sourceUrl, { cache: "no-store", redirect: "follow" });
-    if (!source.ok || !source.body) {
-      throw new Error(`Source fetch failed (${source.status})`);
-    }
+    if (sourceUrl) {
+      const source = await fetch(sourceUrl, { cache: "no-store", redirect: "follow" });
+      if (!source.ok || !source.body) throw new Error(`Source fetch failed (${source.status})`);
 
-    await put(product.wavBlobPathname, source.body, {
-      access: "private",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      contentType: "audio/wav",
-      multipart: true
-    });
+      await put(product.wavBlobPathname, source.body, {
+        access: "private",
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        contentType: "audio/wav",
+        multipart: true
+      });
+    }
 
     const meta = await head(product.wavBlobPathname);
     return NextResponse.json({
@@ -39,11 +39,11 @@ export async function GET(request: Request) {
       uploadedAt: meta.uploadedAt
     });
   } catch (error) {
-    console.error("Paid WAV migration failed", { slug, error });
+    console.error("Paid WAV migration/verification failed", { slug, error });
     return NextResponse.json({
       ok: false,
       slug,
-      error: error instanceof Error ? error.message : "Migration failed"
+      error: error instanceof Error ? error.message : "Migration/verification failed"
     });
   }
 }
