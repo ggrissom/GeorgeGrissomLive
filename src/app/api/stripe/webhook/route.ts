@@ -6,7 +6,7 @@ import { stripeWebhookSigningSecret } from "@/lib/stripe-webhook-secret";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const secret = stripeWebhookSigningSecret();
+  const secret = await stripeWebhookSigningSecret();
   if (!secret) {
     return NextResponse.json({ error: "Stripe webhook is not configured" }, { status: 503 });
   }
