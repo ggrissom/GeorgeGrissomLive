@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   const product = purchasableTrackForSlug(slug);
 
   if (!product || !product.wavDriveFileId || !product.wavBlobPathname) {
-    return NextResponse.json({ ok: false, error: "Unknown or unavailable track" }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Unknown or unavailable track" });
   }
 
   try {
@@ -37,9 +37,10 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Paid WAV migration failed", { slug, error });
-    return NextResponse.json(
-      { ok: false, slug, error: error instanceof Error ? error.message : "Migration failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      ok: false,
+      slug,
+      error: error instanceof Error ? error.message : "Migration failed"
+    });
   }
 }
