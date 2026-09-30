@@ -1,6 +1,6 @@
 export type DigitalProductKind = "track" | "preorder" | "collection";
 
-export const DIGITAL_SALES_LIVE = false;
+export const DIGITAL_SALES_LIVE = true;
 
 export type DigitalProduct = {
   sku: string;
