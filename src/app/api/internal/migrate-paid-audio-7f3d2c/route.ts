@@ -1,22 +1,25 @@
 import { head, put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { purchasableTrackForSlug } from "@/lib/digital-products";
-import { streamPrivateDriveAudio } from "@/lib/audio-storage";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function GET(request: Request) {
-  const slug = new URL(request.url).searchParams.get("slug") || "";
+  const url = new URL(request.url);
+  const slug = url.searchParams.get("slug") || "";
+  const sourceUrl = url.searchParams.get("src") || "";
   const product = purchasableTrackForSlug(slug);
 
-  if (!product || !product.wavDriveFileId || !product.wavBlobPathname) {
-    return NextResponse.json({ ok: false, error: "Unknown or unavailable track" });
+  if (!product || !product.wavBlobPathname || !sourceUrl) {
+    return NextResponse.json({ ok: false, slug, error: "Missing track or source" });
   }
 
   try {
-    const source = await streamPrivateDriveAudio(product.wavDriveFileId);
-    if (!source.body) throw new Error("Drive returned no body.");
+    const source = await fetch(sourceUrl, { cache: "no-store", redirect: "follow" });
+    if (!source.ok || !source.body) {
+      throw new Error(`Source fetch failed (${source.status})`);
+    }
 
     await put(product.wavBlobPathname, source.body, {
       access: "private",
