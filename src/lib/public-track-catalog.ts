@@ -226,7 +226,8 @@ export const PUBLIC_TRACKS: PublicTrackSeed[] = [
 ];
 
 export function publicTrackForSlug(slug: string) {
-  return PUBLIC_TRACKS.find(track => track.slug === slug) || null;
+  const catalogSlug = slug === "and-another-thing-screams" ? "and-another-thing" : slug;
+  return PUBLIC_TRACKS.find(track => track.slug === catalogSlug) || null;
 }
 
 export function hostedTrackUrl(fileName: string | null | undefined) {

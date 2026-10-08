@@ -93,7 +93,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       publicShortlist: true,
       OR: [
         { id: key },
-        { slug: key }
+        { slug: key },
+        { slug: key === "and-another-thing" ? "and-another-thing-screams" : key }
       ]
     }
   });
