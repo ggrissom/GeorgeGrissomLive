@@ -4,6 +4,7 @@ import { Readable } from "node:stream";
 import { prisma } from "@/lib/db";
 import { hostedTrackUrl, publicTrackForSlug } from "@/lib/public-track-catalog";
 import { isGoogleDriveAudioConfigured, readAudioFile } from "@/lib/audio-storage";
+import { streamPlayerAudio } from "@/lib/player-audio-storage";
 
 export const runtime = "nodejs";
 
@@ -102,6 +103,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   const links = sourceLinksObject(song.sourceLinks);
   const seeded = song.slug ? publicTrackForSlug(song.slug) : null;
 
+
   const hostedFileName =
     (typeof links.hostedFileName === "string" && links.hostedFileName) ||
     seeded?.hostedFileName ||
@@ -130,6 +132,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       }
     } catch {
       // Fall through to hosted filename / Drive sources.
+    }
+  }
+
+  if (seeded?.hostedFileName) {
+    try {
+      return await streamPlayerAudio(seeded.slug, request.headers.get("range"));
+    } catch (error) {
+      console.error("Vercel player audio failed", { slug: seeded.slug, error });
+      return NextResponse.json({ error: "Audio temporarily unavailable" }, { status: 503 });
     }
   }
 
