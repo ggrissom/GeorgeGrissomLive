@@ -1,0 +1,158 @@
+{
+  "migratedAt": "2026-10-08",
+  "storage": "Existing private Vercel Blob store; public playback through visibility-checked player endpoint",
+  "tracks": [
+    {
+      "slug": "one-question",
+      "size": 4763132,
+      "sha256": "cfdde43993bea920f1db4300fe41b5f42891af878e28cd5711ec800a33001867",
+      "pathname": "player-audio/one-question.mp3",
+      "sourceDriveFileId": "1H-_xIAgUhupHqEKsmLZaIhzGScuYZvEt",
+      "sourceFileName": "14 - One Question.mp3"
+    },
+    {
+      "slug": "the-seed",
+      "size": 6789115,
+      "sha256": "fd1e09c83e62d8ea45e634e01defddd553a718fb3d0419b47181de7427f50530",
+      "pathname": "player-audio/the-seed.mp3",
+      "sourceDriveFileId": "1AVbTqVyVbB3aBKEXeILBHiFmhlnraMI_",
+      "sourceFileName": "02 - The Seed.mp3"
+    },
+    {
+      "slug": "white-house-road",
+      "size": 8210771,
+      "sha256": "cfb3575097b213f2158efdd74465d957530d69ed1c78c5f7b7a9501bea4028fd",
+      "pathname": "player-audio/white-house-road.mp3",
+      "sourceDriveFileId": "18mfIBY3-3AlpXXBAzg-gqx8GQz2OyyNl",
+      "sourceFileName": "13 - White House Road.mp3"
+    },
+    {
+      "slug": "what-a-shame",
+      "size": 5542080,
+      "sha256": "b252af3d55cf10d93dd858a5c9731ab5c515be8236795f92754d91d84f67deb5",
+      "pathname": "player-audio/what-a-shame.mp3",
+      "sourceDriveFileId": "1MsTAJhTiNOY647kw8xQt4SXSWkt6t8VZ",
+      "sourceFileName": "04 - What a Shame.mp3"
+    },
+    {
+      "slug": "nose-to-the-grindstone",
+      "size": 7213579,
+      "sha256": "04c8bccf012eeda2ff9db9aba9b9f198e5a6f3d248592c53835eec8e4cd54b0c",
+      "pathname": "player-audio/nose-to-the-grindstone.mp3",
+      "sourceDriveFileId": "1w45FTpvIWkDalQblmsVerW29hM8HZRIX",
+      "sourceFileName": "05 - Nose to the Grindstone.mp3"
+    },
+    {
+      "slug": "who-did-that-to-you",
+      "size": 8264847,
+      "sha256": "ebea8e2461730ad68b9c1c43a605d3b57c1b5fb32df56d94e8f96f4043b14d35",
+      "pathname": "player-audio/who-did-that-to-you.mp3",
+      "sourceDriveFileId": "1LObjAHZo3vbfj0UCPR40VUxHCUM2BCE7",
+      "sourceFileName": "06 - Who did that to you.mp3"
+    },
+    {
+      "slug": "evangelina",
+      "size": 6855662,
+      "sha256": "bf29b19d5d0dea402721f5935705aec220bf00ffcf77842dc70aadc3513ff107",
+      "pathname": "player-audio/evangelina.mp3",
+      "sourceDriveFileId": "1QbB0-e4iL4q7wbVCCktz53OL5ZChU4aF",
+      "sourceFileName": "07 - Evangelina.mp3"
+    },
+    {
+      "slug": "old-macdonald",
+      "size": 5751072,
+      "sha256": "149b0ee6e91f123ffe7415e80e8bb0182e70eca74273596049adbe424921e28a",
+      "pathname": "player-audio/old-macdonald.mp3",
+      "sourceDriveFileId": "1g4YhOx7GZ6_ZvfPPWS3Ibp4j39j1vdWi",
+      "sourceFileName": "11 - Old MacDonald.mp3"
+    },
+    {
+      "slug": "get-in-loser",
+      "size": 10362574,
+      "sha256": "ef7252b3bb9a59370c21f092244e7f70025dc07695e717cd1cb832b71d3a189a",
+      "pathname": "player-audio/get-in-loser.mp3",
+      "sourceDriveFileId": "1DP1dpnKJKgmuV6IGiO5d8mhqKdvt6RU4",
+      "sourceFileName": "01 - Get In Loser.mp3"
+    },
+    {
+      "slug": "and-another-thing",
+      "size": 7655724,
+      "sha256": "39982a97a9b54aa83bfb9c120b11078851e2b1e21366a6a625be8eae23faca31",
+      "pathname": "player-audio/and-another-thing.mp3",
+      "sourceDriveFileId": "18LVCHh7TgvTKn9XOZ2uGq1ZpVZtxzKMJ",
+      "sourceFileName": "02 - ...And another thing.mp3"
+    },
+    {
+      "slug": "need-the-cage",
+      "size": 7118405,
+      "sha256": "7502cba04d1022c01818b869b3ddffad2d490c90b938a7bcb90578701910eb28",
+      "pathname": "player-audio/need-the-cage.mp3",
+      "sourceDriveFileId": "1iqEoD0RhPCCpOR7s7dfqBbMNkWieoSHz",
+      "sourceFileName": "03 - Need the Cage.mp3"
+    },
+    {
+      "slug": "damnit-just-you-hold-on",
+      "size": 6441153,
+      "sha256": "c4a17f0a59e38cfecf5bda9d43539450e267107277ea7bf99122b0150857fe37",
+      "pathname": "player-audio/damnit-just-you-hold-on.mp3",
+      "sourceDriveFileId": "1KfWJwdIfHhNLC7Gjt2MrxwRgMSA0euVu",
+      "sourceFileName": "04 - Damnit, just you hold on.mp3"
+    },
+    {
+      "slug": "lahar",
+      "size": 8548785,
+      "sha256": "fff10948c59156c5914539492ddaf6fcb73819d95425aa5c1341c0955a24e211",
+      "pathname": "player-audio/lahar.mp3",
+      "sourceDriveFileId": "1S6niPQIJvOsQRxMt-cn2DksfYUfs53Jv",
+      "sourceFileName": "05 - Lahar.mp3"
+    },
+    {
+      "slug": "this-song-is-about-you",
+      "size": 8937782,
+      "sha256": "595a97e9c5a65a6249441105bdc1f4bdcff83fd7c62d4749093a5420f081e93b",
+      "pathname": "player-audio/this-song-is-about-you.mp3",
+      "sourceDriveFileId": "1q6NArC6zRsKKlke4s4ZZ92v37ACIUCpj",
+      "sourceFileName": "06 - This song is about you.mp3"
+    },
+    {
+      "slug": "light-under-the-moon",
+      "size": 4875089,
+      "sha256": "7e34c9e8d7e14987e8a25455c3f940a3fce40d4dbb12c743d4ec18e9d6091e25",
+      "pathname": "player-audio/light-under-the-moon.mp3",
+      "sourceDriveFileId": "1SVIB8Ic_tYY8K-wYcsUHHJjpDSBd0HY1",
+      "sourceFileName": "07 - Own Light Under The Moon.mp3"
+    },
+    {
+      "slug": "toyota-4",
+      "size": 5315144,
+      "sha256": "1f9a6856dd2a1f4d27812b338809559917455719287de6adf0f245c9ef133826",
+      "pathname": "player-audio/toyota-4.mp3",
+      "sourceDriveFileId": "1EKZY-OLT1FNdR3P7rzU2y40OrztTA0U6",
+      "sourceFileName": "08 - Introducing, The All New Toyota Get Some.mp3"
+    },
+    {
+      "slug": "grass-before-the-sickle",
+      "size": 7031884,
+      "sha256": "7d620874af19ce60f013daa820cdeaa23dac27971ea502c005070432f775cdd3",
+      "pathname": "player-audio/grass-before-the-sickle.mp3",
+      "sourceDriveFileId": "1sDyJ3BrcALwS6-w6P2iphdPGHaksYsTm",
+      "sourceFileName": "09 - Grass Before the Sickle (ongoing concern).mp3"
+    },
+    {
+      "slug": "medieval",
+      "size": 5127580,
+      "sha256": "39d1bc91a4dcc9da28e7f3bd4793d5e5b777f7ef5aea98578dac13e83e4d2b19",
+      "pathname": "player-audio/medieval.mp3",
+      "sourceDriveFileId": "15CZnOepFvBaCHOtKmcY5eTrNvia98ttr",
+      "sourceFileName": "10 - Medieval.mp3"
+    },
+    {
+      "slug": "dumb-dumb",
+      "size": 4605096,
+      "sha256": "43160d57762648166f2eacf4f5135f25934b31c97ea8c494876ef60a1a055e29",
+      "pathname": "player-audio/dumb-dumb.mp3",
+      "sourceDriveFileId": "1JQ4QL9JqBSO2pU_CJ1V5djZnscf7j__U",
+      "sourceFileName": "12 - Dumb Dumb.mp3"
+    }
+  ]
+}
